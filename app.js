@@ -138,66 +138,137 @@ function setupEventListeners() {
     });
 }
 
-// Fetch CSV Data
+// Fetch Google Sheets Data using JSONP to bypass CORS restrictions
+function fetchGoogleSheetDataJSONP() {
+    return new Promise((resolve, reject) => {
+        const callbackName = "gvizCallback_" + Math.round(Math.random() * 1000000);
+        // Extracts the spreadsheet ID from SPREADSHEET_URL or uses the hardcoded ID
+        const spreadsheetId = "1nlMgeW0ZFmtwwT3hty8JAFT3sM0SNhMpc24mH3In9zI";
+        const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=responseHandler:${callbackName}`;
+        
+        const script = document.createElement('script');
+        script.src = url;
+        script.id = callbackName;
+        
+        // Timeout handling (10 seconds)
+        const timeoutId = setTimeout(() => {
+            cleanup();
+            reject(new Error("Timeout loading Google Sheets data"));
+        }, 10000);
+        
+        function cleanup() {
+            clearTimeout(timeoutId);
+            const el = document.getElementById(callbackName);
+            if (el) el.remove();
+            delete window[callbackName];
+        }
+        
+        window[callbackName] = function(data) {
+            cleanup();
+            resolve(data);
+        };
+        
+        script.onerror = function(err) {
+            cleanup();
+            reject(err);
+        };
+        
+        document.head.appendChild(script);
+    });
+}
+
+// Process data from Google Sheets Visualization API JSON response
+function processGvizData(jsonResponse) {
+    if (!jsonResponse || !jsonResponse.table || !jsonResponse.table.rows) {
+        throw new Error("Invalid format from Google Sheets API");
+    }
+    
+    const rows = jsonResponse.table.rows;
+    benchmarkData = rows.map(row => {
+        if (!row || !row.c || row.c.length < 5) return null;
+        
+        const getVal = (idx) => {
+            const cell = row.c[idx];
+            return cell ? cell.v : null;
+        };
+        
+        const getFormattedVal = (idx) => {
+            const cell = row.c[idx];
+            if (!cell) return null;
+            return cell.f !== undefined ? cell.f : cell.v;
+        };
+        
+        const mainScore = cleanNumber(getVal(8));
+        const cpuSingle = cleanNumber(getVal(9));
+        const cpuMulti = cleanNumber(getVal(10));
+        const gpuScore = cleanNumber(getVal(11));
+        
+        if (mainScore === null && cpuSingle === null && cpuMulti === null && gpuScore === null) {
+            return null;
+        }
+        
+        return {
+            user: getVal(0) || 'Anonymous',
+            cpu: getVal(1) || 'Unknown CPU',
+            ram: getVal(2) || 'N/D',
+            gpu: getVal(3) || 'Unknown GPU',
+            vram: getVal(4) || 'N/D',
+            driver: getVal(5) || 'N/D',
+            kernel: getVal(6) || 'N/D',
+            os: getVal(7) || 'Linux',
+            mainScore: mainScore,
+            cpuSingle: cpuSingle,
+            cpuMulti: cpuMulti,
+            gpuScore: gpuScore,
+            dateTime: getFormattedVal(12) || 'N/D'
+        };
+    }).filter(row => row !== null);
+    
+    if (benchmarkData.length === 0) {
+        throw new Error("No benchmark records found in Google Sheets");
+    }
+    
+    populateOsFilter();
+    filteredData = [...benchmarkData];
+    sortData(currentSort.column, currentSort.direction);
+    renderOverviewStats();
+    renderCharts();
+    renderTable();
+}
+
+// Fetch Google Sheet Data
 async function fetchData() {
     showLoading();
     setSyncStatus('syncing', 'Syncing...');
     
-    // 1. Direct Fetch
     try {
-        const response = await fetch(SPREADSHEET_URL);
-        if (response.ok) {
-            const csvText = await response.text();
-            processCSVData(csvText);
-            setSyncStatus('success', 'Synced (Direct)');
-            return;
-        }
+        const data = await fetchGoogleSheetDataJSONP();
+        processGvizData(data);
+        setSyncStatus('success', 'Synced (Real-time)');
     } catch (e) {
-        console.warn("Direct fetch failed (CORS). Trying corsproxy.io...");
+        console.error("Direct JSONP fetch failed, using fallback static data...", e);
+        processCSVData(FALLBACK_CSV);
+        setSyncStatus('warning', 'Using Fallback Data');
     }
-    
-    // 2. corsproxy.io
-    try {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(SPREADSHEET_URL)}`;
-        const response = await fetch(proxyUrl);
-        if (response.ok) {
-            const csvText = await response.text();
-            processCSVData(csvText);
-            setSyncStatus('success', 'Synced (Proxy)');
-            return;
-        }
-    } catch (e) {
-        console.warn("corsproxy.io failed. Trying AllOrigins...");
-    }
-
-    // 3. allorigins.win
-    try {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(SPREADSHEET_URL)}`;
-        const response = await fetch(proxyUrl);
-        if (response.ok) {
-            const csvText = await response.text();
-            processCSVData(csvText);
-            setSyncStatus('success', 'Synced (AllOrigins)');
-            return;
-        }
-    } catch (e) {
-        console.error("All CORS proxies failed. Using offline fallback.", e);
-    }
-    
-    // Fallback
-    processCSVData(FALLBACK_CSV);
-    setSyncStatus('warning', 'Using Fallback Data');
 }
 
 // Helper to update sync/refresh button visual state
 function setSyncStatus(type, message) {
     const btn = document.getElementById('refresh-btn');
-    const icon = btn.querySelector('i');
+    const oldIcon = btn.querySelector('i, svg');
     const text = btn.querySelector('span');
+    
+    // Recreate a clean <i> tag for Lucide (since Lucide replaces it with an <svg> tag)
+    const icon = document.createElement('i');
+    if (oldIcon) {
+        btn.replaceChild(icon, oldIcon);
+    } else {
+        btn.insertBefore(icon, text);
+    }
     
     // Reset classes
     btn.className = 'btn';
-    icon.className = '';
+    btn.removeAttribute('style'); // reset warning border if set
     
     if (type === 'syncing') {
         btn.classList.add('btn-secondary');
@@ -210,7 +281,13 @@ function setSyncStatus(type, message) {
         text.textContent = message;
         setTimeout(() => {
             text.textContent = 'Sync Data';
-            icon.setAttribute('data-lucide', 'refresh-cw');
+            // Restore refresh icon on timeout
+            const finalIcon = document.createElement('i');
+            finalIcon.setAttribute('data-lucide', 'refresh-cw');
+            const currentIcon = btn.querySelector('i, svg');
+            if (currentIcon) {
+                btn.replaceChild(finalIcon, currentIcon);
+            }
             lucide.createIcons();
         }, 3000);
     } else {
@@ -238,8 +315,9 @@ function showLoading() {
 
 // Safe numeric cleaner
 function cleanNumber(val) {
-    if (!val) return null;
-    const cleanStr = val.replace(/"/g, '').replace(/,/g, '').trim();
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return val;
+    const cleanStr = String(val).replace(/"/g, '').replace(/,/g, '').trim();
     if (cleanStr === 'N/D' || cleanStr === 'N/A' || cleanStr === '') return null;
     const num = Number(cleanStr);
     return isNaN(num) ? null : num;
