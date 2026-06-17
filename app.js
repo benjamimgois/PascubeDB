@@ -611,10 +611,19 @@ function renderTable() {
         // Calculate absolute rank based on its index in sortedByScore
         const absoluteRank = sortedByScore.findIndex(r => r === row) + 1;
         
+        let rankContent = absoluteRank;
+        if (absoluteRank === 1) {
+            rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #ffd700; fill: rgba(255, 215, 0, 0.2);"></i>${absoluteRank}`;
+        } else if (absoluteRank === 2) {
+            rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #c0c0c0; fill: rgba(192, 192, 192, 0.2);"></i>${absoluteRank}`;
+        } else if (absoluteRank === 3) {
+            rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #cd7f32; fill: rgba(205, 127, 50, 0.2);"></i>${absoluteRank}`;
+        }
+        
         const tr = document.createElement('tr');
         
         tr.innerHTML = `
-            <td class="rank-cell">${absoluteRank}</td>
+            <td class="rank-cell">${rankContent}</td>
             <td title="${row.cpu}">${row.cpu}</td>
             <td>${row.ram}</td>
             <td title="${row.gpu}">${row.gpu}</td>
@@ -629,6 +638,10 @@ function renderTable() {
         
         tbody.appendChild(tr);
     });
+
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 // Helper to normalize CPU names for popularity chart

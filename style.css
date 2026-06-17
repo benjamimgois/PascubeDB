@@ -473,7 +473,7 @@ table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
-    font-size: 0.88rem;
+    font-size: 0.8rem;
 }
 
 th {
@@ -481,7 +481,7 @@ th {
     color: var(--text-secondary);
     font-family: var(--font-heading);
     font-weight: 600;
-    padding: 1rem 1.25rem;
+    padding: 0.7rem 0.6rem;
     border-bottom: 1px solid var(--card-border);
     user-select: none;
     white-space: nowrap;
@@ -516,11 +516,11 @@ th.sorted-asc i, th.sorted-desc i {
 }
 
 td {
-    padding: 0.9rem 1.25rem;
+    padding: 0.55rem 0.6rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     color: var(--text-primary);
     white-space: nowrap;
-    max-width: 280px;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -550,12 +550,12 @@ tr:hover td {
 .rank-cell {
     font-weight: 600;
     color: var(--text-secondary);
-    width: 50px;
+    width: 55px;
 }
 
-tr:nth-child(1) .rank-cell { color: #fbbf24; font-size: 1.05rem; font-weight: 800; } /* Gold */
-tr:nth-child(2) .rank-cell { color: #94a3b8; font-size: 1rem; font-weight: 800; } /* Silver */
-tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.95rem; font-weight: 800; } /* Bronze */
+tr:nth-child(1) .rank-cell { color: #fbbf24; font-size: 0.95rem; font-weight: 800; } /* Gold */
+tr:nth-child(2) .rank-cell { color: #94a3b8; font-size: 0.9rem; font-weight: 800; } /* Silver */
+tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 800; } /* Bronze */
 
 .nd-cell {
     color: var(--text-muted);
