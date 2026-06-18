@@ -3,8 +3,8 @@
 const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1nlMgeW0ZFmtwwT3hty8JAFT3sM0SNhMpc24mH3In9zI/export?format=csv";
 
 // Fallback CSV Data to ensure the dashboard works even offline or in case of CORS/network issues
-const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time
-Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07
+const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id
+Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07,2648f98e2306731777b45289ec0a46e6d5466beb43cecb72104b6ea3449aa10a
 Anonymous,Ryzen 7 9800X3D,30GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  595.80  Release Build  (dvs-builder@U22-I3-AF05-29-2)  Thu May 21 19:21:58 UTC 2026,7.0.12-201.fc44.x86_64,Fedora Linux 44 (KDE Plasma Desktop Edition),4975,2615,4019,6913,
 Anonymous,Ryzen 9 7950X3D 16-Core,63GB,RX 7900 XTX,24GB,Mesa 26.1.99,7.0.12-1-cachyos,CachyOS,4938,3481,10783,4205,14/06/2026 14:22:49
 Anonymous,Ryzen 9 9950X3D,96 GB,RX 9070 XT,,,,Arch Linux,4932,3576,11897,3791,
@@ -220,7 +220,8 @@ function processGvizData(jsonResponse) {
             cpuSingle: cpuSingle,
             cpuMulti: cpuMulti,
             gpuScore: gpuScore,
-            dateTime: getFormattedVal(12) || 'N/D'
+            dateTime: getFormattedVal(12) || 'N/D',
+            clientId: getVal(13) || 'N/D'
         };
     }).filter(row => row !== null);
     
@@ -305,7 +306,7 @@ function showLoading() {
     const tbody = document.getElementById('leaderboard-body');
     tbody.innerHTML = `
         <tr>
-            <td colspan="11" class="loading-state">
+            <td colspan="12" class="loading-state">
                 <div class="spinner"></div>
                 <p>Loading benchmark data...</p>
             </td>
@@ -352,7 +353,8 @@ function processCSVData(csvText) {
             cpuSingle: cleanNumber(row[9]),
             cpuMulti: cleanNumber(row[10]),
             gpuScore: cleanNumber(row[11]),
-            dateTime: row[12] || 'N/D'
+            dateTime: row[12] || 'N/D',
+            clientId: row[13] || 'N/D'
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -536,6 +538,10 @@ function sortData(column, direction) {
                 valB = b.mainScore || 0;
                 // Swap values to match direction (rank 1 = highest main score)
                 return isAsc ? valB - valA : valA - valB;
+            case 'clientId':
+                valA = a.clientId.toLowerCase();
+                valB = b.clientId.toLowerCase();
+                break;
             case 'cpu':
                 valA = a.cpu.toLowerCase();
                 valB = b.cpu.toLowerCase();
@@ -594,7 +600,7 @@ function renderTable() {
     if (filteredData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                <td colspan="12" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     No benchmark results match your search or filters.
                 </td>
             </tr>
@@ -620,10 +626,27 @@ function renderTable() {
             rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #cd7f32; fill: rgba(205, 127, 50, 0.2);"></i>${absoluteRank}`;
         }
         
+        const displayId = row.clientId !== 'N/D' && row.clientId.length > 8 
+            ? row.clientId.substring(0, 8) 
+            : row.clientId;
+            
+        let clientIdHtml = '';
+        if (row.clientId === 'N/D') {
+            clientIdHtml = '<span class="nd-cell">N/D</span>';
+        } else {
+            clientIdHtml = `
+                <div class="client-id-badge" title="Full ID: ${row.clientId} (Click to copy)" onclick="copyToClipboard('${row.clientId}', this)">
+                    <span class="client-id-text">${displayId}</span>
+                    <i data-lucide="copy" class="copy-icon"></i>
+                </div>
+            `;
+        }
+        
         const tr = document.createElement('tr');
         
         tr.innerHTML = `
             <td class="rank-cell">${rankContent}</td>
+            <td>${clientIdHtml}</td>
             <td title="${row.cpu}">${row.cpu}</td>
             <td>${row.ram}</td>
             <td title="${row.gpu}">${row.gpu}</td>
@@ -642,6 +665,57 @@ function renderTable() {
     if (window.lucide) {
         lucide.createIcons();
     }
+}
+
+// Copy to Clipboard Helper
+window.copyToClipboard = function(text, element) {
+    if (!navigator.clipboard) {
+        // Fallback for older browsers or non-HTTPS contexts
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showCopyFeedback(element);
+        } catch (err) {
+            console.error('Fallback copy failed', err);
+        }
+        document.body.removeChild(textarea);
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showCopyFeedback(element);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+};
+
+function showCopyFeedback(element) {
+    const icon = element.querySelector('.copy-icon');
+    const textEl = element.querySelector('.client-id-text');
+    const originalText = textEl.textContent;
+    
+    textEl.textContent = 'Copied!';
+    element.classList.add('copied');
+    
+    // Temporarily replace copy icon with check icon
+    if (icon && window.lucide) {
+        icon.setAttribute('data-lucide', 'check');
+        lucide.createIcons();
+    }
+    
+    setTimeout(() => {
+        textEl.textContent = originalText;
+        element.classList.remove('copied');
+        if (icon && window.lucide) {
+            icon.setAttribute('data-lucide', 'copy');
+            lucide.createIcons();
+        }
+    }, 1500);
 }
 
 // Helper to normalize CPU names for popularity chart
@@ -762,6 +836,96 @@ function getGPUBrandDistribution(data) {
         }
     });
     return brands;
+}
+
+// Helper to get RAM capacity distribution
+function getRAMDistribution(data) {
+    const ramMap = {};
+    data.forEach(r => {
+        let ram = r.ram || 'N/D';
+        if (ram === 'N/D' || ram.trim() === '') return;
+        
+        const match = ram.match(/(\d+(?:\.\d+)?)/);
+        if (!match) return;
+        
+        let num = parseFloat(match[1]);
+        let label = '';
+        if (num > 0) {
+            if (num >= 120 && num <= 130) label = '128 GB';
+            else if (num >= 90 && num <= 100) label = '96 GB';
+            else if (num >= 60 && num <= 68) label = '64 GB';
+            else if (num >= 44 && num <= 52) label = '48 GB';
+            else if (num >= 28 && num <= 36) label = '32 GB';
+            else if (num >= 20 && num <= 27) label = '24 GB';
+            else if (num >= 12 && num <= 19) label = '16 GB';
+            else if (num >= 6 && num <= 11) label = '8 GB';
+            else if (num < 6) label = '< 8 GB';
+            else label = Math.round(num) + ' GB';
+        } else {
+            label = 'N/D';
+        }
+        
+        ramMap[label] = (ramMap[label] || 0) + 1;
+    });
+    
+    const capacityOrder = ['< 8 GB', '8 GB', '16 GB', '24 GB', '32 GB', '48 GB', '64 GB', '96 GB', '128 GB'];
+    const sorted = {};
+    capacityOrder.forEach(cap => {
+        if (ramMap[cap]) {
+            sorted[cap] = ramMap[cap];
+            delete ramMap[cap];
+        }
+    });
+    Object.keys(ramMap).sort((a,b) => parseFloat(a) - parseFloat(b)).forEach(cap => {
+        sorted[cap] = ramMap[cap];
+    });
+    
+    return sorted;
+}
+
+// Helper to get VRAM capacity distribution
+function getVRAMDistribution(data) {
+    const vramMap = {};
+    data.forEach(r => {
+        let vram = r.vram || 'N/D';
+        if (vram === 'N/D' || vram.trim() === '') return;
+        
+        const match = vram.match(/(\d+(?:\.\d+)?)/);
+        if (!match) return;
+        
+        let num = parseFloat(match[1]);
+        let label = '';
+        if (num > 0) {
+            if (num >= 30) label = '32 GB';
+            else if (num >= 22 && num <= 26) label = '24 GB';
+            else if (num >= 15 && num <= 18) label = '16 GB';
+            else if (num >= 11 && num <= 13) label = '12 GB';
+            else if (num >= 9 && num <= 10.5) label = '10 GB';
+            else if (num >= 7.5 && num <= 8.5) label = '8 GB';
+            else if (num >= 5.5 && num <= 6.5) label = '6 GB';
+            else if (num >= 3.5 && num <= 4.5) label = '4 GB';
+            else if (num < 3.5) label = '< 4 GB';
+            else label = Math.round(num) + ' GB';
+        } else {
+            label = 'N/D';
+        }
+        
+        vramMap[label] = (vramMap[label] || 0) + 1;
+    });
+    
+    const capacityOrder = ['< 4 GB', '4 GB', '6 GB', '8 GB', '10 GB', '12 GB', '16 GB', '24 GB', '32 GB'];
+    const sorted = {};
+    capacityOrder.forEach(cap => {
+        if (vramMap[cap]) {
+            sorted[cap] = vramMap[cap];
+            delete vramMap[cap];
+        }
+    });
+    Object.keys(vramMap).sort((a,b) => parseFloat(a) - parseFloat(b)).forEach(cap => {
+        sorted[cap] = vramMap[cap];
+    });
+    
+    return sorted;
 }
 
 // Helper to calculate average scores by CPU or GPU
@@ -1159,6 +1323,66 @@ function renderCharts() {
         ]
     );
 
+    // 8b. Pie/Doughnut RAM Capacity Distribution Chart
+    const ramDist = getRAMDistribution(benchmarkData);
+    const ramLabels = Object.keys(ramDist);
+    const ramColors = {
+        '< 8 GB': { bg: 'rgba(6, 182, 212, 0.8)', border: '#22d3ee' },    // Cyan
+        '8 GB': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },     // Sky
+        '16 GB': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },    // Indigo
+        '24 GB': { bg: 'rgba(139, 92, 246, 0.8)', border: '#a78bfa' },   // Violet
+        '32 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#c084fc' },   // Purple
+        '48 GB': { bg: 'rgba(236, 72, 153, 0.8)', border: '#f472b6' },   // Pink
+        '64 GB': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },    // Rose
+        '96 GB': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },   // Amber
+        '128 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' }   // Emerald
+    };
+    const ramBgColors = [];
+    const ramBorderColors = [];
+    ramLabels.forEach(label => {
+        const color = ramColors[label] || { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' };
+        ramBgColors.push(color.bg);
+        ramBorderColors.push(color.border);
+    });
+    
+    renderDoughnutChart(
+        'ramDistChart',
+        ramLabels,
+        Object.values(ramDist),
+        ramBgColors,
+        ramBorderColors
+    );
+
+    // 8c. Pie/Doughnut VRAM Capacity Distribution Chart
+    const vramDist = getVRAMDistribution(benchmarkData);
+    const vramLabels = Object.keys(vramDist);
+    const vramColors = {
+        '< 4 GB': { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' },  // Gray
+        '4 GB': { bg: 'rgba(6, 182, 212, 0.8)', border: '#22d3ee' },     // Cyan
+        '6 GB': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },    // Sky
+        '8 GB': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },    // Indigo
+        '10 GB': { bg: 'rgba(139, 92, 246, 0.8)', border: '#a78bfa' },   // Violet
+        '12 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#c084fc' },   // Purple
+        '16 GB': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },    // Rose
+        '24 GB': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },   // Amber
+        '32 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' }    // Emerald
+    };
+    const vramBgColors = [];
+    const vramBorderColors = [];
+    vramLabels.forEach(label => {
+        const color = vramColors[label] || { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' };
+        vramBgColors.push(color.bg);
+        vramBorderColors.push(color.border);
+    });
+
+    renderDoughnutChart(
+        'vramDistChart',
+        vramLabels,
+        Object.values(vramDist),
+        vramBgColors,
+        vramBorderColors
+    );
+
     // 10. Average CPU score by model
     const cpuAverages = getAverageScores(benchmarkData, 'cpu');
     renderHorizontalBarChart(
@@ -1334,7 +1558,7 @@ function showError(message) {
     const tbody = document.getElementById('leaderboard-body');
     tbody.innerHTML = `
         <tr>
-            <td colspan="11" style="text-align: center; padding: 3rem; color: var(--warning);">
+            <td colspan="12" style="text-align: center; padding: 3rem; color: var(--warning);">
                 <i data-lucide="alert-triangle" style="width: 24px; height: 24px; margin: 0 auto 0.5rem; display: block;"></i>
                 <p>${message}</p>
             </td>

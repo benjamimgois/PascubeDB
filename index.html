@@ -179,6 +179,28 @@
                 </div>
 
             </div>
+
+            <div class="memory-charts-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>RAM Capacity</h3>
+                        <p>Distribution of system RAM</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="ramDistChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>VRAM Capacity</h3>
+                        <p>Distribution of GPU VRAM</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="vramDistChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- Advanced Metrics Section -->
@@ -271,6 +293,7 @@
                         <thead>
                             <tr>
                                 <th data-sort="rank" class="sortable sorted-asc"># <i data-lucide="chevron-up"></i></th>
+                                <th data-sort="clientId" class="sortable">Client ID <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="cpu" class="sortable">CPU <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="ram" class="sortable">RAM <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="gpu" class="sortable">GPU <i data-lucide="chevrons-up-down"></i></th>
@@ -286,7 +309,7 @@
                         <tbody id="leaderboard-body">
                             <!-- Injected by JavaScript -->
                             <tr>
-                                <td colspan="11" class="loading-state">
+                                <td colspan="12" class="loading-state">
                                     <div class="spinner"></div>
                                     <p>Loading benchmark data...</p>
                                 </td>
