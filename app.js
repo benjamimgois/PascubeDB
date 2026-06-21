@@ -208,6 +208,7 @@ function processGvizData(jsonResponse) {
         }
         
         let cpuVal = getVal(1) || 'Unknown CPU';
+        cpuVal = cpuVal.replace(/\s+w\/ Radeon.*/i, '').trim();
         if (cpuVal.trim() === 'Custom APU 0405') {
             cpuVal = 'Steam Deck';
         }
@@ -353,6 +354,7 @@ function processCSVData(csvText) {
         if (row.length < 5) return null; // skip malformed lines
         
         let cpuVal = row[1] || 'Unknown CPU';
+        cpuVal = cpuVal.replace(/\s+w\/ Radeon.*/i, '').trim();
         if (cpuVal.trim() === 'Custom APU 0405') {
             cpuVal = 'Steam Deck';
         }
