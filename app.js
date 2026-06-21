@@ -1030,7 +1030,7 @@ function getCPUBrandDistribution(data) {
     const brands = { AMD: 0, Intel: 0, Other: 0 };
     data.forEach(r => {
         const cpu = (r.cpu || '').toLowerCase();
-        if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck')) {
+        if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('bc-250')) {
             brands.AMD++;
         } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra')) {
             brands.Intel++;
