@@ -937,7 +937,7 @@ function getAverageScores(data, type) {
         let key, val;
         if (type === 'cpu') {
             key = normalizeCPU(r.cpu);
-            val = r.cpuMulti;
+            val = r.cpuSingle;
         } else if (type === 'gpu') {
             key = normalizeGPU(r.gpu);
             val = r.gpuScore;
@@ -1389,7 +1389,7 @@ function renderCharts() {
         'cpuAverageChart',
         cpuAverages.map(c => c.name),
         cpuAverages.map(c => c.average),
-        'Average CPU Multi Score',
+        'Average CPU Single Score',
         'rgba(99, 102, 241, 0.85)',
         '#818cf8'
     );

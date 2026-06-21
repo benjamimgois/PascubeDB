@@ -6,11 +6,11 @@ Specifies the capability to render advanced metrics, averages, and distribution 
 ## Requirements
 
 ### Requirement: Average CPU Score by CPU Model
-The system SHALL aggregate the average CPU Multi score for each unique CPU model and render a horizontal bar chart of the top CPU models by average performance.
+The system SHALL aggregate the average CPU Single score for each unique CPU model and render a horizontal bar chart of the top CPU models by average performance.
 
 #### Scenario: Rendering average score by CPU chart
 - **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a horizontal bar chart displaying the top 10 CPU models sorted by average CPU Multi score descending is rendered
+- **THEN** a horizontal bar chart displaying the top 10 CPU models sorted by average CPU Single score descending is rendered
 
 ### Requirement: Average GPU Score by GPU Model
 The system SHALL aggregate the average GPU score for each unique GPU model and render a horizontal bar chart of the top GPU models by average performance.
