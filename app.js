@@ -1026,7 +1026,7 @@ function getScoreHistogramData(data) {
 }
 
 // Helper to render vertical bar chart for histogram
-function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor) {
+function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, isPercentage = false) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -1072,7 +1072,12 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                     borderColor: 'rgba(255, 255, 255, 0.15)',
                     borderWidth: 1,
                     cornerRadius: 8,
-                    displayColors: false
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y}${isPercentage ? '%' : ''}`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -1098,6 +1103,9 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                         font: {
                             family: "'Inter', sans-serif",
                             size: 11
+                        },
+                        callback: function(value) {
+                            return isPercentage ? value + '%' : value;
                         }
                     }
                 }
@@ -1414,13 +1422,20 @@ function renderCharts() {
 
     // 13. Score Distribution Histogram
     const histogramData = getScoreHistogramData(benchmarkData);
+    const totalRuns = Object.values(histogramData).reduce((a, b) => a + b, 0);
+    const histogramPercentages = {};
+    for (const [bin, count] of Object.entries(histogramData)) {
+        histogramPercentages[bin] = totalRuns > 0 ? parseFloat(((count / totalRuns) * 100).toFixed(1)) : 0;
+    }
+    
     renderVerticalBarChart(
         'scoreHistogramChart',
-        Object.keys(histogramData),
-        Object.values(histogramData),
-        'Count',
+        Object.keys(histogramPercentages),
+        Object.values(histogramPercentages),
+        'Percentage',
         'rgba(168, 85, 247, 0.85)',
-        '#c084fc'
+        '#c084fc',
+        true
     );
 
     // 14. Mesa version distribution

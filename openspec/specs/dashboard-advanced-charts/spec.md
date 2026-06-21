@@ -38,4 +38,4 @@ The system SHALL bin all valid Main Scores into range buckets (e.g., 0-999, 1000
 
 #### Scenario: Rendering score histogram chart
 - **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a vertical bar chart histogram displaying the count of runs in each score bin is rendered
+- **THEN** a vertical bar chart histogram displaying the percentage of runs in each score bin is rendered
