@@ -208,14 +208,15 @@ function processGvizData(jsonResponse) {
         }
         
         let cpuVal = getVal(1) || 'Unknown CPU';
-        cpuVal = cpuVal.replace(/\s+w\/ Radeon.*/i, '').trim();
+        cpuVal = cpuVal.replace(/\s+(w\/|with) Radeon.*/i, '').trim();
         if (cpuVal.trim() === 'Custom APU 0405') {
             cpuVal = 'Steam Deck';
         }
         
         let gpuVal = getVal(3) || 'Unknown GPU';
         if (gpuVal.trim() === 'Graphics') {
-            gpuVal = 'Radeon Graphics';
+            const isAmdMobile = /ryzen.*?\b\d{4}(h|hs|u|hx)\b/i.test(cpuVal);
+            gpuVal = isAmdMobile ? 'Radeon RX Vega' : 'Radeon Graphics';
         } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
             gpuVal = 'Steam Deck';
         }
@@ -354,14 +355,15 @@ function processCSVData(csvText) {
         if (row.length < 5) return null; // skip malformed lines
         
         let cpuVal = row[1] || 'Unknown CPU';
-        cpuVal = cpuVal.replace(/\s+w\/ Radeon.*/i, '').trim();
+        cpuVal = cpuVal.replace(/\s+(w\/|with) Radeon.*/i, '').trim();
         if (cpuVal.trim() === 'Custom APU 0405') {
             cpuVal = 'Steam Deck';
         }
         
         let gpuVal = row[3] || 'Unknown GPU';
         if (gpuVal.trim() === 'Graphics') {
-            gpuVal = 'Radeon Graphics';
+            const isAmdMobile = /ryzen.*?\b\d{4}(h|hs|u|hx)\b/i.test(cpuVal);
+            gpuVal = isAmdMobile ? 'Radeon RX Vega' : 'Radeon Graphics';
         } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
             gpuVal = 'Steam Deck';
         }
