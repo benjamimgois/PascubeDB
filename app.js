@@ -269,6 +269,8 @@ function processGvizData(jsonResponse) {
         
         if (gpuVal.trim() === 'Radeon RX Vega' || gpuVal.trim() === 'Vega 8 Graphics') {
             gpuVal = 'RX Vega';
+        } else if (gpuVal.trim() === 'RX 580') {
+            gpuVal = 'RX 580 Series';
         }
         
         return {
@@ -448,6 +450,8 @@ function processCSVData(csvText) {
         
         if (gpuVal.trim() === 'Radeon RX Vega' || gpuVal.trim() === 'Vega 8 Graphics') {
             gpuVal = 'RX Vega';
+        } else if (gpuVal.trim() === 'RX 580') {
+            gpuVal = 'RX 580 Series';
         }
         
         return {
