@@ -267,7 +267,7 @@ function processGvizData(jsonResponse) {
             gpuVal = `Arc ${modelMatch[1].toUpperCase()}`;
         }
         
-        if (gpuVal.trim() === 'Radeon RX Vega') {
+        if (gpuVal.trim() === 'Radeon RX Vega' || gpuVal.trim() === 'Vega 8 Graphics') {
             gpuVal = 'RX Vega';
         }
         
@@ -446,7 +446,7 @@ function processCSVData(csvText) {
             gpuVal = `Arc ${modelMatch[1].toUpperCase()}`;
         }
         
-        if (gpuVal.trim() === 'Radeon RX Vega') {
+        if (gpuVal.trim() === 'Radeon RX Vega' || gpuVal.trim() === 'Vega 8 Graphics') {
             gpuVal = 'RX Vega';
         }
         
