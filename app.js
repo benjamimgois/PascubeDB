@@ -127,6 +127,10 @@ function setupEventListeners() {
     document.getElementById('refresh-btn').addEventListener('click', fetchData);
     document.getElementById('search-input').addEventListener('input', handleFilterChange);
     document.getElementById('os-filter').addEventListener('change', handleFilterChange);
+    document.getElementById('cpu-filter').addEventListener('change', handleFilterChange);
+    document.getElementById('gpu-filter').addEventListener('change', handleFilterChange);
+    document.getElementById('ram-filter').addEventListener('change', handleFilterChange);
+    document.getElementById('vram-filter').addEventListener('change', handleFilterChange);
     
     // Sort columns
     const headers = document.querySelectorAll('#leaderboard-table th.sortable');
@@ -285,7 +289,7 @@ function processGvizData(jsonResponse) {
         throw new Error("No benchmark records found in Google Sheets");
     }
     
-    populateOsFilter();
+    populateFilters();
     filteredData = [...benchmarkData];
     sortData(currentSort.column, currentSort.direction);
     renderOverviewStats();
@@ -431,8 +435,8 @@ function processCSVData(csvText) {
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
-    // Set up unique OS Filter options
-    populateOsFilter();
+    // Set up unique Dropdown Filter options
+    populateFilters();
     
     // Initial Filter & Sort (Sort by Main Score descending)
     filteredData = [...benchmarkData];
@@ -474,21 +478,71 @@ function parseCSV(text) {
     return result;
 }
 
-// Populate OS Dropdown Filter
-function populateOsFilter() {
-    const osFilter = document.getElementById('os-filter');
-    // Save current selected value
-    const selectedVal = osFilter.value;
+// Numeric parser for RAM/VRAM capacity strings to support numeric sorting
+function parseGB(sizeStr) {
+    if (!sizeStr) return 0;
+    const cleanStr = sizeStr.toString().trim().toUpperCase();
+    if (cleanStr === 'N/D' || cleanStr === '') return 0;
     
-    // Get unique OS values
+    // Extract the numeric part and the unit
+    const numMatch = cleanStr.match(/^([0-9]+(?:\.[0-9]+)?)\s*([A-Z]*)/);
+    if (!numMatch) return 0;
+    
+    const value = parseFloat(numMatch[1]);
+    const unit = numMatch[2];
+    
+    if (unit.startsWith('M')) {
+        // Megabytes to Gigabytes
+        return value / 1024;
+    } else if (unit.startsWith('T')) {
+        // Terabytes to Gigabytes
+        return value * 1024;
+    } else {
+        // Defaults to GB (Gigabytes)
+        return value;
+    }
+}
+
+// Populate Dropdown Filters (OS, CPU, GPU, RAM, VRAM)
+function populateFilters() {
+    const osFilter = document.getElementById('os-filter');
+    const cpuFilter = document.getElementById('cpu-filter');
+    const gpuFilter = document.getElementById('gpu-filter');
+    const ramFilter = document.getElementById('ram-filter');
+    const vramFilter = document.getElementById('vram-filter');
+    
+    // Save current selected values
+    const osSelected = osFilter.value;
+    const cpuSelected = cpuFilter.value;
+    const gpuSelected = gpuFilter.value;
+    const ramSelected = ramFilter.value;
+    const vramSelected = vramFilter.value;
+    
     const osList = new Set();
+    const cpuList = new Set();
+    const gpuList = new Set();
+    const ramList = new Set();
+    const vramList = new Set();
+    
     benchmarkData.forEach(row => {
         if (row.os && row.os.trim() !== '' && row.os !== 'N/D') {
             osList.add(row.os.trim());
         }
+        if (row.cpu && row.cpu.trim() !== '' && row.cpu !== 'N/D') {
+            cpuList.add(row.cpu.trim());
+        }
+        if (row.gpu && row.gpu.trim() !== '' && row.gpu !== 'N/D') {
+            gpuList.add(row.gpu.trim());
+        }
+        if (row.ram && row.ram.trim() !== '' && row.ram !== 'N/D') {
+            ramList.add(row.ram.trim());
+        }
+        if (row.vram && row.vram.trim() !== '' && row.vram !== 'N/D') {
+            vramList.add(row.vram.trim());
+        }
     });
     
-    // Re-fill os filter
+    // 1. Populate OS
     osFilter.innerHTML = '<option value="">All Operating Systems</option>';
     Array.from(osList).sort().forEach(os => {
         const option = document.createElement('option');
@@ -496,10 +550,56 @@ function populateOsFilter() {
         option.textContent = os;
         osFilter.appendChild(option);
     });
+    if (osList.has(osSelected)) {
+        osFilter.value = osSelected;
+    }
     
-    // Restore selection if valid
-    if (osList.has(selectedVal)) {
-        osFilter.value = selectedVal;
+    // 2. Populate CPU
+    cpuFilter.innerHTML = '<option value="">All CPU Models</option>';
+    Array.from(cpuList).sort().forEach(cpu => {
+        const option = document.createElement('option');
+        option.value = cpu;
+        option.textContent = cpu;
+        cpuFilter.appendChild(option);
+    });
+    if (cpuList.has(cpuSelected)) {
+        cpuFilter.value = cpuSelected;
+    }
+    
+    // 3. Populate GPU
+    gpuFilter.innerHTML = '<option value="">All GPU Models</option>';
+    Array.from(gpuList).sort().forEach(gpu => {
+        const option = document.createElement('option');
+        option.value = gpu;
+        option.textContent = gpu;
+        gpuFilter.appendChild(option);
+    });
+    if (gpuList.has(gpuSelected)) {
+        gpuFilter.value = gpuSelected;
+    }
+    
+    // 4. Populate RAM (Numeric Sort)
+    ramFilter.innerHTML = '<option value="">All RAM Sizes</option>';
+    Array.from(ramList).sort((a, b) => parseGB(a) - parseGB(b)).forEach(ram => {
+        const option = document.createElement('option');
+        option.value = ram;
+        option.textContent = ram;
+        ramFilter.appendChild(option);
+    });
+    if (ramList.has(ramSelected)) {
+        ramFilter.value = ramSelected;
+    }
+    
+    // 5. Populate VRAM (Numeric Sort)
+    vramFilter.innerHTML = '<option value="">All VRAM Sizes</option>';
+    Array.from(vramList).sort((a, b) => parseGB(a) - parseGB(b)).forEach(vram => {
+        const option = document.createElement('option');
+        option.value = vram;
+        option.textContent = vram;
+        vramFilter.appendChild(option);
+    });
+    if (vramList.has(vramSelected)) {
+        vramFilter.value = vramSelected;
     }
 }
 
@@ -507,6 +607,10 @@ function populateOsFilter() {
 function handleFilterChange() {
     const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
     const osSelection = document.getElementById('os-filter').value;
+    const cpuSelection = document.getElementById('cpu-filter').value;
+    const gpuSelection = document.getElementById('gpu-filter').value;
+    const ramSelection = document.getElementById('ram-filter').value;
+    const vramSelection = document.getElementById('vram-filter').value;
     
     filteredData = benchmarkData.filter(row => {
         // Search filter
@@ -516,10 +620,14 @@ function handleFilterChange() {
             row.os.toLowerCase().includes(searchQuery) ||
             row.user.toLowerCase().includes(searchQuery);
             
-        // OS filter
+        // Dropdown filters
         const matchesOs = !osSelection || row.os === osSelection;
+        const matchesCpu = !cpuSelection || row.cpu === cpuSelection;
+        const matchesGpu = !gpuSelection || row.gpu === gpuSelection;
+        const matchesRam = !ramSelection || row.ram === ramSelection;
+        const matchesVram = !vramSelection || row.vram === vramSelection;
         
-        return matchesSearch && matchesOs;
+        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram;
     });
     
     // Keep current sort

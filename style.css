@@ -485,7 +485,7 @@ h1, h2, h3, h4 {
     width: 300px;
 }
 
-#os-filter {
+.select-wrapper select {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: 10px;
@@ -501,8 +501,12 @@ h1, h2, h3, h4 {
     width: 220px;
 }
 
-#os-filter:focus {
+.select-wrapper select:focus {
     border-color: var(--primary);
+}
+
+#ram-filter, #vram-filter {
+    width: 160px;
 }
 
 /* Custom indicator for select */
@@ -754,7 +758,7 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .filters-block {
         flex-direction: column;
     }
-    #search-input, #os-filter {
+    #search-input, .select-wrapper, .select-wrapper select {
         width: 100%;
     }
     #search-input:focus {
@@ -977,6 +981,11 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .leaderboard-filters {
         flex-direction: column;
         gap: 0.75rem;
+    }
+    .leaderboard-filters .search-wrapper,
+    .leaderboard-filters .select-wrapper,
+    .leaderboard-filters .select-wrapper select {
+        width: 100%;
     }
     .modal-table-card {
         height: calc(90vh - 230px);
