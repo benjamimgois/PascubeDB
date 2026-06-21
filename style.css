@@ -38,22 +38,60 @@
 }
 
 body {
-    background-color: var(--bg-color);
+    background-color: transparent;
     color: var(--text-primary);
     font-family: var(--font-body);
     font-size: 15px;
     line-height: 1.5;
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
-        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
-    background-attachment: fixed;
     min-height: 100vh;
     padding-bottom: 2rem;
 }
 
 body.modal-open {
     overflow: hidden;
+}
+
+/* Infinite Grid Background */
+.infinite-grid-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: -2; /* ensure it stays behind content and overlays */
+    background-color: var(--bg-color);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.18) 0px, transparent 55%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 55%),
+        radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 55%);
+}
+
+.infinite-grid {
+    position: absolute;
+    width: 300%;
+    height: 300%;
+    top: -100%;
+    left: -100%;
+    background-image: 
+        linear-gradient(to right, rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+    transform: rotateX(65deg);
+    transform-origin: center center;
+    animation: grid-scroll 28s linear infinite;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.8) 50%, black 100%);
+    mask-image: linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.8) 50%, black 100%);
+}
+
+@keyframes grid-scroll {
+    0% {
+        transform: rotateX(65deg) translateY(0);
+    }
+    100% {
+        transform: rotateX(65deg) translateY(60px);
+    }
 }
 
 .app-container {
