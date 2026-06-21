@@ -259,12 +259,16 @@ function processGvizData(jsonResponse) {
         let gpuVal = getVal(3) || 'Unknown GPU';
         if (gpuVal.trim() === 'Graphics') {
             const isAmdMobile = /ryzen.*?\b\d{4}(h|hs|u|hx)\b/i.test(cpuVal);
-            gpuVal = isAmdMobile ? 'Radeon RX Vega' : 'Radeon Graphics';
+            gpuVal = isAmdMobile ? 'RX Vega' : 'Radeon Graphics';
         } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
             gpuVal = 'Steam Deck';
         } else if (/intel.*?\barc.*?\b([ab]\d{3})\b/i.test(gpuVal)) {
             const modelMatch = gpuVal.match(/\b([ab]\d{3})\b/i);
             gpuVal = `Arc ${modelMatch[1].toUpperCase()}`;
+        }
+        
+        if (gpuVal.trim() === 'Radeon RX Vega') {
+            gpuVal = 'RX Vega';
         }
         
         return {
@@ -409,12 +413,16 @@ function processCSVData(csvText) {
         let gpuVal = row[3] || 'Unknown GPU';
         if (gpuVal.trim() === 'Graphics') {
             const isAmdMobile = /ryzen.*?\b\d{4}(h|hs|u|hx)\b/i.test(cpuVal);
-            gpuVal = isAmdMobile ? 'Radeon RX Vega' : 'Radeon Graphics';
+            gpuVal = isAmdMobile ? 'RX Vega' : 'Radeon Graphics';
         } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
             gpuVal = 'Steam Deck';
         } else if (/intel.*?\barc.*?\b([ab]\d{3})\b/i.test(gpuVal)) {
             const modelMatch = gpuVal.match(/\b([ab]\d{3})\b/i);
             gpuVal = `Arc ${modelMatch[1].toUpperCase()}`;
+        }
+        
+        if (gpuVal.trim() === 'Radeon RX Vega') {
+            gpuVal = 'RX Vega';
         }
         
         return {
