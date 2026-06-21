@@ -1413,6 +1413,30 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
 
 // Render Interactive Charts using Chart.js
 function renderCharts() {
+    // 0. Overall Top 10 Main Scores Chart
+    const mainRuns = [...benchmarkData]
+        .filter(r => r.mainScore !== null)
+        .sort((a, b) => b.mainScore - a.mainScore)
+        .slice(0, 10);
+    
+    const mainScores = mainRuns.map(r => r.mainScore);
+    const mainMin = mainScores.length > 0 ? Math.min(...mainScores) : 0;
+    const mainXMin = Math.floor(mainMin * 0.9);
+    
+    renderHorizontalBarChart(
+        'mainOverallChart',
+        mainRuns.map(r => `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`),
+        mainScores,
+        'Main Score',
+        'rgba(16, 185, 129, 0.85)',
+        '#10b981',
+        undefined,
+        mainXMin,
+        mainRuns.map(r => r.clientId),
+        mainRuns.map(r => r.cpu),
+        mainRuns.map(r => r.gpu)
+    );
+
     // 1. CPU Single Thread Top 10 Chart
     const cpuSingleRuns = benchmarkData
         .filter(r => r.cpuSingle !== null)
@@ -1860,7 +1884,7 @@ function renderCharts() {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -1881,7 +1905,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 borderRadius: 6,
                 borderSkipped: false,
                 barPercentage: 0.65,
-                clientIds: clientIds
+                clientIds: clientIds,
+                cpus: cpus,
+                gpus: gpus
             }]
         },
         options: {
@@ -1911,6 +1937,12 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     callbacks: {
                         label: function(context) {
                             const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`];
+                            if (context.dataset.cpus && context.dataset.cpus[context.dataIndex]) {
+                                lines.push(`CPU: ${context.dataset.cpus[context.dataIndex]}`);
+                            }
+                            if (context.dataset.gpus && context.dataset.gpus[context.dataIndex]) {
+                                lines.push(`GPU: ${context.dataset.gpus[context.dataIndex]}`);
+                            }
                             if (context.dataset.clientIds && context.dataset.clientIds[context.dataIndex]) {
                                 const clientId = context.dataset.clientIds[context.dataIndex];
                                 const displayId = (clientId && clientId !== 'N/D') 
@@ -1953,7 +1985,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         // Truncate long hardware names to prevent chart squeezing
                         callback: function(value) {
                             const label = this.getLabelForValue(value);
-                            return label.length > 25 ? label.substring(0, 25) + '...' : label;
+                            return label.length > 30 ? label.substring(0, 30) + '...' : label;
                         }
                     }
                 }
