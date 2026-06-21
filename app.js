@@ -954,8 +954,7 @@ function getAverageScores(data, type) {
             name,
             average: Math.round(total / counts[name])
         }))
-        .sort((a, b) => b.average - a.average)
-        .slice(0, 10);
+        .sort((a, b) => b.average - a.average);
 }
 
 // Helper to get Mesa or Kernel major.minor version distributions
@@ -1385,24 +1384,26 @@ function renderCharts() {
 
     // 10. Average CPU score by model
     const cpuAverages = getAverageScores(benchmarkData, 'cpu');
-    renderHorizontalBarChart(
+    makeChartScrollable(
         'cpuAverageChart',
         cpuAverages.map(c => c.name),
         cpuAverages.map(c => c.average),
         'Average CPU Single Score',
         'rgba(99, 102, 241, 0.85)',
-        '#818cf8'
+        '#818cf8',
+        10
     );
 
     // 11. Average GPU score by model
     const gpuAverages = getAverageScores(benchmarkData, 'gpu');
-    renderHorizontalBarChart(
+    makeChartScrollable(
         'gpuAverageChart',
         gpuAverages.map(g => g.name),
         gpuAverages.map(g => g.average),
         'Average GPU Score',
         'rgba(14, 165, 233, 0.85)',
-        '#38bdf8'
+        '#38bdf8',
+        10
     );
 
     // 13. Score Distribution Histogram
@@ -1551,6 +1552,76 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
             }
         }
     });
+}
+
+// Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
+function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10) {
+    // Initial slice to render the first few bars
+    const initialLabels = allLabels.slice(0, visibleCount);
+    const initialData = allData.slice(0, visibleCount);
+    
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor);
+    
+    const chart = chartInstances[canvasId];
+    if (!chart) return;
+    
+    const canvas = document.getElementById(canvasId);
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    
+    // Ensure parent has relative positioning to contain the absolute overlay
+    parent.style.position = 'relative';
+    
+    // Remove existing scrollbar overlay if any (to prevent duplicates on re-renders)
+    const existingOverlay = parent.querySelector('.chart-scroll-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+    
+    // If the total items are less than or equal to visibleCount, we don't need scrollbar
+    if (allLabels.length <= visibleCount) return;
+    
+    // Create scrollbar overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'chart-scroll-overlay';
+    
+    // Create spacer inside the overlay to represent total scrollable size
+    const spacer = document.createElement('div');
+    const totalHeight = 320 + (allLabels.length - visibleCount) * 18; // 18px per hidden item
+    spacer.style.height = `${totalHeight}px`;
+    spacer.style.width = '1px';
+    overlay.appendChild(spacer);
+    parent.appendChild(overlay);
+    
+    let lastIndex = 0;
+    const updateVisibleData = () => {
+        const scrollTop = overlay.scrollTop;
+        const maxScroll = overlay.scrollHeight - overlay.clientHeight;
+        if (maxScroll <= 0) return;
+        
+        const scrollPercent = scrollTop / maxScroll;
+        const maxStartIndex = allLabels.length - visibleCount;
+        const startIndex = Math.min(maxStartIndex, Math.max(0, Math.round(scrollPercent * maxStartIndex)));
+        
+        if (startIndex !== lastIndex) {
+            lastIndex = startIndex;
+            
+            const newLabels = allLabels.slice(startIndex, startIndex + visibleCount);
+            const newData = allData.slice(startIndex, startIndex + visibleCount);
+            
+            chart.data.labels = newLabels;
+            chart.data.datasets[0].data = newData;
+            chart.update('none'); // Update without animation for buttery smooth scrolling
+        }
+    };
+    
+    overlay.onscroll = updateVisibleData;
+    
+    // Allow wheel scrolling on the canvas to scroll the overlay
+    canvas.onwheel = (e) => {
+        e.preventDefault();
+        overlay.scrollTop += e.deltaY;
+    };
 }
 
 // Show Error state in table
