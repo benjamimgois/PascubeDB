@@ -207,14 +207,21 @@ function processGvizData(jsonResponse) {
             return null;
         }
         
+        let cpuVal = getVal(1) || 'Unknown CPU';
+        if (cpuVal.trim() === 'Custom APU 0405') {
+            cpuVal = 'Steam Deck';
+        }
+        
         let gpuVal = getVal(3) || 'Unknown GPU';
         if (gpuVal.trim() === 'Graphics') {
             gpuVal = 'Radeon Graphics';
+        } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
+            gpuVal = 'Steam Deck';
         }
         
         return {
             user: getVal(0) || 'Anonymous',
-            cpu: getVal(1) || 'Unknown CPU',
+            cpu: cpuVal,
             ram: getVal(2) || 'N/D',
             gpu: gpuVal,
             vram: getVal(4) || 'N/D',
@@ -345,14 +352,21 @@ function processCSVData(csvText) {
     benchmarkData = dataRows.map(row => {
         if (row.length < 5) return null; // skip malformed lines
         
+        let cpuVal = row[1] || 'Unknown CPU';
+        if (cpuVal.trim() === 'Custom APU 0405') {
+            cpuVal = 'Steam Deck';
+        }
+        
         let gpuVal = row[3] || 'Unknown GPU';
         if (gpuVal.trim() === 'Graphics') {
             gpuVal = 'Radeon Graphics';
+        } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
+            gpuVal = 'Steam Deck';
         }
         
         return {
             user: row[0] || 'Anonymous',
-            cpu: row[1] || 'Unknown CPU',
+            cpu: cpuVal,
             ram: row[2] || 'N/D',
             gpu: gpuVal,
             vram: row[4] || 'N/D',
