@@ -429,7 +429,7 @@ h1, h2, h3, h4 {
 
 .advanced-density-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 

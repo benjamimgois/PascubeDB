@@ -1887,6 +1887,7 @@ function renderCharts() {
         10
     );
 
+    /*
     // 13. Score Distribution Histogram
     const histogramData = getScoreHistogramData(benchmarkData);
     const totalRuns = Object.values(histogramData).reduce((a, b) => a + b, 0);
@@ -1904,6 +1905,7 @@ function renderCharts() {
         '#c084fc',
         true
     );
+    */
 
     // 14. Mesa version distribution
     const mesaVersions = getVersionDistribution(benchmarkData, 'mesa');
