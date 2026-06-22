@@ -1385,9 +1385,11 @@ function getVersionDistribution(data, type) {
         let version = null;
         if (type === 'mesa') {
             const d = r.driver || '';
-            const match = d.match(/Mesa\s+(\d+\.\d+)/i);
+            const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
             if (match) {
-                version = match[1];
+                const majorMinor = match[1];
+                const patch = match[2];
+                version = patch === '99' ? `${majorMinor} (mesa-git)` : majorMinor;
             }
         } else if (type === 'kernel') {
             const k = r.kernel || '';
