@@ -1211,13 +1211,15 @@ function getHandheldOSDistribution(data) {
 
 // Helper to get CPU Brand distribution
 function getCPUBrandDistribution(data) {
-    const brands = { AMD: 0, Intel: 0, Other: 0 };
+    const brands = { AMD: 0, Intel: 0, ARM: 0, Other: 0 };
     data.forEach(r => {
         const cpu = (r.cpu || '').toLowerCase();
         if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('bc-250')) {
             brands.AMD++;
         } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra')) {
             brands.Intel++;
+        } else if (cpu.includes('arm') || cpu.includes('rk3588') || cpu.includes('mali')) {
+            brands.ARM++;
         } else {
             brands.Other++;
         }
@@ -1227,11 +1229,13 @@ function getCPUBrandDistribution(data) {
 
 // Helper to get GPU Brand distribution
 function getGPUBrandDistribution(data) {
-    const brands = { NVIDIA: 0, AMD: 0, Intel: 0, Other: 0 };
+    const brands = { NVIDIA: 0, AMD: 0, Intel: 0, ARM: 0, Other: 0 };
     data.forEach(r => {
         const gpu = (r.gpu || '').toLowerCase();
         if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt 1030')) {
             brands.NVIDIA++;
+        } else if (gpu.includes('arm') || gpu.includes('mali') || gpu.includes('rk3588')) {
+            brands.ARM++;
         } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
             brands.AMD++;
         } else if (gpu.includes('intel') || gpu.includes('arc') || gpu.includes('uhd') || gpu.includes('hd graphics')) {
@@ -1753,40 +1757,43 @@ function renderCharts() {
 
     // 7. Pie/Doughnut CPU Brand Distribution Chart
     const cpuBrandDist = getCPUBrandDistribution(benchmarkData);
+    if (cpuBrandDist.Other === 0) {
+        delete cpuBrandDist.Other;
+    }
+    const cpuBrandColors = {
+        'AMD': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },
+        'Intel': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },
+        'ARM': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },
+        'Other': { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' }
+    };
+    const cpuLabels = Object.keys(cpuBrandDist);
     renderDoughnutChart(
         'cpuBrandDistChart',
-        Object.keys(cpuBrandDist),
+        cpuLabels,
         Object.values(cpuBrandDist),
-        [
-            'rgba(244, 63, 94, 0.8)', // AMD
-            'rgba(14, 165, 233, 0.8)', // Intel
-            'rgba(156, 163, 175, 0.8)'  // Other
-        ],
-        [
-            '#fb7185',
-            '#38bdf8',
-            '#9ca3af'
-        ]
+        cpuLabels.map(label => cpuBrandColors[label].bg),
+        cpuLabels.map(label => cpuBrandColors[label].border)
     );
 
     // 8. Pie/Doughnut GPU Brand Distribution Chart
     const gpuBrandDist = getGPUBrandDistribution(benchmarkData);
+    if (gpuBrandDist.Other === 0) {
+        delete gpuBrandDist.Other;
+    }
+    const gpuBrandColors = {
+        'NVIDIA': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },
+        'AMD': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },
+        'Intel': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },
+        'ARM': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },
+        'Other': { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' }
+    };
+    const gpuLabels = Object.keys(gpuBrandDist);
     renderDoughnutChart(
         'gpuBrandDistChart',
-        Object.keys(gpuBrandDist),
+        gpuLabels,
         Object.values(gpuBrandDist),
-        [
-            'rgba(16, 185, 129, 0.8)', // NVIDIA
-            'rgba(244, 63, 94, 0.8)', // AMD
-            'rgba(14, 165, 233, 0.8)', // Intel
-            'rgba(156, 163, 175, 0.8)'  // Other
-        ],
-        [
-            '#34d399',
-            '#fb7185',
-            '#38bdf8',
-            '#9ca3af'
-        ]
+        gpuLabels.map(label => gpuBrandColors[label].bg),
+        gpuLabels.map(label => gpuBrandColors[label].border)
     );
 
     // 8b. Pie/Doughnut RAM Capacity Distribution Chart
