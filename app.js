@@ -286,7 +286,7 @@ function processGvizData(jsonResponse) {
             cpuSingle: cpuSingle,
             cpuMulti: cpuMulti,
             gpuScore: gpuScore,
-            dateTime: convertUTCToGMT3(getFormattedVal(12) || 'N/D'),
+            dateTime: getFormattedVal(12) || 'N/D',
             clientId: getVal(13) || 'N/D'
         };
     }).filter(row => row !== null);
@@ -390,30 +390,6 @@ function cleanNumber(val) {
     return isNaN(num) ? null : num;
 }
 
-// Convert UTC timestamp string in DD/MM/YYYY HH:MM:SS format to GMT-3 (America/São Paulo)
-function convertUTCToGMT3(dateTimeStr) {
-    if (!dateTimeStr || dateTimeStr === 'N/D') return 'N/D';
-    
-    // Match DD/MM/YYYY HH:MM:SS or DD/MM/YYYY HH:MM
-    const match = dateTimeStr.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
-    if (!match) return dateTimeStr; // return original if not matching
-    
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1; // 0-indexed
-    const year = parseInt(match[3], 10);
-    const hours = parseInt(match[4], 10);
-    const minutes = parseInt(match[5], 10);
-    const seconds = match[6] ? parseInt(match[6], 10) : 0;
-    
-    // Interpret parts as UTC
-    const utcDate = new Date(Date.UTC(year, month, day, hours, minutes, seconds));
-    
-    // Shift by -3 hours
-    const gmt3Date = new Date(utcDate.getTime() - 3 * 60 * 60 * 1000);
-    
-    const pad = (num) => String(num).padStart(2, '0');
-    return `${pad(gmt3Date.getUTCDate())}/${pad(gmt3Date.getUTCMonth() + 1)}/${gmt3Date.getUTCFullYear()} ${pad(gmt3Date.getUTCHours())}:${pad(gmt3Date.getUTCMinutes())}:${pad(gmt3Date.getUTCSeconds())}`;
-}
 
 // Process CSV content
 function processCSVData(csvText) {
@@ -467,7 +443,7 @@ function processCSVData(csvText) {
             cpuSingle: cleanNumber(row[9]),
             cpuMulti: cleanNumber(row[10]),
             gpuScore: cleanNumber(row[11]),
-            dateTime: convertUTCToGMT3(row[12] || 'N/D'),
+            dateTime: row[12] || 'N/D',
             clientId: row[13] || 'N/D'
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
@@ -936,12 +912,20 @@ function showCopyFeedback(element) {
     }, 1500);
 }
 
-// Helper to parse dates in format DD/MM/YYYY HH:MM:SS
+// Helper to parse dates in format DD/MM/YYYY HH:MM:SS or YYYY-MM-DD HH:MM:SS
 function parseDate(dateStr) {
     if (!dateStr || dateStr === 'N/D') return null;
-    const parts = dateStr.split(' ')[0].split('/');
-    if (parts.length < 3) return null;
-    return new Date(parts[2], parts[1] - 1, parts[0]);
+    const datePart = dateStr.split(' ')[0];
+    if (datePart.includes('-')) {
+        const parts = datePart.split('-');
+        if (parts.length < 3) return null;
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    } else if (datePart.includes('/')) {
+        const parts = datePart.split('/');
+        if (parts.length < 3) return null;
+        return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+    }
+    return null;
 }
 
 // Helper to normalize CPU names for popularity chart
