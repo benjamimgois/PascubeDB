@@ -3,7 +3,7 @@
 const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1nlMgeW0ZFmtwwT3hty8JAFT3sM0SNhMpc24mH3In9zI/export?format=csv";
 
 // Fallback CSV Data to ensure the dashboard works even offline or in case of CORS/network issues
-const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,,,,product name
+const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,package,,product name
 Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07,2648f98e2306731777b45289ec0a46e6d5466beb43cecb72104b6ea3449aa10a
 Anonymous,Ryzen 7 9800X3D,30GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  595.80  Release Build  (dvs-builder@U22-I3-AF05-29-2)  Thu May 21 19:21:58 UTC 2026,7.0.12-201.fc44.x86_64,Fedora Linux 44 (KDE Plasma Desktop Edition),4975,2615,4019,6913,
 Anonymous,Ryzen 9 7950X3D 16-Core,63GB,RX 7900 XTX,24GB,Mesa 26.1.99,7.0.12-1-cachyos,CachyOS,4938,3481,10783,4205,14/06/2026 14:22:49
@@ -108,9 +108,9 @@ Anonymous,Ryzen 5 PRO 5650U with Radeon Graphics,23GB,Graphics,13.1GB,Mesa 26.0.
 Anonymous,i5-6400 @ 2.70GHz,12GB,R9 390 Series,8GB,Mesa 26.0.5,6.19.14-ogc5.1.fc44.x86_64,Bazzite,585,879,311,461,15/06/2026 14:41:25
 Anonymous,i5-3470S @ 2.90GHz,16GB,GT 1030 (NVK GP108),2.3GB,NVIDIA 109051.91.0,6.17.0-35-generic,Zorin OS 18.1,528,1120,503,122,14/06/2026 12:29:55
 Anonymous,11th Gen i5-11400H @ 2.70GHz,15GB,RTX 3050 Laptop GPU,4GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  580.159.03  Release Build  (dvs-builder@U22-I3-AM27-29-6)  Fri Apr 24 06:03:03 UTC 2026,7.0.11-76070011-generic,Pop!_OS 24.04 LTS,407,1,1,813,16/06/2026 12:20:04
-Anonymous,i5-5250U @ 1.60GHz,8GB,Intel(R) HD Graphics 6000 (BDW GT3),7.7GB,Mesa 26.1.2,6.14.0-37-generic,Linux Mint 22.3,54,1,1,107,14/06/2026 18:04:47,,x86_64
-Anonymous,Raspberry Pi 5,8GB,VideoCore VII,0.5GB,Mesa 26.1.2,7.0.12-1-cachyos,Ubuntu 24.04 LTS,94,1,1,67,20/06/2026 12:00:00,,aarch64,,,Raspberry Pi 5 Rev 1.0
-Anonymous,Orange Pi 5 Plus,16GB,Mali G610,2GB,Mesa 26.1.2,7.0.12-1-cachyos,Debian 12,78,1,1,52,22/06/2026 14:30:00,,aarch64,,,Orange Pi 5 Plus 16GB`;
+Anonymous,i5-5250U @ 1.60GHz,8GB,Intel(R) HD Graphics 6000 (BDW GT3),7.7GB,Mesa 26.1.2,6.14.0-37-generic,Linux Mint 22.3,54,1,1,107,14/06/2026 18:04:47,,x86_64,native
+Anonymous,Raspberry Pi 5,8GB,VideoCore VII,0.5GB,Mesa 26.1.2,7.0.12-1-cachyos,Ubuntu 24.04 LTS,94,1,1,67,20/06/2026 12:00:00,,aarch64,native,,Raspberry Pi 5 Rev 1.0
+Anonymous,Orange Pi 5 Plus,16GB,Mali G610,2GB,Mesa 26.1.2,7.0.12-1-cachyos,Debian 12,78,1,1,52,22/06/2026 14:30:00,,aarch64,native,,Orange Pi 5 Plus 16GB`;
 
 // State Variables
 let benchmarkData = [];
@@ -291,6 +291,7 @@ function processGvizData(jsonResponse) {
             dateTime: getFormattedVal(12) || 'N/D',
             clientId: getVal(13) || 'N/D',
             architecture: getVal(14) || 'N/D',
+            packageType: getVal(15) || 'N/D',
             productName: getVal(17) || 'N/D'
         };
     }).filter(row => row !== null);
@@ -450,6 +451,7 @@ function processCSVData(csvText) {
             dateTime: row[12] || 'N/D',
             clientId: row[13] || 'N/D',
             architecture: row[14] || 'N/D',
+            packageType: row[15] || 'N/D',
             productName: row[17] || 'N/D'
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
@@ -1546,6 +1548,21 @@ function getVersionDistribution(data, type) {
     return counts;
 }
 
+// Helper to get Package type distribution
+function getPackageDistribution(data) {
+    const counts = {};
+    data.forEach(r => {
+        let pkg = (r.packageType || '').trim().toLowerCase();
+        if (!pkg || pkg === 'n/d' || pkg === '') pkg = 'Unknown';
+        counts[pkg] = (counts[pkg] || 0) + 1;
+    });
+    const order = ['native', 'flatpak', 'appimage', 'Unknown'];
+    const sorted = {};
+    order.forEach(k => { if (counts[k]) sorted[k] = counts[k]; });
+    Object.keys(counts).sort().forEach(k => { if (!order.includes(k)) sorted[k] = counts[k]; });
+    return sorted;
+}
+
 // Helper to calculate score histogram bins
 function getScoreHistogramData(data) {
     const bins = {
@@ -2336,6 +2353,25 @@ function renderCharts() {
                     }
                 }
             });
+        }
+
+        // Package Distribution
+        const pkgDist = getPackageDistribution(benchmarkData);
+        const pkgLabels = Object.keys(pkgDist);
+        const pkgColors = pkgLabels.map(label => {
+            if (label === 'native') return { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' };
+            if (label === 'flatpak') return { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' };
+            if (label === 'appimage') return { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' };
+            return { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' };
+        });
+        if (document.getElementById('packageDistChart')) {
+            renderDoughnutChart(
+                'packageDistChart',
+                pkgLabels,
+                Object.values(pkgDist),
+                pkgColors.map(c => c.bg),
+                pkgColors.map(c => c.border)
+            );
         }
 
     }
