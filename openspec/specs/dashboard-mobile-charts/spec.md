@@ -36,8 +36,8 @@ The system SHALL identify Handheld devices and render a horizontal bar chart of 
 - **THEN** a horizontal bar chart is rendered displaying the top 10 Handheld runs sorted by Main Score in descending order, with client-id (first 8 characters) shown on hover
 
 ### Requirement: Top 10 SBC Benchmark Runs
-The system SHALL identify SBC devices and render a horizontal bar chart of the top 10 highest individual Main Scores.
+The system SHALL parse the "product name" field from each benchmark row. When rendering the Top 10 SBC Benchmark Runs chart, the label SHALL display the product name (if available and not "N/D") instead of the normalized CPU name.
 
-#### Scenario: Rendering the Top 10 SBC Benchmark Runs chart
+#### Scenario: Rendering the Top 10 SBC Benchmark Runs with product name
 - **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a horizontal bar chart is rendered displaying the top 10 SBC runs sorted by Main Score in descending order, with client-id (first 8 characters) shown on hover
+- **THEN** a horizontal bar chart is rendered displaying the top 10 SBC runs sorted by Main Score, where each bar label shows the product name (e.g., "Raspberry Pi 5 Rev 1.0") when available, falling back to the CPU model name
