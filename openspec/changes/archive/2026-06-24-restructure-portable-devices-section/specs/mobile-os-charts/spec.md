@@ -1,9 +1,11 @@
 # mobile-os-charts
 
-## Purpose
-Specifies the capability to render Operating System distribution statistics for portable device categories (Notebook, Handheld, SBC) in the Portable Devices section of the dashboard.
+## REMOVED Requirements
 
-## Requirements
+### Requirement: Mobile OS Distribution Chart
+**Reason**: Replaced by per-category OS charts (Notebook OS, Handheld OS, SBC OS) in this spec
+
+## MODIFIED Requirements
 
 ### Requirement: Notebook Operating Systems Chart
 The system SHALL aggregate the count of each unique operating system name for Notebook devices and render a doughnut chart displaying their distribution.

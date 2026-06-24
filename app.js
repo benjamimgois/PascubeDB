@@ -1245,6 +1245,85 @@ function getSbcOSDistribution(data) {
     return getOSDistribution(sbcData);
 }
 
+// Get Notebook OS distribution
+function getNotebookOSDistribution(data) {
+    const notebookData = data.filter(r => classifyDevice(r) === 'Notebook');
+    return getOSDistribution(notebookData);
+}
+
+// Get top Notebook runs by Main Score
+function getTopNotebookRuns(data, limit = 10) {
+    const notebookData = data.filter(r => classifyDevice(r) === 'Notebook' && r.mainScore !== null);
+
+    return notebookData
+        .sort((a, b) => b.mainScore - a.mainScore)
+        .slice(0, limit)
+        .map(r => ({
+            label: r.user && r.user !== 'Anonymous' ? `${r.user} (${normalizeCPU(r.cpu)})` : normalizeCPU(r.cpu),
+            score: r.mainScore
+        }));
+}
+
+// Get top CPUs by category (Notebook/Handheld/SBC) by average CPU Single score
+function getTopCategoryCPUs(data, category, limit = 10) {
+    const catData = data.filter(r => classifyDevice(r) === category && r.cpuSingle !== null);
+    const groups = {};
+
+    catData.forEach(r => {
+        const name = normalizeCPU(r.cpu);
+        if (name && name !== 'Unknown CPU' && name !== 'N/D') {
+            if (!groups[name]) groups[name] = [];
+            groups[name].push(r);
+        }
+    });
+
+    return Object.entries(groups)
+        .map(([name, runs]) => {
+            const avg = Math.round(runs.reduce((sum, r) => sum + r.cpuSingle, 0) / runs.length);
+            const bestRun = runs.reduce((best, current) => current.cpuSingle > best.cpuSingle ? current : best, runs[0]);
+            return { name, avg, clientId: bestRun.clientId };
+        })
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, limit);
+}
+
+// Get top GPUs by category (Notebook/Handheld/SBC) by average GPU score
+function getTopCategoryGPUs(data, category, limit = 10) {
+    const catData = data.filter(r => {
+        if (classifyDevice(r) !== category) return false;
+        if (r.gpuScore === null) return false;
+
+        // Exclude desktop GPUs for Notebook category only
+        if (category === 'Notebook') {
+            const gpuLower = (r.gpu || '').toLowerCase();
+            if (gpuLower.includes('9070') || gpuLower.includes('9060') || gpuLower.includes('4090') || gpuLower.includes('5070') || gpuLower.includes('7900') || gpuLower.includes('7800') || gpuLower.includes('6900') || gpuLower.includes('6800') || gpuLower.includes('6700') || gpuLower.includes('6750')) {
+                if (!gpuLower.includes('laptop') && !gpuLower.includes('mobile')) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+
+    const groups = {};
+    catData.forEach(r => {
+        const name = normalizeGPU(r.gpu);
+        if (name && name !== 'Unknown GPU' && name !== 'N/D') {
+            if (!groups[name]) groups[name] = [];
+            groups[name].push(r);
+        }
+    });
+
+    return Object.entries(groups)
+        .map(([name, runs]) => {
+            const avg = Math.round(runs.reduce((sum, r) => sum + r.gpuScore, 0) / runs.length);
+            const bestRun = runs.reduce((best, current) => current.gpuScore > best.gpuScore ? current : best, runs[0]);
+            return { name, avg, clientId: bestRun.clientId };
+        })
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, limit);
+}
+
 // Helper to get CPU Brand distribution
 function getCPUBrandDistribution(data) {
     const brands = { AMD: 0, Intel: 0, ARM: 0, Other: 0 };
@@ -2002,23 +2081,22 @@ function renderCharts() {
         ]
     );
 
-    // Mobile Charts Rendering
+    // Portable Devices Charts Rendering
     if (!document.getElementById('mobileDistChart')) return;
 
-    // 16. Mobile distribution
-    const mobileDist = getMobileDistribution(benchmarkData);
-    const mobileDistColors = {
+    const portableDist = getMobileDistribution(benchmarkData);
+    const portableDistColors = {
         'Handheld': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },
         'SBC': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },
         'Notebook': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' }
     };
-    const mobileDistLabels = Object.keys(mobileDist);
+    const portableDistLabels = Object.keys(portableDist);
     renderDoughnutChart(
         'mobileDistChart',
-        mobileDistLabels,
-        Object.values(mobileDist),
-        mobileDistLabels.map(l => mobileDistColors[l] ? mobileDistColors[l].bg : 'rgba(107, 114, 128, 0.8)'),
-        mobileDistLabels.map(l => mobileDistColors[l] ? mobileDistColors[l].border : '#9ca3af')
+        portableDistLabels,
+        Object.values(portableDist),
+        portableDistLabels.map(l => portableDistColors[l] ? portableDistColors[l].bg : 'rgba(107, 114, 128, 0.8)'),
+        portableDistLabels.map(l => portableDistColors[l] ? portableDistColors[l].border : '#9ca3af')
     );
 
     // Helper to get colors for OS labels
@@ -2028,7 +2106,7 @@ function renderCharts() {
         let colorIdx = 0;
         labels.forEach(label => {
             if (label === 'Other') {
-                bgColors.push('rgba(107, 114, 128, 0.8)'); // Gray
+                bgColors.push('rgba(107, 114, 128, 0.8)');
                 borderColors.push('#9ca3af');
             } else {
                 const color = osPalette[colorIdx % osPalette.length];
@@ -2040,146 +2118,67 @@ function renderCharts() {
         return { bgColors, borderColors };
     };
 
-    // 16a. Mobile OS Distribution
-    const mobileOsDist = getMobileOSDistribution(benchmarkData);
-    const mobileOsLabels = Object.keys(mobileOsDist);
-    const mobileOsColors = getMobileOsColors(mobileOsLabels);
-    renderDoughnutChart(
-        'mobileOsDistChart',
-        mobileOsLabels,
-        Object.values(mobileOsDist),
-        mobileOsColors.bgColors,
-        mobileOsColors.borderColors
-    );
+    function renderCategoryCharts(category, runsChartId, osChartId, cpuChartId, gpuChartId) {
+        // Top runs
+        const runs = category === 'Notebook' ? getTopNotebookRuns :
+                     category === 'Handheld' ? getTopHandheldRuns :
+                     getTopSbcRuns;
+        const runsData = runs(benchmarkData, 10);
+        renderHorizontalBarChart(
+            runsChartId,
+            runsData.map(h => h.label),
+            runsData.map(h => h.score),
+            'Main Score',
+            'rgba(16, 185, 129, 0.85)',
+            '#10b981'
+        );
 
-    // 16b. Handheld OS Distribution
-    const handheldOsDist = getHandheldOSDistribution(benchmarkData);
-    const handheldOsLabels = Object.keys(handheldOsDist);
-    const handheldOsColors = getMobileOsColors(handheldOsLabels);
-    renderDoughnutChart(
-        'handheldOsDistChart',
-        handheldOsLabels,
-        Object.values(handheldOsDist),
-        handheldOsColors.bgColors,
-        handheldOsColors.borderColors
-    );
+        // OS distribution
+        const osFn = category === 'Notebook' ? getNotebookOSDistribution :
+                     category === 'Handheld' ? getHandheldOSDistribution :
+                     getSbcOSDistribution;
+        const osDist = osFn(benchmarkData);
+        const osLabels = Object.keys(osDist);
+        const osColors = getMobileOsColors(osLabels);
+        renderDoughnutChart(
+            osChartId,
+            osLabels,
+            Object.values(osDist),
+            osColors.bgColors,
+            osColors.borderColors
+        );
 
-    // 17. Notebook vs Handheld Averages comparison
-    const mobileAvgs = getMobileAverages(benchmarkData);
-    const avgLabels = ['Main Score', 'CPU Single', 'CPU Multi', 'GPU Score'];
-    const avgDatasets = [
-        {
-            label: 'Handheld',
-            data: [
-                mobileAvgs.handheld.mainScore,
-                mobileAvgs.handheld.cpuSingle,
-                mobileAvgs.handheld.cpuMulti,
-                mobileAvgs.handheld.gpuScore
-            ],
-            backgroundColor: 'rgba(99, 102, 241, 0.85)',
-            borderColor: '#818cf8',
-            borderWidth: 1.5,
-            borderRadius: 6,
-            borderSkipped: false,
-            barPercentage: 0.8,
-            categoryPercentage: 0.6
-        },
-        {
-            label: 'Notebook',
-            data: [
-                mobileAvgs.notebook.mainScore,
-                mobileAvgs.notebook.cpuSingle,
-                mobileAvgs.notebook.cpuMulti,
-                mobileAvgs.notebook.gpuScore
-            ],
-            backgroundColor: 'rgba(245, 158, 11, 0.85)',
-            borderColor: '#fbbf24',
-            borderWidth: 1.5,
-            borderRadius: 6,
-            borderSkipped: false,
-            barPercentage: 0.8,
-            categoryPercentage: 0.6
-        },
-        {
-            label: 'SBC',
-            data: [
-                mobileAvgs.sbc.mainScore,
-                mobileAvgs.sbc.cpuSingle,
-                mobileAvgs.sbc.cpuMulti,
-                mobileAvgs.sbc.gpuScore
-            ],
-            backgroundColor: 'rgba(16, 185, 129, 0.85)',
-            borderColor: '#34d399',
-            borderWidth: 1.5,
-            borderRadius: 6,
-            borderSkipped: false,
-            barPercentage: 0.8,
-            categoryPercentage: 0.6
-        }
-    ];
-    renderGroupedBarChart('mobileAveragesChart', avgLabels, avgDatasets);
+        // GPU filter for Notebook: exclude desktop GPUs
+        const cpuData = getTopCategoryCPUs(benchmarkData, category, 10);
+        renderHorizontalBarChart(
+            cpuChartId,
+            cpuData.map(c => c.name),
+            cpuData.map(c => c.avg),
+            'Avg CPU Single Score',
+            'rgba(99, 102, 241, 0.85)',
+            '#818cf8',
+            undefined,
+            undefined,
+            cpuData.map(c => c.clientId)
+        );
 
-    // 18. Top 10 Mobile CPUs
-    const topMobileCPUs = getTopMobileCPUs(benchmarkData, 10);
-    renderHorizontalBarChart(
-        'mobileCpuChart',
-        topMobileCPUs.map(c => c.name),
-        topMobileCPUs.map(c => c.avg),
-        'Avg CPU Single Score',
-        topMobileCPUs.map(c => isHandheldCPU(c.name) ? 'rgba(99, 102, 241, 0.85)' : 'rgba(168, 85, 247, 0.85)'),
-        topMobileCPUs.map(c => isHandheldCPU(c.name) ? '#818cf8' : '#c084fc'),
-        undefined,
-        undefined,
-        topMobileCPUs.map(c => c.clientId)
-    );
+        const gpuData = getTopCategoryGPUs(benchmarkData, category, 10);
+        renderHorizontalBarChart(
+            gpuChartId,
+            gpuData.map(g => g.name),
+            gpuData.map(g => g.avg),
+            'Avg GPU Score',
+            'rgba(14, 165, 233, 0.85)',
+            '#38bdf8',
+            undefined,
+            undefined,
+            gpuData.map(g => g.clientId)
+        );
+    }
 
-    // 19. Top 10 Mobile GPUs
-    const topMobileGPUs = getTopMobileGPUs(benchmarkData, 10);
-    renderHorizontalBarChart(
-        'mobileGpuChart',
-        topMobileGPUs.map(g => g.name),
-        topMobileGPUs.map(g => g.avg),
-        'Avg GPU Score',
-        topMobileGPUs.map(g => isHandheldGPU(g.name) ? 'rgba(99, 102, 241, 0.85)' : 'rgba(14, 165, 233, 0.85)'),
-        topMobileGPUs.map(g => isHandheldGPU(g.name) ? '#818cf8' : '#38bdf8'),
-        undefined,
-        undefined,
-        topMobileGPUs.map(g => g.clientId)
-    );
-
-    // 20. Top 10 Handheld Overall
-    const topHandhelds = getTopHandheldRuns(benchmarkData, 10);
-    renderHorizontalBarChart(
-        'handheldOverallChart',
-        topHandhelds.map(h => h.label),
-        topHandhelds.map(h => h.score),
-        'Main Score',
-        'rgba(16, 185, 129, 0.85)',
-        '#10b981'
-    );
-
-    // 20a. SBCs Operating Systems
-    const sbcOsDist = getSbcOSDistribution(benchmarkData);
-    const sbcOsLabels = Object.keys(sbcOsDist);
-    const sbcOsColors = getMobileOsColors(sbcOsLabels);
-    renderDoughnutChart(
-        'sbcOsDistChart',
-        sbcOsLabels,
-        Object.values(sbcOsDist),
-        sbcOsColors.bgColors,
-        sbcOsColors.borderColors
-    );
-
-    // 20b. Top 10 SBC Overall
-    const topSbc = getTopSbcRuns(benchmarkData, 10);
-    renderHorizontalBarChart(
-        'sbcOverallChart',
-        topSbc.map(h => h.label),
-        topSbc.map(h => h.score),
-        'Main Score',
-        'rgba(16, 185, 129, 0.85)',
-        '#34d399'
-    );
+    renderCategoryCharts('Notebook', 'notebookRunsChart', 'notebookOsDistChart', 'notebookCpuChart', 'notebookGpuChart');
+    renderCategoryCharts('Handheld', 'handheldRunsChart', 'handheldOsDistChart', 'handheldCpuChart', 'handheldGpuChart');
+    renderCategoryCharts('SBC', 'sbcRunsChart', 'sbcOsDistChart', 'sbcCpuChart', 'sbcGpuChart');
 
     // 21. PascubeDB Community Insights Section Calculations & Rendering
     if (document.getElementById('stat-unique-clients')) {

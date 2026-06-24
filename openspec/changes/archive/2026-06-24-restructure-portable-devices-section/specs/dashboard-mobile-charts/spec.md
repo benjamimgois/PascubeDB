@@ -1,18 +1,20 @@
 # dashboard-mobile-charts
 
-## Purpose
-Specifies the capability to render performance comparison charts and distribution metrics for mobile form factors (laptops/notebooks and handheld gaming PCs) on the benchmark dashboard.
+## REMOVED Requirements
 
-## Requirements
+### Requirement: Top 10 Mobile CPU Performance Chart
+**Reason**: Replaced by per-category CPU charts in portable-device-cpu-charts spec
 
-### Requirement: Mobile Device Detection Logic
-The system SHALL scan and analyze the benchmark dataset to identify rows representing mobile devices. Each mobile record MUST be classified as either "Handheld" or "Notebook" based on CPU, GPU, OS, and Kernel signatures.
-- "Handheld" signature includes: CPU/GPU containing "Steam Deck", "Z1 Extreme", "Z1", "Custom APU 0405", or "AMD Custom GPU 0405"; or OS/Kernel containing "Bazzite (ROG Ally", "Steam Deck", "Ally", or "Legion Go".
-- "Notebook" signature includes: GPU containing "Laptop", "Mobile", or "Geforce MX"; CPU containing Intel mobile suffixes like `H`, `HX`, `HK`, `U` or AMD mobile suffixes like `H`, `HS`, `HX`, `U`, or Ryzen AI processors (excluding those already classified as Handhelds).
+### Requirement: Top 10 Mobile GPU Performance Chart
+**Reason**: Replaced by per-category GPU charts in portable-device-gpu-charts spec
 
-#### Scenario: Categorizing a row as Handheld or Notebook
-- **WHEN** the benchmark data is processed
-- **THEN** rows matching Handheld criteria are labeled as "Handheld", rows matching Notebook criteria are labeled as "Notebook", and all other rows are ignored for the mobile section charts
+### Requirement: Notebook vs Handheld vs SBC Averages Chart
+**Reason**: Removed in favor of per-category top runs and dedicated CPU/GPU charts
+
+### Requirement: Top 10 Handheld Performance Chart
+**Reason**: Replaced by dedicated "Top 10 Handheld Benchmark Runs - Main Score" in this spec
+
+## MODIFIED Requirements
 
 ### Requirement: Mobile Device Type Distribution Chart
 The system SHALL aggregate the counts of Handheld vs. Notebook vs. SBC devices and render a doughnut chart displaying their percentage distribution. The chart title SHALL read "Portable device type".
@@ -20,6 +22,8 @@ The system SHALL aggregate the counts of Handheld vs. Notebook vs. SBC devices a
 #### Scenario: Rendering the Portable device type chart
 - **WHEN** the dashboard page finishes loading the benchmark data
 - **THEN** a doughnut chart is rendered showing the percentage of Handhelds, Notebooks, and SBCs among all identified non-desktop devices
+
+## ADDED Requirements
 
 ### Requirement: Top 10 Notebook Benchmark Runs
 The system SHALL identify Notebook devices and render a horizontal bar chart of the top 10 highest individual Main Scores.

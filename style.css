@@ -433,7 +433,7 @@ h1, h2, h3, h4 {
     gap: 1.5rem;
 }
 
-/* Mobile Devices Section */
+/* Portable Devices Section */
 .mobile-charts-section {
     display: flex;
     flex-direction: column;
@@ -441,27 +441,16 @@ h1, h2, h3, h4 {
     margin-top: 1rem;
 }
 
-.mobile-overview-grid {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 1.5rem;
-}
-
-.mobile-performance-grid {
+.portable-category-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
+    align-items: start;
 }
 
-.mobile-distribution-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-}
-
-.mobile-sbc-distribution-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+.category-column {
+    display: flex;
+    flex-direction: column;
     gap: 1.5rem;
 }
 
@@ -779,17 +768,8 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .mobile-overview-grid {
         grid-template-columns: 1fr;
     }
-    .mobile-performance-grid {
+    .portable-category-grid {
         grid-template-columns: repeat(2, 1fr);
-    }
-    .mobile-performance-grid .chart-container-wrapper:nth-child(3) {
-        grid-column: span 2;
-    }
-    .mobile-distribution-grid {
-        grid-template-columns: 1fr;
-    }
-    .mobile-sbc-distribution-grid {
-        grid-template-columns: 1fr;
     }
 }
 
@@ -836,13 +816,7 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .histogram-chart {
         grid-column: span 1;
     }
-    .mobile-performance-grid {
-        grid-template-columns: 1fr;
-    }
-    .mobile-performance-grid .chart-container-wrapper:nth-child(3) {
-        grid-column: span 1;
-    }
-    .mobile-sbc-distribution-grid {
+    .portable-category-grid {
         grid-template-columns: 1fr;
     }
 }
