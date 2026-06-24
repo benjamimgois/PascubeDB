@@ -15,11 +15,11 @@ The system SHALL scan and analyze the benchmark dataset to identify rows represe
 - **THEN** rows matching Handheld criteria are labeled as "Handheld", rows matching Notebook criteria are labeled as "Notebook", and all other rows are ignored for the mobile section charts
 
 ### Requirement: Mobile Device Type Distribution Chart
-The system SHALL aggregate the counts of Handheld vs. Notebook devices and render a doughnut chart displaying their percentage distribution in the dataset.
+The system SHALL aggregate the counts of Handheld vs. Notebook vs. SBC devices and render a doughnut chart displaying their percentage distribution in the dataset. The section title SHALL read "Mobile and SBC Devices" instead of "Mobile Devices".
 
-#### Scenario: Rendering the Mobile Device Type Distribution chart
+#### Scenario: Rendering the Mobile and SBC Device Type Distribution chart
 - **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a doughnut chart is rendered showing the percentage of Handhelds versus Notebooks among all identified mobile devices
+- **THEN** a doughnut chart is rendered showing the percentage of Handhelds, Notebooks, and SBCs among all identified non-desktop devices
 
 ### Requirement: Top 10 Mobile CPU Performance Chart
 The system SHALL identify mobile CPUs in the dataset and render a horizontal bar chart displaying the top 10 mobile CPU models sorted by average CPU Single score in descending order. When a user hovers over a data point, the tooltip SHALL display the client-id (first 8 characters) of the best-performing run for that mobile CPU model.
@@ -42,9 +42,9 @@ The system SHALL identify handheld gaming PC models in the dataset and render a 
 - **WHEN** the dashboard page finishes loading the benchmark data
 - **THEN** a horizontal bar chart is rendered displaying the top 10 highest handheld runs sorted by Main Score in descending order
 
-### Requirement: Notebook vs Handheld Averages Chart
-The system SHALL calculate the overall average benchmark scores (Main Score, CPU Single, CPU Multi, and GPU Score) for Notebooks and Handhelds, and render a grouped bar chart comparing these averages.
+### Requirement: Notebook vs Handheld vs SBC Averages Chart
+The system SHALL calculate the overall average benchmark scores (Main Score, CPU Single, CPU Multi, and GPU Score) for Notebooks, Handhelds, and SBCs, and render a grouped bar chart comparing these averages across all three categories.
 
-#### Scenario: Rendering the Notebook vs Handheld Averages comparison chart
+#### Scenario: Rendering the Notebook vs Handheld vs SBC Averages comparison chart
 - **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a grouped bar chart is rendered showing comparison bars for average Main Score, average CPU Single, average CPU Multi, and average GPU Score between the Handheld and Notebook categories
+- **THEN** a grouped bar chart is rendered showing comparison bars for average Main Score, average CPU Single, average CPU Multi, and average GPU Score between the Handheld, SBC, and Notebook categories

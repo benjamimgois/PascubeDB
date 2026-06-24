@@ -459,6 +459,12 @@ h1, h2, h3, h4 {
     gap: 1.5rem;
 }
 
+.mobile-sbc-distribution-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
 /* Leaderboard Table Section */
 .leaderboard-section {
     display: flex;
@@ -782,6 +788,9 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .mobile-distribution-grid {
         grid-template-columns: 1fr;
     }
+    .mobile-sbc-distribution-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -832,6 +841,9 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     }
     .mobile-performance-grid .chart-container-wrapper:nth-child(3) {
         grid-column: span 1;
+    }
+    .mobile-sbc-distribution-grid {
+        grid-template-columns: 1fr;
     }
 }
 

@@ -291,18 +291,18 @@
             </div>
         </section>
 
-        <!-- Mobile Devices Section -->
+        <!-- Mobile and SBC Devices Section -->
         <section class="mobile-charts-section">
             <div class="section-header">
-                <h2>Mobile Devices</h2>
-                <p>Performance and distribution metrics for notebooks and handheld gaming PCs</p>
+                <h2>Mobile and SBC Devices</h2>
+                <p>Performance and distribution metrics for notebooks, handheld gaming PCs, and SBCs</p>
             </div>
             
             <div class="mobile-overview-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>Mobile Device Type</h3>
-                        <p>Handheld vs. Notebook distribution</p>
+                        <p>Handheld vs. SBC vs. Notebook distribution</p>
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="mobileDistChart"></canvas>
@@ -311,7 +311,7 @@
 
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Notebook vs. Handheld Averages</h3>
+                        <h3>Notebook vs. Handheld vs. SBC Averages</h3>
                         <p>Average scores comparison (higher is better)</p>
                     </div>
                     <div class="chart-canvas-area">
@@ -338,6 +338,28 @@
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="handheldOsDistChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mobile-sbc-distribution-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>SBCs Operating Systems</h3>
+                        <p>OS distribution for SBC devices</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="sbcOsDistChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Top 10 SBC - Overall</h3>
+                        <p>Highest individual Main Scores (higher is better)</p>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="sbcOverallChart"></canvas>
                     </div>
                 </div>
             </div>
