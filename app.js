@@ -1353,11 +1353,11 @@ function getGPUBrandDistribution(data) {
         const arch = (r.architecture || '').toLowerCase();
         if (arch === 'aarch64') {
             brands.ARM++;
-        } else if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt 1030')) {
+        } else if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt 1030') || gpu.includes('mx')) {
             brands.NVIDIA++;
         } else if (gpu.includes('arm') || gpu.includes('mali') || gpu.includes('rk3588')) {
             brands.ARM++;
-        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
+        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('550x') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
             brands.AMD++;
         } else if (gpu.includes('intel') || gpu.includes('arc') || gpu.includes('uhd') || gpu.includes('hd graphics')) {
             brands.Intel++;
