@@ -3,7 +3,7 @@
 const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1nlMgeW0ZFmtwwT3hty8JAFT3sM0SNhMpc24mH3In9zI/export?format=csv";
 
 // Fallback CSV Data to ensure the dashboard works even offline or in case of CORS/network issues
-const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture
+const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,,,,product name
 Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07,2648f98e2306731777b45289ec0a46e6d5466beb43cecb72104b6ea3449aa10a
 Anonymous,Ryzen 7 9800X3D,30GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  595.80  Release Build  (dvs-builder@U22-I3-AF05-29-2)  Thu May 21 19:21:58 UTC 2026,7.0.12-201.fc44.x86_64,Fedora Linux 44 (KDE Plasma Desktop Edition),4975,2615,4019,6913,
 Anonymous,Ryzen 9 7950X3D 16-Core,63GB,RX 7900 XTX,24GB,Mesa 26.1.99,7.0.12-1-cachyos,CachyOS,4938,3481,10783,4205,14/06/2026 14:22:49
@@ -109,8 +109,8 @@ Anonymous,i5-6400 @ 2.70GHz,12GB,R9 390 Series,8GB,Mesa 26.0.5,6.19.14-ogc5.1.fc
 Anonymous,i5-3470S @ 2.90GHz,16GB,GT 1030 (NVK GP108),2.3GB,NVIDIA 109051.91.0,6.17.0-35-generic,Zorin OS 18.1,528,1120,503,122,14/06/2026 12:29:55
 Anonymous,11th Gen i5-11400H @ 2.70GHz,15GB,RTX 3050 Laptop GPU,4GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  580.159.03  Release Build  (dvs-builder@U22-I3-AM27-29-6)  Fri Apr 24 06:03:03 UTC 2026,7.0.11-76070011-generic,Pop!_OS 24.04 LTS,407,1,1,813,16/06/2026 12:20:04
 Anonymous,i5-5250U @ 1.60GHz,8GB,Intel(R) HD Graphics 6000 (BDW GT3),7.7GB,Mesa 26.1.2,6.14.0-37-generic,Linux Mint 22.3,54,1,1,107,14/06/2026 18:04:47,,x86_64
-Anonymous,Raspberry Pi 5,8GB,VideoCore VII,0.5GB,Mesa 26.1.2,7.0.12-1-cachyos,Ubuntu 24.04 LTS,94,1,1,67,20/06/2026 12:00:00,,aarch64
-Anonymous,Orange Pi 5 Plus,16GB,Mali G610,2GB,Mesa 26.1.2,7.0.12-1-cachyos,Debian 12,78,1,1,52,22/06/2026 14:30:00,,aarch64`;
+Anonymous,Raspberry Pi 5,8GB,VideoCore VII,0.5GB,Mesa 26.1.2,7.0.12-1-cachyos,Ubuntu 24.04 LTS,94,1,1,67,20/06/2026 12:00:00,,aarch64,,,Raspberry Pi 5 Rev 1.0
+Anonymous,Orange Pi 5 Plus,16GB,Mali G610,2GB,Mesa 26.1.2,7.0.12-1-cachyos,Debian 12,78,1,1,52,22/06/2026 14:30:00,,aarch64,,,Orange Pi 5 Plus 16GB`;
 
 // State Variables
 let benchmarkData = [];
@@ -290,7 +290,8 @@ function processGvizData(jsonResponse) {
             gpuScore: gpuScore,
             dateTime: getFormattedVal(12) || 'N/D',
             clientId: getVal(13) || 'N/D',
-            architecture: getVal(14) || 'N/D'
+            architecture: getVal(14) || 'N/D',
+            productName: getVal(17) || 'N/D'
         };
     }).filter(row => row !== null);
     
@@ -448,7 +449,8 @@ function processCSVData(csvText) {
             gpuScore: cleanNumber(row[11]),
             dateTime: row[12] || 'N/D',
             clientId: row[13] || 'N/D',
-            architecture: row[14] || 'N/D'
+            architecture: row[14] || 'N/D',
+            productName: row[17] || 'N/D'
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -1214,6 +1216,15 @@ function getTopHandheldRuns(data, limit = 10) {
         }));
 }
 
+// Get SBC label — CPU name with productName on second line
+function getSbcLabel(r) {
+    const cpu = normalizeCPU(r.cpu);
+    if (r.productName && r.productName !== 'N/D') {
+        return `${cpu}\n${r.productName}`;
+    }
+    return cpu;
+}
+
 // Get top SBC runs by Main Score
 function getTopSbcRuns(data, limit = 10) {
     const sbcData = data.filter(r => classifyDevice(r) === 'SBC' && r.mainScore !== null);
@@ -1222,7 +1233,7 @@ function getTopSbcRuns(data, limit = 10) {
         .sort((a, b) => b.mainScore - a.mainScore)
         .slice(0, limit)
         .map(r => ({
-            label: r.user && r.user !== 'Anonymous' ? `${r.user} (${normalizeCPU(r.cpu)})` : normalizeCPU(r.cpu),
+            label: getSbcLabel(r),
             score: r.mainScore
         }));
 }
@@ -2156,9 +2167,13 @@ function renderCharts() {
 
         // GPU filter for Notebook: exclude desktop GPUs
         const cpuData = getTopCategoryCPUs(benchmarkData, category, 10);
+        const cpuLabels = category === 'SBC' ? cpuData.map(c => {
+            const match = benchmarkData.find(r => classifyDevice(r) === 'SBC' && normalizeCPU(r.cpu) === c.name);
+            return match && match.productName && match.productName !== 'N/D' ? `${c.name}\n${match.productName}` : c.name;
+        }) : cpuData.map(c => c.name);
         renderHorizontalBarChart(
             cpuChartId,
-            cpuData.map(c => c.name),
+            cpuLabels,
             cpuData.map(c => c.avg),
             'Avg CPU Single Score',
             'rgba(99, 102, 241, 0.85)',
@@ -2169,9 +2184,13 @@ function renderCharts() {
         );
 
         const gpuData = getTopCategoryGPUs(benchmarkData, category, 10);
+        const gpuLabels = category === 'SBC' ? gpuData.map(g => {
+            const match = benchmarkData.find(r => classifyDevice(r) === 'SBC' && normalizeGPU(r.gpu) === g.name);
+            return match && match.productName && match.productName !== 'N/D' ? `${g.name}\n${match.productName}` : g.name;
+        }) : gpuData.map(g => g.name);
         renderHorizontalBarChart(
             gpuChartId,
-            gpuData.map(g => g.name),
+            gpuLabels,
             gpuData.map(g => g.avg),
             'Avg GPU Score',
             'rgba(14, 165, 233, 0.85)',
@@ -2422,9 +2441,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             size: 11,
                             weight: 500
                         },
-                        // Truncate long hardware names to prevent chart squeezing
+                        // Truncate long hardware names; support multi-line via \n
                         callback: function(value) {
                             const label = this.getLabelForValue(value);
+                            if (label.includes('\n')) {
+                                const lines = label.split('\n');
+                                return lines.map(l => l.length > 30 ? l.substring(0, 30) + '...' : l);
+                            }
                             return label.length > 30 ? label.substring(0, 30) + '...' : label;
                         }
                     }
