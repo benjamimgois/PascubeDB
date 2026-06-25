@@ -1766,25 +1766,28 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
 }
 
 // OS vs Hardware Scatter Chart Renderer
-const OS_COLORS = {
-    'Ubuntu': { bg: 'rgba(228, 69, 33, 0.7)', border: '#e44521' },
-    'Fedora': { bg: 'rgba(60, 110, 179, 0.7)', border: '#3c6eb3' },
-    'Arch': { bg: 'rgba(23, 147, 209, 0.7)', border: '#1793d1' },
-    'Arch Linux': { bg: 'rgba(23, 147, 209, 0.7)', border: '#1793d1' },
-    'SteamOS': { bg: 'rgba(0, 147, 181, 0.7)', border: '#0093b5' },
-    'Bazzite': { bg: 'rgba(255, 107, 53, 0.7)', border: '#ff6b35' },
-    'CachyOS': { bg: 'rgba(139, 92, 246, 0.7)', border: '#8b5cf6' },
-    'Nobara': { bg: 'rgba(239, 68, 68, 0.7)', border: '#ef4444' },
-    'Linux Mint': { bg: 'rgba(104, 191, 89, 0.7)', border: '#68bf59' },
-    'Pop!_OS': { bg: 'rgba(193, 129, 50, 0.7)', border: '#c18132' }
-};
-const OS_OTHER_COLOR = { bg: 'rgba(156, 163, 175, 0.5)', border: '#9ca3af' };
+// Generate distinct colors for each OS using HSL cycling
+function generateDistinctColors(osNames) {
+    const map = {};
+    osNames.forEach((name, i) => {
+        const hue = (i * 47 + 11) % 360;
+        const sat = 70 + (i % 3) * 10;
+        const light = 50 + (i % 2) * 10;
+        const rgba = `rgba(${hslToRgb(hue, sat, light)}, 0.75)`;
+        const border = `hsl(${hue}, ${sat}%, ${light}%)`;
+        map[name] = { bg: rgba, border };
+    });
+    return map;
+}
 
-function getOSColor(os) {
-    if (!os) return OS_OTHER_COLOR;
-    const osClean = os.split(' ')[0];
-    const match = OS_COLORS[osClean] || OS_COLORS[os];
-    return match || OS_OTHER_COLOR;
+function hslToRgb(h, s, l) {
+    s /= 100; l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+        const k = (n + h / 30) % 12;
+        return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    };
+    return `${Math.round(f(0) * 255)}, ${Math.round(f(8) * 255)}, ${Math.round(f(4) * 255)}`;
 }
 
 function renderOSHardwareScatterChart(canvasId, data) {
@@ -1802,8 +1805,11 @@ function renderOSHardwareScatterChart(canvasId, data) {
         osGroups[osName].push(p);
     });
 
+    const osNames = Object.keys(osGroups).sort();
+    const colorMap = generateDistinctColors(osNames);
+
     const datasets = Object.entries(osGroups).map(([osName, pts]) => {
-        const color = getOSColor(osName);
+        const color = colorMap[osName];
         return {
             label: osName,
             data: pts.map(p => ({ x: p.x, y: p.y })),
@@ -2533,19 +2539,32 @@ function renderCharts() {
             );
         }
 
-        // OS vs Hardware Scatter Chart
-        const scatterData = getOSvsHardwareScatterData(benchmarkData);
-        if (document.getElementById('osHardwareScatterChart')) {
-            renderOSHardwareScatterChart('osHardwareScatterChart', scatterData);
-        }
-
-        // Update section insight analyses
-        updateSectionInsights();
-
-        // Remove skeleton loaders after charts are rendered
-        removeSkeletonLoading();
-
     }
+
+    // Software Comparison Charts
+    if (document.getElementById('osHardwareScatterChart')) {
+        const osScatterData = getOSvsHardwareScatterData(benchmarkData);
+        renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+    }
+    if (document.getElementById('mesaDriverScatterChart')) {
+        const mesaData = getDriverScatterData(benchmarkData, 'mesa');
+        renderDriverScatterChart('mesaDriverScatterChart', mesaData, 'Mesa');
+    }
+    if (document.getElementById('nvidiaDriverScatterChart')) {
+        const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
+        renderDriverScatterChart('nvidiaDriverScatterChart', nvidiaData, 'NVIDIA');
+    }
+    if (document.getElementById('kernelScatterChart')) {
+        const kernelData = getKernelScatterData(benchmarkData);
+        renderDriverScatterChart('kernelScatterChart', kernelData, 'Kernel', 'CPU Score');
+    }
+
+    // Remove skeleton loaders after charts are rendered
+    removeSkeletonLoading();
+
+    // Update section insight analyses
+    updateSectionInsights();
+
 }
 
 // OS vs Hardware Scatter Data Aggregation
@@ -2591,6 +2610,241 @@ function getOSvsHardwareScatterData(data, maxHardware = 15, minSamples = 3) {
 
     const hwLabels = sorted.map(([label]) => label);
     return { points, hwLabels };
+}
+
+// Kernel vs CPU Score Scatter Data
+function getKernelScatterData(data, maxHardware = 12, minSamples = 2) {
+    const groups = {};
+    data.forEach(r => {
+        const k = r.kernel || '';
+        const match = k.match(/^(\d+\.\d+)/);
+        if (!match) return;
+        const version = match[1];
+        const key = normalizeCPU(r.cpu);
+        if (key === 'Unknown CPU' || key === 'N/D') return;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ ...r, _kernelVer: version });
+    });
+
+    const hardwareRuns = Object.entries(groups)
+        .filter(([, runs]) => runs.length >= minSamples)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, maxHardware);
+
+    const points = [];
+    hardwareRuns.forEach(([hwLabel, runs], hwIndex) => {
+        const verGroups = {};
+        runs.forEach(r => {
+            const score = cleanNumber(r.cpuSingle);
+            if (score === null) return;
+            if (!verGroups[r._kernelVer]) verGroups[r._kernelVer] = [];
+            verGroups[r._kernelVer].push({ score, run: r });
+        });
+        Object.entries(verGroups).forEach(([ver, entries]) => {
+            const avgScore = Math.round(entries.reduce((s, e) => s + e.score, 0) / entries.length);
+            const bestRun = entries.reduce((best, e) => e.score > best.score ? e : best, entries[0]).run;
+            points.push({
+                x: hwIndex,
+                y: avgScore,
+                label: `Kernel ${ver}`,
+                user: bestRun.user,
+                clientId: bestRun.clientId,
+                hardwareLabel: hwLabel,
+                count: entries.length
+            });
+        });
+    });
+
+    const hwLabels = hardwareRuns.map(([label]) => label);
+    return { points, hwLabels };
+}
+
+// Driver vs Hardware Scatter Data — GPU model × GPU Score per driver version
+function getDriverScatterData(data, driverType, maxHardware = 12, minSamples = 2) {
+    const groups = {};
+    data.forEach(r => {
+        let version = null;
+        if (driverType === 'mesa') {
+            const gpuLower = (r.gpu || '').toLowerCase();
+            if (gpuLower.includes('nvidia') || gpuLower.includes('rtx') || gpuLower.includes('geforce')) return;
+            const d = r.driver || '';
+            const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
+            if (match) version = match[0].trim();
+        } else if (driverType === 'nvidia') {
+            const gpuLower = (r.gpu || '').toLowerCase();
+            if (!gpuLower.includes('nvidia') && !gpuLower.includes('rtx') && !gpuLower.includes('geforce')) return;
+            const d = r.driver || '';
+            if (d.includes('NVRM') || d.includes('NVIDIA')) {
+                const match = d.match(/(?:NVRM|NVIDIA).*?(\d+\.\d+\.\d+)/i);
+                if (match) version = match[1];
+            }
+        }
+        if (!version) return;
+        const key = normalizeGPU(r.gpu);
+        if (key === 'Unknown GPU' || key === 'N/D') return;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ ...r, _driverVer: version });
+    });
+
+    const hardwareRuns = Object.entries(groups)
+        .filter(([, runs]) => runs.length >= minSamples)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, maxHardware);
+
+    const points = [];
+    hardwareRuns.forEach(([hwLabel, runs], hwIndex) => {
+        const verGroups = {};
+        runs.forEach(r => {
+            const score = cleanNumber(r.gpuScore);
+            if (score === null) return;
+            if (!verGroups[r._driverVer]) verGroups[r._driverVer] = [];
+            verGroups[r._driverVer].push({ score, run: r });
+        });
+        Object.entries(verGroups).forEach(([ver, entries]) => {
+            const avgScore = Math.round(entries.reduce((s, e) => s + e.score, 0) / entries.length);
+            const bestRun = entries.reduce((best, e) => e.score > best.score ? e : best, entries[0]).run;
+            points.push({
+                x: hwIndex,
+                y: avgScore,
+                label: ver,
+                user: bestRun.user,
+                clientId: bestRun.clientId,
+                hardwareLabel: hwLabel,
+                count: entries.length
+            });
+        });
+    });
+
+    const hwLabels = hardwareRuns.map(([label]) => label);
+    return { points, hwLabels };
+}
+
+// Generic scatter renderer for driver comparisons
+function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const groups = {};
+    data.points.forEach(p => {
+        if (!groups[p.label]) groups[p.label] = [];
+        groups[p.label].push(p);
+    });
+
+    const labels = Object.keys(groups).sort();
+    const colorMap = generateDistinctColors(labels);
+
+    const datasets = Object.entries(groups).map(([label, pts]) => {
+        const color = colorMap[label];
+        return {
+            label: label,
+            data: pts.map(p => ({ x: p.x, y: p.y })),
+            backgroundColor: color.bg,
+            borderColor: color.border,
+            borderWidth: 1.5,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointHitRadius: 10,
+            _points: pts
+        };
+    });
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#9ca3af',
+                        font: { family: "'Inter', sans-serif", size: 10 },
+                        padding: 10,
+                        boxWidth: 10,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
+                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                    padding: 12,
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    callbacks: {
+                        title: function(items) {
+                            const p = items[0];
+                            const pts = p.dataset._points;
+                            if (pts && pts[p.dataIndex]) return pts[p.dataIndex].hardwareLabel;
+                            return '';
+                        },
+                        label: function(context) {
+                            const pts = context.dataset._points;
+                            if (!pts || !pts[context.dataIndex]) return '';
+                            const p = pts[context.dataIndex];
+                            const lines = [
+                                `${title}: ${p.label}`,
+                                `Avg Score: ${p.y.toLocaleString()}`,
+                                `Samples: ${p.count || 1}`
+                            ];
+                            if (p.clientId && p.clientId !== 'N/D') {
+                                lines.push(`Client: ${p.clientId.length > 8 ? p.clientId.substring(0, 8) : p.clientId}`);
+                            }
+                            return lines;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    offset: true,
+                    min: -0.5,
+                    max: data.hwLabels.length - 0.5,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', tickBorderDash: [3, 3] },
+                    ticks: {
+                        color: '#9ca3af',
+                        font: { family: "'Inter', sans-serif", size: 10 },
+                        stepSize: 1,
+                        callback: function(value) {
+                            const idx = Math.round(value);
+                            if (idx >= 0 && idx < data.hwLabels.length) {
+                                const label = data.hwLabels[idx];
+                                return label.length > 22 ? label.substring(0, 22) + '...' : label;
+                            }
+                            return '';
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Hardware',
+                        color: '#9ca3af',
+                        font: { family: "'Inter', sans-serif", size: 12 }
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', tickBorderDash: [3, 3] },
+                    ticks: {
+                        color: '#9ca3af',
+                        font: { family: "'Inter', sans-serif", size: 10 },
+                        callback: function(value) { return value.toLocaleString(); }
+                    },
+                    title: {
+                        display: true,
+                        text: yLabel,
+                        color: '#9ca3af',
+                        font: { family: "'Inter', sans-serif", size: 12 }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // Update section insight analyses with live data
@@ -2771,6 +3025,138 @@ function updateSectionInsights() {
     }
     if (!portText) portText = 'No portable device data available.';
     document.getElementById('insight-portable').textContent = portText;
+
+    // ---------- Software Comparison ----------
+    let softText = '';
+    try {
+        const osData = getOSvsHardwareScatterData(data);
+        if (osData.points.length > 0) {
+            const osCount = new Set(osData.points.map(p => p.os)).size;
+            const best = [...osData.points].sort((a, b) => b.y - a.y)[0];
+            const worst = [...osData.points].sort((a, b) => a.y - b.y)[0];
+
+            // Find hardware with highest variance across OSes
+            const osByHardware = {};
+            osData.points.forEach(p => {
+                if (!osByHardware[p.hardwareLabel]) osByHardware[p.hardwareLabel] = [];
+                osByHardware[p.hardwareLabel].push(p);
+            });
+            let maxVarHw = '', maxVar = 0;
+            Object.entries(osByHardware).forEach(([hw, pts]) => {
+                const scores = pts.map(p => p.y);
+                const range = Math.max(...scores) - Math.min(...scores);
+                if (range > maxVar) { maxVar = range; maxVarHw = hw; }
+            });
+
+            // Count OS wins (best score per hardware)
+            const osWins = {};
+            Object.entries(osByHardware).forEach(([hw, pts]) => {
+                const top = pts.reduce((a, b) => a.y > b.y ? a : b);
+                osWins[top.os] = (osWins[top.os] || 0) + 1;
+            });
+            const winEntries = Object.entries(osWins).sort((a, b) => b[1] - a[1]);
+            const topOs = winEntries[0];
+
+            document.getElementById('insight-os-scatter').textContent =
+                `${osData.hwLabels.length} hardware combos compared across ${osCount} OS — ${new Set(osData.points.map(p => p.os)).size} distinct. ` +
+                (best ? `Peak: ${best.os} on ${best.hardwareLabel} (${best.y.toLocaleString()}). ` : '') +
+                (topOs ? `${topOs[0]} leads with the best score on ${topOs[1]}/${osData.hwLabels.length} configs. ` : '') +
+                (maxVar > 0 ? `Largest OS gap: ${maxVar.toLocaleString()} pts on ${maxVarHw} — OS choice matters most here.` : '');
+            softText += `${osData.hwLabels.length} hardware combos, ${osCount} OS. `;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        const mesaData = getDriverScatterData(data, 'mesa');
+        if (mesaData.points.length > 0) {
+            const verCount = new Set(mesaData.points.map(p => p.label)).size;
+            const best = [...mesaData.points].sort((a, b) => b.y - a.y)[0];
+            const worst = [...mesaData.points].sort((a, b) => a.y - b.y)[0];
+
+            // Group scores by version to see progression trend
+            const verScores = {};
+            mesaData.points.forEach(p => {
+                if (!verScores[p.label]) verScores[p.label] = [];
+                verScores[p.label].push(p.y);
+            });
+            const verAvgs = Object.entries(verScores).map(([v, s]) => ({
+                label: v, avg: Math.round(s.reduce((a, b) => a + b, 0) / s.length)
+            })).sort((a, b) => a.label.localeCompare(b.label));
+            const trend = verAvgs.length >= 2
+                ? (verAvgs[verAvgs.length - 1].avg - verAvgs[0].avg >= 0 ? 'upward' : 'flat')
+                : null;
+
+            document.getElementById('insight-mesa-scatter').textContent =
+                `${mesaData.hwLabels.length} AMD GPU models across ${verCount} Mesa versions. ` +
+                (best ? `Best: ${best.label} — ${best.hardwareLabel} (${best.y.toLocaleString()}). ` : '') +
+                (verAvgs.length >= 3
+                    ? `Average GPU score progression is ${trend} from ${verAvgs[0].label} (${verAvgs[0].avg.toLocaleString()}) to ${verAvgs[verAvgs.length-1].label} (${verAvgs[verAvgs.length-1].avg.toLocaleString()}). `
+                    : '') +
+                `RADV driver maturity means newer Mesa generally means better gaming performance on AMD.`;
+            softText += `${mesaData.hwLabels.length} AMD GPUs, ${verCount} Mesa versions. `;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        const nvidiaData = getDriverScatterData(data, 'nvidia');
+        if (nvidiaData.points.length > 0) {
+            const verCount = new Set(nvidiaData.points.map(p => p.label)).size;
+            const best = [...nvidiaData.points].sort((a, b) => b.y - a.y)[0];
+
+            const verScores = {};
+            nvidiaData.points.forEach(p => {
+                if (!verScores[p.label]) verScores[p.label] = [];
+                verScores[p.label].push(p.y);
+            });
+            const verAvgs = Object.entries(verScores).map(([v, s]) => ({
+                label: v, avg: Math.round(s.reduce((a, b) => a + b, 0) / s.length)
+            })).sort((a, b) => a.label.localeCompare(b.label));
+            const trend = verAvgs.length >= 2
+                ? (verAvgs[verAvgs.length - 1].avg - verAvgs[0].avg >= 0 ? 'upward' : 'flat')
+                : null;
+
+            document.getElementById('insight-nvidia-scatter').textContent =
+                `${nvidiaData.hwLabels.length} NVIDIA GPU models across ${verCount} driver versions. ` +
+                (best ? `Best: ${best.label} — ${best.hardwareLabel} (${best.y.toLocaleString()}). ` : '') +
+                (verAvgs.length >= 3
+                    ? `Average GPU score trend is ${trend} from ${verAvgs[0].label} (${verAvgs[0].avg.toLocaleString()}) to ${verAvgs[verAvgs.length-1].label} (${verAvgs[verAvgs.length-1].avg.toLocaleString()}). `
+                    : '') +
+                `Proprietary driver updates show measurable gains — worth tracking per GPU generation.`;
+            softText += `${nvidiaData.hwLabels.length} NVIDIA GPUs, ${verCount} driver versions. `;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        const kernelData = getKernelScatterData(data);
+        if (kernelData.points.length > 0) {
+            const verCount = new Set(kernelData.points.map(p => p.label)).size;
+            const best = [...kernelData.points].sort((a, b) => b.y - a.y)[0];
+
+            const verScores = {};
+            kernelData.points.forEach(p => {
+                if (!verScores[p.label]) verScores[p.label] = [];
+                verScores[p.label].push(p.y);
+            });
+            const verAvgs = Object.entries(verScores).map(([v, s]) => ({
+                label: v, avg: Math.round(s.reduce((a, b) => a + b, 0) / s.length)
+            })).sort((a, b) => a.label.localeCompare(b.label));
+            const trend = verAvgs.length >= 2
+                ? (verAvgs[verAvgs.length - 1].avg - verAvgs[0].avg >= 0 ? 'upward' : 'flat')
+                : null;
+
+            document.getElementById('insight-kernel-scatter').textContent =
+                `${kernelData.hwLabels.length} CPU models across ${verCount} kernel versions. ` +
+                (best ? `Best: ${best.label} — ${best.hardwareLabel} (${best.y.toLocaleString()}). ` : '') +
+                (verAvgs.length >= 3
+                    ? `CPU score trend is ${trend} from ${verAvgs[0].label} (${verAvgs[0].avg.toLocaleString()}) to ${verAvgs[verAvgs.length-1].label} (${verAvgs[verAvgs.length-1].avg.toLocaleString()}). `
+                    : '') +
+                `Scheduler and driver improvements in newer kernels yield gains especially on recent architectures.`;
+            softText += `${kernelData.hwLabels.length} CPUs, ${verCount} kernel versions. `;
+        }
+    } catch (e) { /* ignore */ }
+
+    if (!softText) softText = 'Insufficient data for software comparisons.';
+    document.getElementById('insight-software').textContent = softText;
 
     // ---------- Community Insights ----------
     const uniqueClients = new Set(data.map(r => r.clientId).filter(id => id && id !== 'N/D'));
@@ -3141,7 +3527,7 @@ function animateCounter(elementId, targetValue, useLocaleFormat = false) {
 
 // Scroll Observers: nav active state + scroll reveal
 function initScrollObservers() {
-    const sectionIds = ['section-highest', 'section-demographics', 'section-advanced', 'section-portable', 'section-community'];
+    const sectionIds = ['section-highest', 'section-demographics', 'section-advanced', 'section-software', 'section-portable', 'section-community'];
 
     // Nav active state
     const navPills = document.querySelectorAll('.nav-pill');

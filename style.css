@@ -592,6 +592,29 @@ h1, h2, h3, h4 {
     gap: 1.5rem;
 }
 
+/* Software Comparison Section */
+.software-comparison-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.software-scatter-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.scatter-insight {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding-top: 0.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0.25rem;
+}
+
 /* Portable Devices Section */
 .mobile-charts-section {
     display: flex;
