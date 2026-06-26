@@ -1558,18 +1558,18 @@ function getVersionDistribution(data, type) {
 }
 
 // Get software winner comparison (OS, Mesa, NVIDIA, Kernel)
-function getSoftwareWinner(data, type) {
+function getSoftwareWinner(data, type, maxHardware = 12) {
     // Group by hardware and determine which software version wins most often
-    // os: group by CPU, compare Main Score
-    // mesa: group by GPU, compare GPU Score
-    // nvidia: group by GPU, compare GPU Score
-    // kernel: group by CPU, compare CPU Single
+    // os: group by CPU+GPU, compare Main Score (maxHardware=15)
+    // mesa: group by GPU, compare GPU Score (maxHardware=12)
+    // nvidia: group by GPU, compare GPU Score (maxHardware=12)
+    // kernel: group by CPU, compare CPU Single (maxHardware=12)
     const groups = {};
 
     data.forEach(r => {
         let hwKey, score, version;
         if (type === 'os') {
-            hwKey = normalizeCPU(r.cpu);
+            hwKey = `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`;
             score = r.mainScore;
             const os = r.os || 'N/D';
             let osClean = os.split(' ')[0];
@@ -1617,11 +1617,20 @@ function getSoftwareWinner(data, type) {
         groups[hwKey][version].count++;
     });
 
+    // Sort hardware groups by total runs, limit to maxHardware
+    const limitedGroups = Object.entries(groups)
+        .sort((a, b) => {
+            const aTotal = Object.values(a[1]).reduce((s, v) => s + v.count, 0);
+            const bTotal = Object.values(b[1]).reduce((s, v) => s + v.count, 0);
+            return bTotal - aTotal;
+        })
+        .slice(0, maxHardware);
+
     // For each hardware group with 2+ versions, determine winner
     const wins = {};
     const versionScores = {};
     let totalCompared = 0;
-    Object.entries(groups).forEach(([hw, versions]) => {
+    limitedGroups.forEach(([hw, versions]) => {
         const verList = Object.keys(versions);
         if (verList.length < 2) return;
         totalCompared++;
@@ -2394,8 +2403,8 @@ function renderCharts() {
     );
 
     // Software Comparison Winners
-    function renderWinner(data, type) {
-        const result = getSoftwareWinner(data, type);
+    function renderWinner(data, type, maxHardware) {
+        const result = getSoftwareWinner(data, type, maxHardware);
         const nameEl = document.getElementById(type + '-winner-name');
         const statEl = document.getElementById(type + '-winner-stat');
         if (!nameEl || !statEl) return;
@@ -2414,10 +2423,10 @@ function renderCharts() {
             statEl.textContent = '';
         }
     }
-    renderWinner(benchmarkData, 'os');
-    renderWinner(benchmarkData, 'mesa');
-    renderWinner(benchmarkData, 'nvidia');
-    renderWinner(benchmarkData, 'kernel');
+    renderWinner(benchmarkData, 'os', 15);
+    renderWinner(benchmarkData, 'mesa', 12);
+    renderWinner(benchmarkData, 'nvidia', 12);
+    renderWinner(benchmarkData, 'kernel', 12);
 
     // Portable Devices Charts Rendering
     if (!document.getElementById('mobileDistChart')) return;
