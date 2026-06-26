@@ -661,7 +661,8 @@ function handleFilterChange() {
             row.cpu.toLowerCase().includes(searchQuery) ||
             row.gpu.toLowerCase().includes(searchQuery) ||
             row.os.toLowerCase().includes(searchQuery) ||
-            row.user.toLowerCase().includes(searchQuery);
+            row.user.toLowerCase().includes(searchQuery) ||
+            (row.clientId && row.clientId.toLowerCase().includes(searchQuery));
             
         // Dropdown filters
         const matchesOs = !osSelection || row.os === osSelection;
