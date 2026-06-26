@@ -2825,15 +2825,15 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: \"'Inter', sans-serif\", size: 10 } } },
-                y: { grid: { display: false }, ticks: { color: '#f3f4f6', font: { family: \"'Outfit', sans-serif\", size: 10, weight: 500 },
+                x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#f3f4f6', font: { family: "'Outfit', sans-serif", size: 10, weight: 500 },
                     callback: function(v) { const lbl = this.getLabelForValue(v); return lbl.length > 25 ? lbl.substring(0, 25) + '...' : lbl; }
                 }}
             },
             plugins: {
-                legend: { display: true, position: 'top', labels: { color: '#f3f4f6', font: { family: \"'Inter', sans-serif\", size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+                legend: { display: true, position: 'top', labels: { color: '#f3f4f6', font: { family: "'Inter', sans-serif", size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', titleFont: { family: \"'Outfit', sans-serif\", size: 12 }, bodyFont: { family: \"'Inter', sans-serif\", size: 12 },
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
                     padding: 10, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1, cornerRadius: 8, displayColors: true
                 }
             }
