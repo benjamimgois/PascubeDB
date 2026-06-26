@@ -1557,6 +1557,79 @@ function getVersionDistribution(data, type) {
     return counts;
 }
 
+// Get software winner comparison (OS, Mesa, NVIDIA, Kernel)
+function getSoftwareWinner(data, type) {
+    const totals = {};
+    const counts = {};
+
+    data.forEach(r => {
+        let key = null;
+
+        if (type === 'os') {
+            const os = r.os || 'N/D';
+            let osClean = os.split(' ')[0];
+            if (os.toLowerCase().includes('arch')) osClean = 'Arch Linux';
+            else if (os.toLowerCase().includes('fedora')) osClean = 'Fedora';
+            else if (os.toLowerCase().includes('ubuntu')) osClean = 'Ubuntu';
+            else if (os.toLowerCase().includes('cachyos') || os.toLowerCase().includes('cachy os')) osClean = 'CachyOS';
+            else if (os.toLowerCase().includes('bazzite')) osClean = 'Bazzite';
+            else if (os.toLowerCase().includes('mint')) osClean = 'Linux Mint';
+            else if (os.toLowerCase().includes('nobara')) osClean = 'Nobara';
+            else if (os.toLowerCase().includes('pop!_os') || os.toLowerCase().includes('pop_os')) osClean = 'Pop!_OS';
+            else if (os.toLowerCase().includes('zorin')) osClean = 'Zorin OS';
+            else if (os.toLowerCase().includes('steamos')) osClean = 'SteamOS';
+            else if (os.toLowerCase().includes('garuda')) osClean = 'Garuda';
+            else if (os.toLowerCase().includes('manjaro')) osClean = 'Manjaro';
+            else if (os.toLowerCase().includes('endeavouros')) osClean = 'EndeavourOS';
+            key = osClean;
+        } else if (type === 'mesa') {
+            const d = r.driver || '';
+            const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
+            if (match) key = match[2] === '99' ? match[1] + ' (mesa-git)' : match[1];
+        } else if (type === 'nvidia') {
+            const d = r.driver || '';
+            if (d.includes('NVRM') || d.includes('NVIDIA')) {
+                const match = d.match(/NVRM version:.*?(\d+\.\d+)/i);
+                if (match) key = match[1];
+            }
+        } else if (type === 'kernel') {
+            const k = r.kernel || '';
+            const match = k.match(/^(\d+\.\d+)/);
+            if (match) key = match[1];
+        }
+
+        const score = r.mainScore;
+        if (key && score !== null && !isNaN(score)) {
+            totals[key] = (totals[key] || 0) + score;
+            counts[key] = (counts[key] || 0) + 1;
+        }
+    });
+
+    const entries = Object.entries(totals)
+        .map(([name, total]) => ({ name, avg: Math.round(total / counts[name]), count: counts[name] }))
+        .filter(e => e.count >= 3)
+        .sort((a, b) => b.avg - a.avg);
+
+    if (entries.length === 0) return null;
+
+    const winner = entries[0];
+    const others = entries.slice(1);
+    const othersAvg = others.length > 0
+        ? Math.round(others.reduce((sum, e) => sum + e.avg, 0) / others.length)
+        : winner.avg;
+
+    const improvement = othersAvg > 0
+        ? Math.round(((winner.avg - othersAvg) / othersAvg) * 100)
+        : 0;
+
+    return {
+        winner: winner.name,
+        winnerAvg: winner.avg,
+        improvement: improvement,
+        totalGroups: entries.length
+    };
+}
+
 // Helper to get Package type distribution
 function getPackageDistribution(data) {
     const counts = {};
@@ -2278,6 +2351,25 @@ function renderCharts() {
             '#9ca3af'
         ]
     );
+
+    // Software Comparison Winners
+    function renderWinner(data, type) {
+        const result = getSoftwareWinner(data, type);
+        const nameEl = document.getElementById(type + '-winner-name');
+        const statEl = document.getElementById(type + '-winner-stat');
+        if (!nameEl || !statEl) return;
+        if (result) {
+            nameEl.textContent = result.winner;
+            statEl.textContent = `Avg Score: ${result.winnerAvg} | +${result.improvement}% vs others (${result.totalGroups} groups)`;
+        } else {
+            nameEl.textContent = 'Insufficient data';
+            statEl.textContent = '-';
+        }
+    }
+    renderWinner(benchmarkData, 'os');
+    renderWinner(benchmarkData, 'mesa');
+    renderWinner(benchmarkData, 'nvidia');
+    renderWinner(benchmarkData, 'kernel');
 
     // Portable Devices Charts Rendering
     if (!document.getElementById('mobileDistChart')) return;
