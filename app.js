@@ -2730,8 +2730,6 @@ function renderCharts() {
         if (result) {
             nameEl.textContent = result.winner;
             let text = `${result.winnerWins}/${result.totalCompared} hw wins at ${result.winnerAvg.toLocaleString()} avg`;
-            if (result.secondName) text += ` | +${result.vsSecond}% vs ${result.secondName}`;
-            if (result.thirdName) text += ` | +${result.vsThird}% vs ${result.thirdName}`;
             statEl.textContent = text;
         } else {
             nameEl.textContent = 'Insufficient data';
