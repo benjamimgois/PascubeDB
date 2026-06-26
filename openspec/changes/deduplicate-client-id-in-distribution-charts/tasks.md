@@ -18,4 +18,4 @@
 - [x] 3.1 Executar `node --check app.js` para validar sintaxe
 - [x] 3.2 Verificar no navegador que donuts de distribuição refletem uma amostra por client-id
 - [x] 3.3 Confirmar que gráficos de ranking/média permanecem inalterados
-- [ ] 3.4 Commit e push das alterações
+- [x] 3.4 Commit e push das alterações
