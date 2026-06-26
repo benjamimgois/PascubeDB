@@ -2715,7 +2715,11 @@ function getOSvsHardwareScatterData(data, maxHardware = 15, minSamples = 3) {
     });
 
     const sorted = Object.entries(groups)
-        .filter(([, runs]) => runs.length >= minSamples)
+        .filter(([, runs]) => {
+            if (runs.length < minSamples) return false;
+            const osSet = new Set(runs.map(r => r.os));
+            return osSet.size >= 2;
+        })
         .sort((a, b) => b[1].length - a[1].length)
         .slice(0, maxHardware);
 
@@ -2765,7 +2769,11 @@ function getKernelScatterData(data, maxHardware = 12, minSamples = 2) {
     });
 
     const hardwareRuns = Object.entries(groups)
-        .filter(([, runs]) => runs.length >= minSamples)
+        .filter(([, runs]) => {
+            if (runs.length < minSamples) return false;
+            const verSet = new Set(runs.map(r => r._kernelVer));
+            return verSet.size >= 2;
+        })
         .sort((a, b) => b[1].length - a[1].length)
         .slice(0, maxHardware);
 
@@ -2825,7 +2833,11 @@ function getDriverScatterData(data, driverType, maxHardware = 12, minSamples = 2
     });
 
     const hardwareRuns = Object.entries(groups)
-        .filter(([, runs]) => runs.length >= minSamples)
+        .filter(([, runs]) => {
+            if (runs.length < minSamples) return false;
+            const verSet = new Set(runs.map(r => r._driverVer));
+            return verSet.size >= 2;
+        })
         .sort((a, b) => b[1].length - a[1].length)
         .slice(0, maxHardware);
 
