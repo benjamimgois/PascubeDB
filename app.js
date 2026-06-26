@@ -2739,25 +2739,25 @@ function renderCharts() {
 
     const osScatterData = getOSvsHardwareScatterData(benchmarkData);
     if (document.getElementById('osHardwareScatterChart')) {
-        renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+        renderHardwareComparisonBars('osHardwareScatterChart', osScatterData);
     }
     renderWinnerCard(getWinnerFromScatterData(osScatterData), 'os');
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
     if (document.getElementById('mesaDriverScatterChart')) {
-        renderDriverScatterChart('mesaDriverScatterChart', mesaData, 'Mesa');
+        renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
     }
     renderWinnerCard(getWinnerFromScatterData(mesaData), 'mesa');
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
     if (document.getElementById('nvidiaDriverScatterChart')) {
-        renderDriverScatterChart('nvidiaDriverScatterChart', nvidiaData, 'NVIDIA');
+        renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
     }
     renderWinnerCard(getWinnerFromScatterData(nvidiaData), 'nvidia');
 
     const kernelData = getKernelScatterData(benchmarkData);
     if (document.getElementById('kernelScatterChart')) {
-        renderDriverScatterChart('kernelScatterChart', kernelData, 'Kernel', 'CPU Score');
+        renderHardwareComparisonBars('kernelScatterChart', kernelData);
     }
     renderWinnerCard(getWinnerFromScatterData(kernelData), 'kernel');
 
@@ -2774,6 +2774,71 @@ function renderCharts() {
     // Initial tab state: show hardware after all charts rendered
     if (window.switchTab) window.switchTab('hardware');
 
+}
+
+// Grouped Horizontal Bars for Hardware Comparison
+function renderHardwareComparisonBars(canvasId, scatterData) {
+    if (!scatterData || !scatterData.points || scatterData.points.length === 0) return;
+    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Group points by version (dataset) and hardware (label)
+    const labels = scatterData.hwLabels;
+    const verSet = new Set(scatterData.points.map(p => p.label || p.os || ''));
+    const palettes = [
+        'rgba(99, 102, 241, 0.85)', 'rgba(16, 185, 129, 0.85)',
+        'rgba(245, 158, 11, 0.85)', 'rgba(14, 165, 233, 0.85)',
+        'rgba(244, 63, 94, 0.85)', 'rgba(139, 92, 246, 0.85)',
+        'rgba(6, 182, 212, 0.85)', 'rgba(236, 72, 153, 0.85)'
+    ];
+    const borders = [
+        '#818cf8', '#34d399', '#fbbf24', '#38bdf8',
+        '#fb7185', '#a78bfa', '#22d3ee', '#f472b6'
+    ];
+
+    const datasets = [...verSet].slice(0, 8).map((ver, idx) => {
+        const data = labels.map(hw => {
+            const pts = scatterData.points.filter(p => p.hardwareLabel === hw && (p.label || p.os || '') === ver);
+            if (pts.length === 0) return 0;
+            return Math.round(pts.reduce((s, p) => s + p.y * (p.count || 1), 0) / pts.reduce((s, p) => s + (p.count || 1), 0));
+        });
+        return {
+            label: ver,
+            data: data,
+            backgroundColor: palettes[idx % palettes.length],
+            borderColor: borders[idx % borders.length],
+            borderWidth: 1.5,
+            borderRadius: 4,
+            barPercentage: 0.7,
+            categoryPercentage: 0.8
+        };
+    });
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: \"'Inter', sans-serif\", size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#f3f4f6', font: { family: \"'Outfit', sans-serif\", size: 10, weight: 500 },
+                    callback: function(v) { const lbl = this.getLabelForValue(v); return lbl.length > 25 ? lbl.substring(0, 25) + '...' : lbl; }
+                }}
+            },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { color: '#f3f4f6', font: { family: \"'Inter', sans-serif\", size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', titleFont: { family: \"'Outfit', sans-serif\", size: 12 }, bodyFont: { family: \"'Inter', sans-serif\", size: 12 },
+                    padding: 10, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1, cornerRadius: 8, displayColors: true
+                }
+            }
+        }
+    });
 }
 
 // OS vs Hardware Scatter Data Aggregation
