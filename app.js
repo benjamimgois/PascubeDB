@@ -2826,7 +2826,7 @@ function getDriverScatterData(data, driverType, maxHardware = 12, minSamples = 2
             if (gpuLower.includes('nvidia') || gpuLower.includes('rtx') || gpuLower.includes('geforce')) return;
             const d = r.driver || '';
             const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
-            if (match) version = match[1];
+            if (match) version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
         } else if (driverType === 'nvidia') {
             const gpuLower = (r.gpu || '').toLowerCase();
             if (!gpuLower.includes('nvidia') && !gpuLower.includes('rtx') && !gpuLower.includes('geforce')) return;
