@@ -277,10 +277,10 @@ h1, h2, h3, h4 {
 
 .os-icon { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
 .os-icon i { color: #818cf8; }
-.mesa-icon { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.mesa-icon i { color: #34d399; }
-.nvidia-icon { background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.nvidia-icon i { color: #38bdf8; }
+.mesa-icon { background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
+.mesa-icon i { color: #38bdf8; }
+.nvidia-icon { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
+.nvidia-icon i { color: #34d399; }
 .kernel-icon { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
 .kernel-icon i { color: #fbbf24; }
 
