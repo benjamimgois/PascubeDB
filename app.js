@@ -956,7 +956,7 @@ function normalizeCPU(name) {
 // Helper to normalize GPU names for popularity chart
 function normalizeGPU(name) {
     if (!name) return 'Unknown GPU';
-    let clean = name.replace(/^(AMD|Intel|NVIDIA|Intel\(R\))\s+/i, '');
+    let clean = name.replace(/^(AMD|Intel|NVIDIA|Radeon|Intel\(R\))\s+/i, '');
     clean = clean.replace(/\s+Graphics.*/i, ''); // strip " Graphics"
     clean = clean.replace(/\(tm\)/gi, '');
     clean = clean.replace(/\(R\)/gi, '');
