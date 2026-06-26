@@ -1613,19 +1613,23 @@ function getSoftwareWinner(data, type) {
     if (entries.length === 0) return null;
 
     const winner = entries[0];
-    const others = entries.slice(1);
-    const othersAvg = others.length > 0
-        ? Math.round(others.reduce((sum, e) => sum + e.avg, 0) / others.length)
-        : winner.avg;
+    const secondAvg = entries.length > 1 ? entries[1].avg : 0;
+    const thirdAvg = entries.length > 2 ? entries[2].avg : 0;
 
-    const improvement = othersAvg > 0
-        ? Math.round(((winner.avg - othersAvg) / othersAvg) * 100)
+    const vsSecond = secondAvg > 0
+        ? Math.round(((winner.avg - secondAvg) / secondAvg) * 100)
+        : 0;
+    const vsThird = thirdAvg > 0
+        ? Math.round(((winner.avg - thirdAvg) / thirdAvg) * 100)
         : 0;
 
     return {
         winner: winner.name,
         winnerAvg: winner.avg,
-        improvement: improvement,
+        vsSecond: vsSecond,
+        vsThird: vsThird,
+        secondName: entries.length > 1 ? entries[1].name : null,
+        thirdName: entries.length > 2 ? entries[2].name : null,
         totalGroups: entries.length
     };
 }
@@ -2360,10 +2364,18 @@ function renderCharts() {
         if (!nameEl || !statEl) return;
         if (result) {
             nameEl.textContent = result.winner;
-            statEl.textContent = `Avg Score: ${result.winnerAvg} | +${result.improvement}% vs others (${result.totalGroups} groups)`;
+            let statText = `Avg Score: ${result.winnerAvg.toLocaleString()}`;
+            if (result.secondName) {
+                statText += ` | +${result.vsSecond}% vs ${result.secondName}`;
+            }
+            if (result.thirdName) {
+                statText += ` | +${result.vsThird}% vs ${result.thirdName}`;
+            }
+            statText += ` | ${result.totalGroups} groups`;
+            statEl.textContent = statText;
         } else {
             nameEl.textContent = 'Insufficient data';
-            statEl.textContent = '-';
+            statEl.textContent = '';
         }
     }
     renderWinner(benchmarkData, 'os');
