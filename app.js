@@ -2685,55 +2685,120 @@ function renderCharts() {
 
     // Software Comparison Charts + Winners
     try {
-    function getWinnerFromScatterData(scatterData) {
-        if (!scatterData || !scatterData.points || scatterData.points.length === 0) return null;
-        const wins = {};
-        const totals = {};
-        const hwSet = new Set();
-        scatterData.points.forEach(p => {
-            const label = p.label || p.os || '';
-            hwSet.add(p.hardwareLabel);
-            if (!totals[label]) totals[label] = { total: 0, count: 0 };
-            totals[label].total += p.y * (p.count || 1);
-            totals[label].count += (p.count || 1);
+    function cleanOSName(os) {
+        if (!os) return 'Other';
+        const o = os.toLowerCase();
+        if (o.includes('arch')) return 'Arch Linux';
+        if (o.includes('fedora')) return 'Fedora';
+        if (o.includes('ubuntu')) return 'Ubuntu';
+        if (o.includes('cachyos') || o.includes('cachy os')) return 'CachyOS';
+        if (o.includes('bazzite')) return 'Bazzite';
+        if (o.includes('mint')) return 'Linux Mint';
+        if (o.includes('nobara')) return 'Nobara';
+        if (o.includes('pop!_os') || o.includes('pop_os')) return 'Pop!_OS';
+        if (o.includes('zorin')) return 'Zorin OS';
+        if (o.includes('steamos')) return 'SteamOS';
+        if (o.includes('garuda')) return 'Garuda';
+        if (o.includes('manjaro')) return 'Manjaro';
+        if (o.includes('endeavouros')) return 'EndeavourOS';
+        if (o.includes('pikaos') || o.includes('pika os')) return 'PikaOS';
+        return os.split(' ')[0];
+    }
+
+    function getAbsoluteWinners(data, type) {
+        const groups = {};
+        data.forEach(r => {
+            let hwKey, score, version;
+            if (type === 'os') {
+                hwKey = `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`;
+                score = r.mainScore;
+                version = cleanOSName(r.os);
+            } else if (type === 'mesa') {
+                hwKey = normalizeGPU(r.gpu);
+                score = r.gpuScore;
+                const d = r.driver || '';
+                const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
+                if (!match) return;
+                version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
+                // skip NVIDIA GPUs for Mesa comparison
+                const gpuLower = (r.gpu || '').toLowerCase();
+                if (gpuLower.includes('nvidia') || gpuLower.includes('rtx') || gpuLower.includes('geforce')) return;
+            } else if (type === 'nvidia') {
+                hwKey = normalizeGPU(r.gpu);
+                score = r.gpuScore;
+                const d = r.driver || '';
+                const gpuLower = (r.gpu || '').toLowerCase();
+                if (!gpuLower.includes('nvidia') && !gpuLower.includes('rtx') && !gpuLower.includes('geforce')) return;
+                if (!d.includes('NVRM') && !d.includes('NVIDIA')) return;
+                const match = d.match(/(?:NVRM|NVIDIA).*?(\d+\.\d+)/i);
+                if (!match) return;
+                version = match[1];
+            } else if (type === 'kernel') {
+                hwKey = normalizeCPU(r.cpu);
+                score = r.cpuSingle;
+                const k = r.kernel || '';
+                const match = k.match(/^(\d+\.\d+)/);
+                if (!match) return;
+                version = `Kernel ${match[1]}`;
+            }
+            if (!hwKey || hwKey.includes('Unknown') || score === null || isNaN(score)) return;
+            if (!groups[hwKey]) groups[hwKey] = {};
+            if (!groups[hwKey][version]) groups[hwKey][version] = { total: 0, count: 0 };
+            groups[hwKey][version].total += score;
+            groups[hwKey][version].count += 1;
         });
-        const hwLabels = [...hwSet];
-        hwLabels.forEach(hw => {
-            const hwPoints = scatterData.points.filter(p => p.hardwareLabel === hw);
-            let bestLabel = null, bestY = 0;
-            hwPoints.forEach(p => {
-                const label = p.label || p.os || '';
-                if (p.y > bestY) { bestY = p.y; bestLabel = label; }
+
+        const versionStats = {};
+        let totalCompared = 0;
+        Object.entries(groups).forEach(([hw, versions]) => {
+            const verList = Object.keys(versions);
+            if (verList.length < 2) return;
+            totalCompared++;
+            let bestVersion = null;
+            let bestAvg = -Infinity;
+            Object.entries(versions).forEach(([ver, vdata]) => {
+                if (!versionStats[ver]) versionStats[ver] = { wins: 0, total: 0, count: 0 };
+                versionStats[ver].total += vdata.total;
+                versionStats[ver].count += vdata.count;
+                const avg = vdata.total / vdata.count;
+                if (avg > bestAvg) {
+                    bestAvg = avg;
+                    bestVersion = ver;
+                }
             });
-            if (bestLabel) wins[bestLabel] = (wins[bestLabel] || 0) + 1;
+            if (bestVersion) versionStats[bestVersion].wins += 1;
         });
-        const entries = Object.entries(wins)
-            .map(([name, count]) => ({ name, wins: count, avg: totals[name] ? Math.round(totals[name].total / totals[name].count) : 0 }))
+
+        const entries = Object.entries(versionStats)
+            .map(([name, s]) => ({ name, wins: s.wins, avg: Math.round(s.total / s.count), runs: s.count }))
             .sort((a, b) => b.wins - a.wins || b.avg - a.avg);
+
         if (entries.length === 0) return null;
-        const winner = entries[0];
-        const second = entries[1] || null;
-        const third = entries[2] || null;
         return {
-            winner: winner.name, winnerAvg: winner.avg, winnerWins: winner.wins,
-            totalCompared: hwLabels.length,
-            secondName: second ? second.name : null,
-            vsSecond: second ? Math.round(((winner.wins - second.wins) / Math.max(second.wins, 0.1)) * 100) : 0,
-            thirdName: third ? third.name : null,
-            vsThird: third ? Math.round(((winner.wins - third.wins) / Math.max(third.wins, 0.1)) * 100) : 0,
+            winner: entries[0],
+            second: entries[1] || null,
+            third: entries[2] || null,
+            totalCompared
         };
     }
+
     function renderWinnerCard(result, type) {
         const nameEl = document.getElementById(type + '-winner-name');
         const statEl = document.getElementById(type + '-winner-stat');
+        const secondEl = document.getElementById(type + '-second');
+        const thirdEl = document.getElementById(type + '-third');
         if (!nameEl || !statEl) return;
-        if (result) {
-            nameEl.textContent = result.winner;
-            let text = `${result.winnerWins}/${result.totalCompared} hw wins at ${result.winnerAvg.toLocaleString()} avg`;
+        if (result && result.winner) {
+            nameEl.textContent = result.winner.name;
+            let text = `${result.winner.wins}/${result.totalCompared} hw wins at ${result.winner.avg.toLocaleString()} avg`;
             statEl.textContent = text;
+            if (secondEl) secondEl.textContent = result.second ? `2º ${result.second.name}` : '2º -';
+            if (thirdEl) thirdEl.textContent = result.third ? `3º ${result.third.name}` : '3º -';
         } else {
             nameEl.textContent = 'Insufficient data';
             statEl.textContent = '';
+            if (secondEl) secondEl.textContent = '2º -';
+            if (thirdEl) thirdEl.textContent = '3º -';
         }
     }
 
@@ -2741,25 +2806,25 @@ function renderCharts() {
     if (document.getElementById('osHardwareScatterChart')) {
         renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
     }
-    renderWinnerCard(getWinnerFromScatterData(osScatterData), 'os');
+    renderWinnerCard(getAbsoluteWinners(benchmarkData, 'os'), 'os');
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
     if (document.getElementById('mesaDriverScatterChart')) {
         renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
     }
-    renderWinnerCard(getWinnerFromScatterData(mesaData), 'mesa');
+    renderWinnerCard(getAbsoluteWinners(benchmarkData, 'mesa'), 'mesa');
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
     if (document.getElementById('nvidiaDriverScatterChart')) {
         renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
     }
-    renderWinnerCard(getWinnerFromScatterData(nvidiaData), 'nvidia');
+    renderWinnerCard(getAbsoluteWinners(benchmarkData, 'nvidia'), 'nvidia');
 
     const kernelData = getKernelScatterData(benchmarkData);
     if (document.getElementById('kernelScatterChart')) {
         renderHardwareComparisonBars('kernelScatterChart', kernelData);
     }
-    renderWinnerCard(getWinnerFromScatterData(kernelData), 'kernel');
+    renderWinnerCard(getAbsoluteWinners(benchmarkData, 'kernel'), 'kernel');
 
     } catch(e) {
         console.error('Software comparison charts error:', e);
