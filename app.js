@@ -1620,9 +1620,11 @@ function getSoftwareWinner(data, type) {
     // For each hardware group with 2+ versions, determine winner
     const wins = {};
     const versionScores = {};
+    let totalCompared = 0;
     Object.entries(groups).forEach(([hw, versions]) => {
         const verList = Object.keys(versions);
-        if (verList.length < 2) return; // need at least 2 versions for a comparison
+        if (verList.length < 2) return;
+        totalCompared++;
         let bestVersion = null;
         let bestAvg = 0;
         Object.entries(versions).forEach(([ver, vdata]) => {
@@ -1661,11 +1663,11 @@ function getSoftwareWinner(data, type) {
         winnerAvg: winner.avg,
         winnerWins: winner.wins,
         winnerRuns: winner.runCount,
+        totalCompared: totalCompared,
         secondName: second ? second.name : null,
         vsSecond: second ? Math.round(((winner.wins - second.wins) / Math.max(second.wins, 0.1)) * 100) : 0,
         thirdName: third ? third.name : null,
         vsThird: third ? Math.round(((winner.wins - third.wins) / Math.max(third.wins, 0.1)) * 100) : 0,
-        totalGroups: entries.length
     };
 }
 
@@ -2399,7 +2401,7 @@ function renderCharts() {
         if (!nameEl || !statEl) return;
         if (result) {
             nameEl.textContent = result.winner;
-            let statText = `${result.winnerWins} wins on ${result.winnerAvg.toLocaleString()} avg score`;
+            let statText = `${result.winnerWins}/${result.totalCompared} hw wins at ${result.winnerAvg.toLocaleString()} avg`;
             if (result.secondName) {
                 statText += ` | +${result.vsSecond}% vs ${result.secondName}`;
             }
