@@ -465,7 +465,7 @@ h1, h2, h3, h4 {
 }
 
 .tab-content.active {
-    display: contents;
+    display: block;
 }
 
 /* Sticky Section Navigation */

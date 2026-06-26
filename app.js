@@ -140,6 +140,8 @@ function setupTabNavigation() {
             contents.forEach(c => c.classList.remove('active'));
             const activeContent = document.querySelector(`.tab-content[data-tab="${target}"]`);
             if (activeContent) activeContent.classList.add('active');
+            // Force Chart.js to recalculate dimensions for newly visible charts
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         });
     });
 }
