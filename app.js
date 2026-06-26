@@ -1592,13 +1592,13 @@ function getSoftwareWinner(data, type, maxHardware = 12) {
             score = r.gpuScore;
             const d = r.driver || '';
             const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
-            if (match) version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[0].replace(/^Mesa\s+/, '').trim();
+            if (match) version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
         } else if (type === 'nvidia') {
             hwKey = normalizeGPU(r.gpu);
             score = r.gpuScore;
             const d = r.driver || '';
             if (d.includes('NVRM') || d.includes('NVIDIA')) {
-                const match = d.match(/NVRM version:.*?(\d+\.\d+\.\d+)/i);
+                const match = d.match(/NVRM version:.*?(\d+\.\d+)/i);
                 if (match) version = match[1];
             }
         } else if (type === 'kernel') {
