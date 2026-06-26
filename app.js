@@ -2739,7 +2739,7 @@ function renderCharts() {
 
     const osScatterData = getOSvsHardwareScatterData(benchmarkData);
     if (document.getElementById('osHardwareScatterChart')) {
-        renderHardwareComparisonBars('osHardwareScatterChart', osScatterData);
+        renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
     }
     renderWinnerCard(getWinnerFromScatterData(osScatterData), 'os');
 

@@ -481,6 +481,12 @@ h1, h2, h3, h4 {
     display: block;
 }
 
+.driver-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
 /* Sticky Section Navigation */
 .section-nav {
     position: sticky;
