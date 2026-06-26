@@ -1658,8 +1658,8 @@ function getSoftwareWinner(data, type, maxHardware = 12) {
     });
 
     const entries = Object.entries(wins)
-        .map(([name, count]) => ({ name, wins: count, avg: versionAvgs[name] || 0, runCount: versionScores[name].count }))
-        .sort((a, b) => b.wins - a.wins);
+        .map(([name, count]) => ({ name, wins: count, avg: versionAvgs[name] || 0, runCount: versionScores[name] ? versionScores[name].count : 0 }))
+        .sort((a, b) => b.wins - a.wins || b.avg - a.avg);
 
     if (entries.length === 0) return null;
 
@@ -2402,32 +2402,6 @@ function renderCharts() {
         ]
     );
 
-    // Software Comparison Winners
-    function renderWinner(data, type, maxHardware) {
-        const result = getSoftwareWinner(data, type, maxHardware);
-        const nameEl = document.getElementById(type + '-winner-name');
-        const statEl = document.getElementById(type + '-winner-stat');
-        if (!nameEl || !statEl) return;
-        if (result) {
-            nameEl.textContent = result.winner;
-            let statText = `${result.winnerWins}/${result.totalCompared} hw wins at ${result.winnerAvg.toLocaleString()} avg`;
-            if (result.secondName) {
-                statText += ` | +${result.vsSecond}% vs ${result.secondName}`;
-            }
-            if (result.thirdName) {
-                statText += ` | +${result.vsThird}% vs ${result.thirdName}`;
-            }
-            statEl.textContent = statText;
-        } else {
-            nameEl.textContent = 'Insufficient data';
-            statEl.textContent = '';
-        }
-    }
-    renderWinner(benchmarkData, 'os', 15);
-    renderWinner(benchmarkData, 'mesa', 12);
-    renderWinner(benchmarkData, 'nvidia', 12);
-    renderWinner(benchmarkData, 'kernel', 12);
-
     // Portable Devices Charts Rendering
     if (!document.getElementById('mobileDistChart')) return;
 
@@ -2690,23 +2664,80 @@ function renderCharts() {
 
     }
 
-    // Software Comparison Charts
+    // Software Comparison Charts + Winners
+    function getWinnerFromScatterData(scatterData) {
+        if (!scatterData || !scatterData.points || scatterData.points.length === 0) return null;
+        const wins = {};
+        const totals = {};
+        const hwSet = new Set();
+        scatterData.points.forEach(p => {
+            hwSet.add(p.hardwareLabel);
+            if (!totals[p.label]) totals[p.label] = { total: 0, count: 0 };
+            totals[p.label].total += p.y * (p.count || 1);
+            totals[p.label].count += (p.count || 1);
+        });
+        const hwLabels = [...hwSet];
+        hwLabels.forEach(hw => {
+            const hwPoints = scatterData.points.filter(p => p.hardwareLabel === hw);
+            let bestLabel = null, bestY = 0;
+            hwPoints.forEach(p => { if (p.y > bestY) { bestY = p.y; bestLabel = p.label; } });
+            if (bestLabel) wins[bestLabel] = (wins[bestLabel] || 0) + 1;
+        });
+        const entries = Object.entries(wins)
+            .map(([name, count]) => ({ name, wins: count, avg: totals[name] ? Math.round(totals[name].total / totals[name].count) : 0 }))
+            .sort((a, b) => b.wins - a.wins || b.avg - a.avg);
+        if (entries.length === 0) return null;
+        const winner = entries[0];
+        const second = entries[1] || null;
+        const third = entries[2] || null;
+        return {
+            winner: winner.name, winnerAvg: winner.avg, winnerWins: winner.wins,
+            totalCompared: hwLabels.length,
+            secondName: second ? second.name : null,
+            vsSecond: second ? Math.round(((winner.wins - second.wins) / Math.max(second.wins, 0.1)) * 100) : 0,
+            thirdName: third ? third.name : null,
+            vsThird: third ? Math.round(((winner.wins - third.wins) / Math.max(third.wins, 0.1)) * 100) : 0,
+        };
+    }
+    function renderWinnerCard(result, type) {
+        const nameEl = document.getElementById(type + '-winner-name');
+        const statEl = document.getElementById(type + '-winner-stat');
+        if (!nameEl || !statEl) return;
+        if (result) {
+            nameEl.textContent = result.winner;
+            let text = `${result.winnerWins}/${result.totalCompared} hw wins at ${result.winnerAvg.toLocaleString()} avg`;
+            if (result.secondName) text += ` | +${result.vsSecond}% vs ${result.secondName}`;
+            if (result.thirdName) text += ` | +${result.vsThird}% vs ${result.thirdName}`;
+            statEl.textContent = text;
+        } else {
+            nameEl.textContent = 'Insufficient data';
+            statEl.textContent = '';
+        }
+    }
+
+    const osScatterData = getOSvsHardwareScatterData(benchmarkData);
     if (document.getElementById('osHardwareScatterChart')) {
-        const osScatterData = getOSvsHardwareScatterData(benchmarkData);
         renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
     }
+    renderWinnerCard(getWinnerFromScatterData(osScatterData), 'os');
+
+    const mesaData = getDriverScatterData(benchmarkData, 'mesa');
     if (document.getElementById('mesaDriverScatterChart')) {
-        const mesaData = getDriverScatterData(benchmarkData, 'mesa');
         renderDriverScatterChart('mesaDriverScatterChart', mesaData, 'Mesa');
     }
+    renderWinnerCard(getWinnerFromScatterData(mesaData), 'mesa');
+
+    const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
     if (document.getElementById('nvidiaDriverScatterChart')) {
-        const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
         renderDriverScatterChart('nvidiaDriverScatterChart', nvidiaData, 'NVIDIA');
     }
+    renderWinnerCard(getWinnerFromScatterData(nvidiaData), 'nvidia');
+
+    const kernelData = getKernelScatterData(benchmarkData);
     if (document.getElementById('kernelScatterChart')) {
-        const kernelData = getKernelScatterData(benchmarkData);
         renderDriverScatterChart('kernelScatterChart', kernelData, 'Kernel', 'CPU Score');
     }
+    renderWinnerCard(getWinnerFromScatterData(kernelData), 'kernel');
 
     // Remove skeleton loaders after charts are rendered
     removeSkeletonLoading();
