@@ -862,17 +862,18 @@ function renderTable() {
             rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #cd7f32; fill: rgba(205, 127, 50, 0.2);"></i>${absoluteRank}`;
         }
         
-        const displayId = row.clientId !== 'N/D' && row.clientId.length > 8 
-            ? row.clientId.substring(0, 8) 
-            : row.clientId;
+        const displayName = getDisplayName(row);
+        const isNamed = row.user && row.user.toLowerCase() !== 'anonymous';
+        const title = isNamed ? `Username: ${row.user}` : `Full ID: ${row.clientId} (Click to copy)`;
+        const copyValue = displayName;
             
         let clientIdHtml = '';
         if (row.clientId === 'N/D') {
             clientIdHtml = '<span class="nd-cell">N/D</span>';
         } else {
             clientIdHtml = `
-                <div class="client-id-badge" title="Full ID: ${row.clientId} (Click to copy)" onclick="copyToClipboard('${row.clientId}', this)">
-                    <span class="client-id-text">${displayId}</span>
+                <div class="client-id-badge" title="${title}" onclick="copyToClipboard('${copyValue}', this)">
+                    <span class="client-id-text">${displayName}</span>
                     <i data-lucide="copy" class="copy-icon"></i>
                 </div>
             `;
@@ -1200,7 +1201,7 @@ function getTopMobileCPUs(data, limit = 10) {
         .map(([name, runs]) => {
             const avg = Math.round(runs.reduce((sum, r) => sum + r.cpuSingle, 0) / runs.length);
             const bestRun = runs.reduce((best, current) => current.cpuSingle > best.cpuSingle ? current : best, runs[0]);
-            return { name, avg, clientId: bestRun.clientId };
+            return { name, avg, displayName: getDisplayName(bestRun) };
         })
         .sort((a, b) => b.avg - a.avg)
         .slice(0, limit);
@@ -1235,7 +1236,7 @@ function getTopMobileGPUs(data, limit = 10) {
         .map(([name, runs]) => {
             const avg = Math.round(runs.reduce((sum, r) => sum + r.gpuScore, 0) / runs.length);
             const bestRun = runs.reduce((best, current) => current.gpuScore > best.gpuScore ? current : best, runs[0]);
-            return { name, avg, clientId: bestRun.clientId };
+            return { name, avg, displayName: getDisplayName(bestRun) };
         })
         .sort((a, b) => b.avg - a.avg)
         .slice(0, limit);
@@ -1329,7 +1330,7 @@ function getTopCategoryCPUs(data, category, limit = 10) {
         .map(([name, runs]) => {
             const avg = Math.round(runs.reduce((sum, r) => sum + r.cpuSingle, 0) / runs.length);
             const bestRun = runs.reduce((best, current) => current.cpuSingle > best.cpuSingle ? current : best, runs[0]);
-            return { name, avg, clientId: bestRun.clientId };
+            return { name, avg, displayName: getDisplayName(bestRun) };
         })
         .sort((a, b) => b.avg - a.avg)
         .slice(0, limit);
@@ -1366,7 +1367,7 @@ function getTopCategoryGPUs(data, category, limit = 10) {
         .map(([name, runs]) => {
             const avg = Math.round(runs.reduce((sum, r) => sum + r.gpuScore, 0) / runs.length);
             const bestRun = runs.reduce((best, current) => current.gpuScore > best.gpuScore ? current : best, runs[0]);
-            return { name, avg, clientId: bestRun.clientId };
+            return { name, avg, displayName: getDisplayName(bestRun) };
         })
         .sort((a, b) => b.avg - a.avg)
         .slice(0, limit);
@@ -1727,19 +1728,23 @@ function getPackageDistribution(data) {
 // Helper to get top contributors by number of benchmark submissions
 function getTopContributors(data, limit = 10) {
     const counts = {};
+    const latestRun = {};
     data.forEach(r => {
         const id = r.clientId || 'N/D';
         if (id === 'N/D' || id === '') return;
         counts[id] = (counts[id] || 0) + 1;
+        // keep the most recent run for display name resolution
+        if (!latestRun[id]) latestRun[id] = r;
+        else if (r.dateTime && r.dateTime !== 'N/D') latestRun[id] = r;
     });
     const entries = Object.entries(counts)
         .map(([clientId, submissions]) => ({ clientId, submissions }))
         .sort((a, b) => b.submissions - a.submissions)
         .slice(0, limit);
     return {
-        labels: entries.map(e => e.clientId.length > 8 ? e.clientId.substring(0, 8) : e.clientId),
+        labels: entries.map(e => getDisplayName(latestRun[e.clientId] || {})),
         counts: entries.map(e => e.submissions),
-        clientIds: entries.map(e => e.clientId)
+        clientIds: entries.map(e => getDisplayName(latestRun[e.clientId] || {}))
     };
 }
 
@@ -1758,6 +1763,15 @@ function getUniqueClientRuns(data) {
         }
     });
     return Object.values(latestByClient).map(entry => entry.run);
+}
+
+// Helper to resolve contributor display name: username if present and not Anonymous, else client-id
+function getDisplayName(run) {
+    const user = run.user || '';
+    if (user && user.toLowerCase() !== 'anonymous') return user;
+    const id = run.clientId || 'N/D';
+    if (id === 'N/D') return 'N/D';
+    return id.length > 8 ? id.substring(0, 8) : id;
 }
 
 // Helper to calculate score histogram bins
@@ -2054,7 +2068,7 @@ function renderOSHardwareScatterChart(canvasId, data) {
                                 `User: ${p.user || 'N/D'}`
                             ];
                             if (p.clientId && p.clientId !== 'N/D') {
-                                lines.push(`Client: ${p.clientId.length > 8 ? p.clientId.substring(0, 8) : p.clientId}`);
+                                lines.push(`Client: ${getDisplayName(p)}`);
                             }
                             if (p.kernel && p.kernel !== 'N/D') lines.push(`Kernel: ${p.kernel}`);
                             if (p.driver && p.driver !== 'N/D') lines.push(`Driver: ${p.driver}`);
@@ -2130,7 +2144,7 @@ function renderCharts() {
         '#10b981',
         undefined,
         mainXMin,
-        mainRuns.map(r => r.clientId),
+        mainRuns.map(r => getDisplayName(r)),
         mainRuns.map(r => r.cpu),
         mainRuns.map(r => r.gpu)
     );
@@ -2154,7 +2168,7 @@ function renderCharts() {
         '#818cf8',
         undefined,
         cpuSingleXMin,
-        cpuSingleRuns.map(r => r.clientId)
+        cpuSingleRuns.map(r => getDisplayName(r))
     );
     
     // 2. CPU Multi Thread Top 10 Chart
@@ -2172,7 +2186,7 @@ function renderCharts() {
         '#c084fc',
         undefined,
         undefined,
-        cpuMultiRuns.map(r => r.clientId)
+        cpuMultiRuns.map(r => getDisplayName(r))
     );
     
     // 3. GPU Performance Top 10 Chart
@@ -2190,7 +2204,7 @@ function renderCharts() {
         '#38bdf8',
         undefined,
         undefined,
-        gpuRuns.map(r => r.clientId)
+        gpuRuns.map(r => getDisplayName(r))
     );
 
     // 4. Top 10 CPU - Most Used Chart
@@ -2553,7 +2567,7 @@ function renderCharts() {
             '#818cf8',
             undefined,
             undefined,
-            cpuData.map(c => c.clientId)
+            cpuData.map(c => c.displayName)
         );
 
         const gpuData = getTopCategoryGPUs(benchmarkData, category, 10);
@@ -2570,7 +2584,7 @@ function renderCharts() {
             '#38bdf8',
             undefined,
             undefined,
-            gpuData.map(g => g.clientId)
+            gpuData.map(g => g.displayName)
         );
     }
 
@@ -3215,7 +3229,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
                                 `Samples: ${p.count || 1}`
                             ];
                             if (p.clientId && p.clientId !== 'N/D') {
-                                lines.push(`Client: ${p.clientId.length > 8 ? p.clientId.substring(0, 8) : p.clientId}`);
+                                lines.push(`Client: ${getDisplayName(p)}`);
                             }
                             return lines;
                         }
@@ -3674,11 +3688,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                                 lines.push(`GPU: ${context.dataset.gpus[context.dataIndex]}`);
                             }
                             if (context.dataset.clientIds && context.dataset.clientIds[context.dataIndex]) {
-                                const clientId = context.dataset.clientIds[context.dataIndex];
-                                const displayId = (clientId && clientId !== 'N/D') 
-                                    ? (clientId.length > 8 ? clientId.substring(0, 8) : clientId)
-                                    : 'N/D';
-                                lines.push(`Client ID: ${displayId}`);
+                                lines.push(`Client: ${context.dataset.clientIds[context.dataIndex]}`);
                             }
                             return lines;
                         }
