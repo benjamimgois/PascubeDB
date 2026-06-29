@@ -1733,9 +1733,23 @@ function getTopContributors(data, limit = 10) {
         const id = r.clientId || 'N/D';
         if (id === 'N/D' || id === '') return;
         counts[id] = (counts[id] || 0) + 1;
-        // keep the most recent run for display name resolution
-        if (!latestRun[id]) latestRun[id] = r;
-        else if (r.dateTime && r.dateTime !== 'N/D') latestRun[id] = r;
+        // keep best run for display name: prefer username over Anonymous, then most recent
+        const cur = latestRun[id];
+        if (!cur) {
+            latestRun[id] = r;
+        } else {
+            const newHasUser = r.user && r.user.toLowerCase() !== 'anonymous';
+            const curHasUser = cur.user && cur.user.toLowerCase() !== 'anonymous';
+            if (!curHasUser && newHasUser) {
+                latestRun[id] = r;
+            } else if (curHasUser === newHasUser) {
+                const newDate = parseDate(r.dateTime);
+                const curDate = parseDate(cur.dateTime);
+                if (newDate && (!curDate || newDate > curDate)) {
+                    latestRun[id] = r;
+                }
+            }
+        }
     });
     const entries = Object.entries(counts)
         .map(([clientId, submissions]) => ({ clientId, submissions }))
