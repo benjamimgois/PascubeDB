@@ -1415,6 +1415,10 @@ function getGPUBrandDistribution(data) {
             brands.llvmpipe++;
         } else {
             brands.Other++;
+            if (gpu && !gpu.toLowerCase().includes('n/d')) {
+                if (!window._otherGpus) window._otherGpus = new Set();
+                window._otherGpus.add(gpu);
+            }
         }
     });
     return brands;
@@ -2306,7 +2310,10 @@ function renderCharts() {
     );
 
     // 8. Pie/Doughnut GPU Brand Distribution Chart
-    const gpuBrandDist = getGPUBrandDistribution(getUniqueClientRuns(benchmarkData));
+    const gpuBrandDist = getGPUBrandDistribution(benchmarkData);
+    if (window._otherGpus && window._otherGpus.size > 0) {
+        console.warn('GPUs categorized as Other:', [...window._otherGpus].join(', '));
+    }
     if (gpuBrandDist.Other === 0) {
         delete gpuBrandDist.Other;
     }
