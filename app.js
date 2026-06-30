@@ -2231,8 +2231,8 @@ function renderCharts() {
         gpuRuns.map(r => r.gpu),
         gpuRuns.map(r => r.gpuScore),
         'GPU Score',
-        'rgba(251, 146, 60, 0.85)',
-        '#fb923c',
+        'rgba(250, 204, 21, 0.85)',
+        '#facc15',
         undefined,
         undefined,
         gpuRuns.map(r => getDisplayName(r))
