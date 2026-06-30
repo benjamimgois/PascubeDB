@@ -1149,7 +1149,7 @@ function getMobileDistribution(data) {
     const dist = { Handheld: 0, SBC: 0, Notebook: 0 };
     data.forEach(r => {
         const type = classifyDevice(r);
-        if (type) {
+        if (type === 'Handheld' || type === 'SBC' || type === 'Notebook') {
             dist[type]++;
         }
     });
