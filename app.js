@@ -1078,7 +1078,6 @@ function classifyDevice(r) {
     if (dt === 'handheld') return 'Handheld';
     if (dt === 'sbc') return 'SBC';
     if (dt === 'desktop') return 'Desktop';
-    const hasPortable = dt === 'portable';
 
     const cpu = (r.cpu || '').toLowerCase();
     const gpu = (r.gpu || '').toLowerCase();
@@ -1130,7 +1129,6 @@ function classifyDevice(r) {
         return 'Notebook';
     }
 
-    if (hasPortable) return 'Notebook';
     return null;
 }
 
