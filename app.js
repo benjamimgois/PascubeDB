@@ -1395,7 +1395,7 @@ function getCPUBrandDistribution(data) {
 
 // Helper to get GPU Brand distribution
 function getGPUBrandDistribution(data) {
-    const brands = { NVIDIA: 0, AMD: 0, Intel: 0, ARM: 0, llvmpipe: 0, Other: 0 };
+    const brands = { NVIDIA: 0, AMD: 0, Intel: 0, ARM: 0, llvmpipe: 0, Broadcom: 0, Other: 0 };
     data.forEach(r => {
         const gpu = (r.gpu || '').toLowerCase();
         const arch = (r.architecture || '').toLowerCase();
@@ -1403,6 +1403,8 @@ function getGPUBrandDistribution(data) {
             brands.ARM++;
         } else if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt 1030') || gpu.includes('mx')) {
             brands.NVIDIA++;
+        } else if (gpu.includes('broadcom') || gpu.includes('videocore') || gpu.includes('vc4') || gpu.includes('v3d')) {
+            brands.Broadcom++;
         } else if (gpu.includes('arm') || gpu.includes('mali') || gpu.includes('rk3588')) {
             brands.ARM++;
         } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('550x') || gpu.includes('hd 8') || gpu.includes('hd 7') || gpu.includes('hd 6') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
@@ -2317,6 +2319,7 @@ function renderCharts() {
         'Intel': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },
         'ARM': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },
         'llvmpipe': { bg: 'rgba(236, 72, 153, 0.8)', border: '#f472b6' },
+        'Broadcom': { bg: 'rgba(244, 114, 182, 0.8)', border: '#f9a8d4' },
         'Other': { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' }
     };
     const gpuLabels = Object.keys(gpuBrandDist);
