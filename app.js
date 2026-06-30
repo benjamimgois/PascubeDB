@@ -3,7 +3,7 @@
 const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1nlMgeW0ZFmtwwT3hty8JAFT3sM0SNhMpc24mH3In9zI/export?format=csv";
 
 // Fallback CSV Data to ensure the dashboard works even offline or in case of CORS/network issues
-const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,package,,product name
+const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,package,device-type,product name
 Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07,2648f98e2306731777b45289ec0a46e6d5466beb43cecb72104b6ea3449aa10a
 Anonymous,Ryzen 7 9800X3D,30GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  595.80  Release Build  (dvs-builder@U22-I3-AF05-29-2)  Thu May 21 19:21:58 UTC 2026,7.0.12-201.fc44.x86_64,Fedora Linux 44 (KDE Plasma Desktop Edition),4975,2615,4019,6913,
 Anonymous,Ryzen 9 7950X3D 16-Core,63GB,RX 7900 XTX,24GB,Mesa 26.1.99,7.0.12-1-cachyos,CachyOS,4938,3481,10783,4205,14/06/2026 14:22:49
@@ -323,6 +323,7 @@ function processGvizData(jsonResponse) {
             clientId: getVal(13) || 'N/D',
             architecture: getVal(14) || 'N/D',
             packageType: getVal(15) || 'N/D',
+            deviceType: getVal(16) || 'N/D',
             productName: getVal(17) || 'N/D'
         };
     }).filter(row => row !== null);
@@ -482,6 +483,7 @@ function processCSVData(csvText) {
             clientId: row[13] || 'N/D',
             architecture: row[14] || 'N/D',
             packageType: row[15] || 'N/D',
+            deviceType: row[16] || 'N/D',
             productName: row[17] || 'N/D'
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
@@ -1070,6 +1072,13 @@ function getOSDistribution(data) {
 
 // Classify a device as Handheld, Notebook, or Desktop
 function classifyDevice(r) {
+    // Use device-type column from sheet if available
+    const dt = (r.deviceType || '').toLowerCase();
+    if (dt === 'notebook') return 'Notebook';
+    if (dt === 'handheld') return 'Handheld';
+    if (dt === 'sbc') return 'SBC';
+    if (dt === 'desktop') return 'Desktop';
+
     const cpu = (r.cpu || '').toLowerCase();
     const gpu = (r.gpu || '').toLowerCase();
     const os = (r.os || '').toLowerCase();
