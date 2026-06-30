@@ -2307,6 +2307,7 @@ function renderCharts() {
 
     // 8. Pie/Doughnut GPU Brand Distribution Chart
     const gpuBrandDist = getGPUBrandDistribution(benchmarkData);
+    delete gpuBrandDist.llvmpipe;
     Object.keys(gpuBrandDist).forEach(k => { if (gpuBrandDist[k] === 0) delete gpuBrandDist[k]; });
     if (gpuBrandDist.llvmpipe === 0) {
         delete gpuBrandDist.llvmpipe;
