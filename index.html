@@ -389,6 +389,32 @@
                 <h2>Software Comparison</h2>
                 <p>How operating systems and driver versions impact hardware performance</p>
             </div>
+
+            <!-- Visualization Controls Panel -->
+            <div class="viz-controls">
+                <div class="viz-control-group">
+                    <span class="viz-control-label">Mode</span>
+                    <div class="segmented-control" id="seg-mode">
+                        <button class="seg-btn active" data-value="absolute">Absolute</button>
+                        <button class="seg-btn" data-value="delta">Delta %</button>
+                    </div>
+                </div>
+                <div class="viz-control-group">
+                    <span class="viz-control-label">Chart Type</span>
+                    <div class="segmented-control" id="seg-chart">
+                        <button class="seg-btn active" data-value="scatter">Scatter</button>
+                        <button class="seg-btn" data-value="boxplot">Box Plot</button>
+                    </div>
+                </div>
+                <div class="viz-control-group">
+                    <span class="viz-control-label">Normalize Scale</span>
+                    <label class="toggle-switch" id="toggle-normalize">
+                        <input type="checkbox">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
             <div class="software-scatter-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">

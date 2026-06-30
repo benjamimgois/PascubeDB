@@ -127,11 +127,13 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
+let vizState = { mode: 'absolute', chartType: 'scatter', normalize: false };
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupTabNavigation();
+    setupVizControls();
     initSkeletonLoading();
     initScrollObservers();
     initBackToTop();
@@ -154,6 +156,45 @@ function setupTabNavigation() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => window.switchTab(tab.getAttribute('data-tab')));
     });
+}
+
+// Viz Controls — Software Comparison
+function setupVizControls() {
+    const segMode = document.getElementById('seg-mode');
+    const segChart = document.getElementById('seg-chart');
+    const toggleNorm = document.getElementById('toggle-normalize');
+
+    if (segMode) {
+        segMode.querySelectorAll('.seg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                segMode.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                vizState.mode = btn.dataset.value;
+                renderSoftwareCharts();
+            });
+        });
+    }
+
+    if (segChart) {
+        segChart.querySelectorAll('.seg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                segChart.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                vizState.chartType = btn.dataset.value;
+                renderSoftwareCharts();
+            });
+        });
+    }
+
+    if (toggleNorm) {
+        const cb = toggleNorm.querySelector('input');
+        if (cb) {
+            cb.addEventListener('change', () => {
+                vizState.normalize = cb.checked;
+                renderSoftwareCharts();
+            });
+        }
+    }
 }
 
 // Setup Events (search, filter, sort, sync)
@@ -2939,7 +2980,11 @@ function renderCharts() {
 
     const osScatterData = getOSvsHardwareScatterData(benchmarkData);
     if (document.getElementById('osHardwareScatterChart')) {
-        renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+        if (vizState.chartType === 'boxplot') {
+            renderBoxPlotChart('osHardwareScatterChart', osScatterData);
+        } else {
+            renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+        }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'os'), 'os');
 
@@ -4087,4 +4132,228 @@ function initSkeletonLoading() {
 
 function removeSkeletonLoading() {
     document.querySelectorAll('.chart-canvas-area .skeleton').forEach(s => s.remove());
+}
+
+// -- Box Plot for OS vs Hardware --
+
+function computeBoxPlotData(scatterData) {
+    const groups = {};
+    scatterData.points.forEach(p => {
+        if (!groups[p.x]) groups[p.x] = { x: p.x, hwLabel: p.hardwareLabel, osData: {} };
+        if (!groups[p.x].osData[p.os]) groups[p.x].osData[p.os] = [];
+        groups[p.x].osData[p.os].push(p.y);
+    });
+
+    const boxData = [];
+    Object.values(groups).sort((a, b) => a.x - b.x).forEach(g => {
+        const osBoxes = {};
+        Object.entries(g.osData).forEach(([os, values]) => {
+            values.sort((a, b) => a - b);
+            const n = values.length;
+            const q1 = values[Math.floor(n * 0.25)];
+            const median = values[Math.floor(n * 0.50)];
+            const q3 = values[Math.floor(n * 0.75)];
+            const iqr = q3 - q1;
+            const lower = q1 - 1.5 * iqr;
+            const upper = q3 + 1.5 * iqr;
+            const whiskerMin = Math.max(values[0], lower);
+            const whiskerMax = Math.min(values[n - 1], upper);
+            const outliers = values.filter(v => v < lower || v > upper);
+            osBoxes[os] = { median, q1, q3, whiskerMin, whiskerMax, outliers, n, values };
+        });
+        boxData.push({ x: g.x, hwLabel: g.hwLabel, osBoxes });
+    });
+
+    return { boxData, hwLabels: scatterData.hwLabels };
+}
+
+function renderBoxPlotChart(canvasId, scatterData) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = rect.width, H = rect.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const { boxData, hwLabels } = computeBoxPlotData(scatterData);
+    if (boxData.length === 0) return;
+
+    const margin = { top: 30, right: 20, bottom: 80, left: 60 };
+    const pw = W - margin.left - margin.right;
+    const ph = H - margin.top - margin.bottom;
+
+    // Compute Y range
+    const allY = [].concat(...boxData.map(g => {
+        return [].concat(...Object.values(g.osBoxes).map(b => [b.whiskerMin, b.whiskerMax, ...b.outliers]));
+    }));
+    const yMin = Math.min(...allY);
+    const yMax = Math.max(...allY);
+    const yRange = yMax - yMin || 1;
+
+    const yScale = y => margin.top + ph - ((y - yMin) / yRange) * ph;
+
+    // Draw Y axis
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.font = '10px Inter, sans-serif';
+    ctx.fillStyle = '#9ca3af';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let yt = yMin; yt <= yMax; yt += Math.ceil(yRange / 6)) {
+        const yy = yScale(yt);
+        ctx.beginPath(); ctx.moveTo(margin.left, yy); ctx.lineTo(W - margin.right, yy); ctx.stroke();
+        ctx.fillText(Math.round(yt).toLocaleString(), margin.left - 6, yy);
+    }
+
+    // X axis labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#9ca3af';
+    const colW = pw / boxData.length;
+    boxData.forEach((g, i) => {
+        const cx = margin.left + colW * i + colW / 2;
+        const label = g.hwLabel.length > 20 ? g.hwLabel.substring(0, 20) + '...' : g.hwLabel;
+        ctx.save();
+        ctx.translate(cx, H - margin.bottom + 8);
+        ctx.rotate(-0.4);
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+    });
+
+    // Collect OS colors from scatter data
+    const osNames = [...new Set(scatterData.points.map(p => p.os))].sort();
+    const osColors = generateDistinctColors(osNames);
+
+    // Store info for tooltips
+    const tooltipRects = [];
+
+    // Draw box plots
+    const boxW = Math.max(6, Math.min(16, (colW * 0.7) / Math.max(1, Object.keys(boxData[0].osBoxes).length)));
+    boxData.forEach((g, hi) => {
+        const osList = Object.keys(g.osBoxes).sort();
+        osList.forEach((os, oi) => {
+            const box = g.osBoxes[os];
+            const color = osColors[os] || { bg: 'rgba(156,163,175,0.5)', border: '#9ca3af' };
+            const centerX = margin.left + colW * hi + colW / 2;
+            const offsetX = (oi - (osList.length - 1) / 2) * (boxW + 4);
+            const bx = centerX + offsetX - boxW / 2;
+
+            const yQ1 = yScale(box.q1);
+            const yMedian = yScale(box.median);
+            const yQ3 = yScale(box.q3);
+            const yWMin = yScale(box.whiskerMin);
+            const yWMax = yScale(box.whiskerMax);
+            const boxH = yQ1 - yQ3;
+
+            // Box (Q1-Q3)
+            ctx.fillStyle = color.bg;
+            ctx.strokeStyle = color.border;
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(bx, yQ3, boxW, boxH);
+            ctx.strokeRect(bx, yQ3, boxW, boxH);
+
+            // Median line
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(bx, yMedian); ctx.lineTo(bx + boxW, yMedian); ctx.stroke();
+
+            // Whiskers
+            ctx.strokeStyle = color.border;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(centerX + offsetX - 1, yWMin); ctx.lineTo(centerX + offsetX + 1, yWMin); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(centerX + offsetX - 1, yWMax); ctx.lineTo(centerX + offsetX + 1, yWMax); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(centerX + offsetX, yQ1); ctx.lineTo(centerX + offsetX, yWMin); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(centerX + offsetX, yQ3); ctx.lineTo(centerX + offsetX, yWMax); ctx.stroke();
+
+            // Outliers
+            box.outliers.forEach(val => {
+                const yy = yScale(val);
+                ctx.beginPath(); ctx.arc(centerX + offsetX, yy, 2.5, 0, Math.PI * 2); ctx.fill();
+            });
+
+            tooltipRects.push({
+                x: bx, y: Math.min(yQ3, yWMin), w: boxW, h: Math.max(yQ1, yWMax) - Math.min(yQ3, yWMin),
+                os, hwLabel: g.hwLabel, box, color
+            });
+        });
+    });
+
+    // Tooltip handler
+    canvas.onmousemove = function(e) {
+        const mx = e.offsetX, my = e.offsetY;
+        let found = null;
+        for (const r of tooltipRects) {
+            if (mx >= r.x - 4 && mx <= r.x + r.w + 4 && my >= r.y && my <= r.y + r.h) {
+                found = r; break;
+            }
+        }
+        const ttEl = document.getElementById('boxplot-tooltip');
+        if (found) {
+            if (!ttEl) {
+                const el = document.createElement('div');
+                el.id = 'boxplot-tooltip';
+                el.style.cssText = 'position:fixed;background:rgba(15,23,42,0.95);color:#f3f4f6;font:11px Inter,sans-serif;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);pointer-events:none;z-index:999;';
+                document.body.appendChild(el);
+            }
+            const el = document.getElementById('boxplot-tooltip') || ttEl;
+            el.style.left = (e.clientX + 14) + 'px';
+            el.style.top = (e.clientY - 10) + 'px';
+            const b = found.box;
+            el.innerHTML = `<b>${found.os}</b><br>${found.hwLabel}<br>
+                Median: ${b.median.toLocaleString()}<br>
+                Q1: ${b.q1.toLocaleString()} | Q3: ${b.q3.toLocaleString()}<br>
+                Min: ${b.whiskerMin.toLocaleString()} | Max: ${b.whiskerMax.toLocaleString()}<br>
+                n=${b.n}`;
+            canvas.style.cursor = 'pointer';
+        } else {
+            if (ttEl && ttEl.id === 'boxplot-tooltip') ttEl.remove();
+            canvas.style.cursor = 'default';
+        }
+    };
+    canvas.onmouseleave = function() {
+        const ttEl = document.getElementById('boxplot-tooltip');
+        if (ttEl) ttEl.remove();
+    };
+}
+
+// Render all Software Comparison charts respecting vizState
+function renderSoftwareCharts() {
+    if (!benchmarkData || benchmarkData.length === 0) return;
+
+    // Destroy old chart instances for software section
+    ['osHardwareScatterChart', 'mesaDriverScatterChart', 'nvidiaDriverScatterChart', 'kernelScatterChart'].forEach(id => {
+        if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+    });
+
+    const osScatterData = getOSvsHardwareScatterData(benchmarkData);
+    if (document.getElementById('osHardwareScatterChart')) {
+        if (vizState.chartType === 'boxplot') {
+            renderBoxPlotChart('osHardwareScatterChart', osScatterData);
+        } else {
+            renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+        }
+    }
+
+    const mesaData = getDriverScatterData(benchmarkData, 'mesa');
+    if (document.getElementById('mesaDriverScatterChart')) {
+        renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
+    }
+
+    const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
+    if (document.getElementById('nvidiaDriverScatterChart')) {
+        renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
+    }
+
+    const kernelData = getKernelScatterData(benchmarkData);
+    if (document.getElementById('kernelScatterChart')) {
+        renderHardwareComparisonBars('kernelScatterChart', kernelData);
+    }
 }
