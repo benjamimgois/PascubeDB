@@ -2990,19 +2990,37 @@ function renderCharts() {
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
     if (document.getElementById('mesaDriverScatterChart')) {
-        renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
+        if (vizState.mode === 'delta') {
+            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData), vizState.normalize);
+        } else if (vizState.normalize) {
+            renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
+        } else {
+            renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
+        }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'mesa'), 'mesa');
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
     if (document.getElementById('nvidiaDriverScatterChart')) {
-        renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
+        if (vizState.mode === 'delta') {
+            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData), vizState.normalize);
+        } else if (vizState.normalize) {
+            renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
+        } else {
+            renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
+        }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'nvidia'), 'nvidia');
 
     const kernelData = getKernelScatterData(benchmarkData);
     if (document.getElementById('kernelScatterChart')) {
-        renderHardwareComparisonBars('kernelScatterChart', kernelData);
+        if (vizState.mode === 'delta') {
+            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData), vizState.normalize);
+        } else if (vizState.normalize) {
+            renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
+        } else {
+            renderHardwareComparisonBars('kernelScatterChart', kernelData);
+        }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'kernel'), 'kernel');
 
@@ -4328,7 +4346,6 @@ function renderBoxPlotChart(canvasId, scatterData) {
 function renderSoftwareCharts() {
     if (!benchmarkData || benchmarkData.length === 0) return;
 
-    // Destroy old chart instances for software section
     ['osHardwareScatterChart', 'mesaDriverScatterChart', 'nvidiaDriverScatterChart', 'kernelScatterChart'].forEach(id => {
         if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
     });
@@ -4344,16 +4361,192 @@ function renderSoftwareCharts() {
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
     if (document.getElementById('mesaDriverScatterChart')) {
-        renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
+        if (vizState.mode === 'delta') {
+            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData), vizState.normalize);
+        } else if (vizState.normalize) {
+            renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
+        } else {
+            renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
+        }
     }
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
     if (document.getElementById('nvidiaDriverScatterChart')) {
-        renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
+        if (vizState.mode === 'delta') {
+            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData), vizState.normalize);
+        } else if (vizState.normalize) {
+            renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
+        } else {
+            renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
+        }
     }
 
     const kernelData = getKernelScatterData(benchmarkData);
     if (document.getElementById('kernelScatterChart')) {
-        renderHardwareComparisonBars('kernelScatterChart', kernelData);
+        if (vizState.mode === 'delta') {
+            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData), vizState.normalize);
+        } else if (vizState.normalize) {
+            renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
+        } else {
+            renderHardwareComparisonBars('kernelScatterChart', kernelData);
+        }
     }
+}
+
+// Normalize scores: per hardware group, best = 100%
+function computeNormalizedData(data) {
+    const groups = {};
+    data.points.forEach(p => {
+        if (!groups[p.hardwareLabel]) groups[p.hardwareLabel] = [];
+        groups[p.hardwareLabel].push(p);
+    });
+    const normPoints = [];
+    let hwIdx = 0;
+    const hwLabels = [];
+    Object.entries(groups).forEach(([hwLabel, pts]) => {
+        const maxY = Math.max(...pts.map(p => p.y));
+        pts.forEach(p => {
+            normPoints.push({ ...p, y: maxY > 0 ? Math.round((p.y / maxY) * 100) : 0, origY: p.y });
+        });
+        hwLabels.push(hwLabel);
+        hwIdx++;
+    });
+    return { points: normPoints, hwLabels };
+}
+
+// Delta from baseline: per hardware, oldest version = 0%, others = % change
+function computeDeltaData(data) {
+    const groups = {};
+    data.points.forEach(p => {
+        if (!groups[p.hardwareLabel]) groups[p.hardwareLabel] = [];
+        groups[p.hardwareLabel].push(p);
+    });
+    const deltaPoints = [];
+    const hwLabels = [];
+    Object.entries(groups).forEach(([hwLabel, pts]) => {
+        // Extract numeric version parts for sorting
+        const extractNum = (label) => {
+            const m = (label || '').match(/(\d+\.?\d*)/g);
+            if (!m) return 0;
+            return parseFloat(m.join('').replace(/\./g, ''));
+        };
+        const sorted = [...pts].sort((a, b) => extractNum(a.label) - extractNum(b.label));
+        const baseline = sorted[0];
+        const baseY = vizState.normalize ? (baseline.origY || baseline.y) : baseline.y;
+        sorted.forEach(p => {
+            const val = vizState.normalize ? (p.origY || p.y) : p.y;
+            const delta = baseY > 0 ? Math.round(((val - baseY) / baseY) * 100) : 0;
+            deltaPoints.push({
+                ...p, y: delta, baseLabel: baseline.label, origY: val, baseY: baseY
+            });
+        });
+        hwLabels.push(hwLabel);
+    });
+    return { points: deltaPoints, hwLabels, baselineLabel: deltaPoints.length > 0 ? deltaPoints[0].baseLabel : '' };
+}
+
+// Diverging bar chart for delta and normalized modes
+function renderDivergingBarChart(canvasId, data, isNormalized) {
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || data.points.length === 0) return;
+    const ctx = canvas.getContext('2d');
+
+    const groups = {};
+    data.points.forEach(p => {
+        const key = p.hardwareLabel;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+    });
+
+    const hwEntries = Object.entries(groups);
+    const labels = hwEntries.map(([hw]) => hw.length > 25 ? hw.substring(0, 25) + '...' : hw);
+
+    // Collect all version labels for per-column grouping
+    const allLabels = [...new Set(data.points.map(p => p.label))].sort((a, b) => {
+        const na = parseFloat((a.match(/(\d+\.?\d*)/g) || ['0']).join(''));
+        const nb = parseFloat((b.match(/(\d+\.?\d*)/g) || ['0']).join(''));
+        return na - nb;
+    });
+
+    const datasets = allLabels.map(lbl => {
+        const pts = hwEntries.map(([hw, hwPts]) => {
+            const match = hwPts.find(p => p.label === lbl);
+            return match ? match.y : NaN;
+        });
+        return { label: lbl, data: pts, _origData: hwEntries.map(([hw, hwPts]) => hwPts.find(p => p.label === lbl) || null) };
+    });
+
+    const allVals = [].concat(...datasets.map(d => d.data.filter(v => !isNaN(v))));
+    const absMax = allVals.length > 0 ? Math.max(Math.abs(Math.min(...allVals)), Math.abs(Math.max(...allVals))) : 10;
+    const xMax = Math.ceil(absMax * 1.15);
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 }, padding: 10, boxWidth: 10, usePointStyle: true }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.95)',
+                    titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
+                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                    padding: 12,
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            const orig = context.dataset._origData[context.dataIndex];
+                            const deltaStr = context.raw > 0 ? '+' + context.raw + '%' : context.raw + '%';
+                            let lines = [deltaStr];
+                            if (orig && orig.origY) lines.push('Abs: ' + orig.origY.toLocaleString());
+                            if (orig && orig.baseLabel) lines.push('Baseline: ' + orig.baseLabel);
+                            return lines;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: -xMax,
+                    max: xMax,
+                    grid: { color: 'rgba(255,255,255,0.05)', tickBorderDash: [3, 3] },
+                    ticks: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 }, callback: v => v + '%' },
+                    title: { display: true, text: isNormalized ? 'Delta % (normalized)' : 'Delta %', color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 12 } }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 } }
+                }
+            }
+        },
+        plugins: [{
+            id: 'deltaColors',
+            beforeRender: function(chart) {
+                const ds = chart.data.datasets;
+                ds.forEach(d => {
+                    const colors = d.data.map(v => {
+                        if (isNaN(v)) return 'transparent';
+                        return v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+                    });
+                    d.backgroundColor = colors;
+                    const borders = d.data.map(v => {
+                        if (isNaN(v)) return 'transparent';
+                        return v >= 0 ? '#10b981' : '#ef4444';
+                    });
+                    d.borderColor = borders;
+                    if (d.borderWidth === undefined) d.borderWidth = 1;
+                });
+            }
+        }]
+    });
 }

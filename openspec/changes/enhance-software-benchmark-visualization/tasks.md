@@ -21,18 +21,18 @@
 
 ## 5. Delta Mode
 
-- [ ] 5.1 Em `renderSoftwareCharts()`, quando `vizState.mode === 'delta'`, calcular baseline (versão mais antiga) e converter datasets para delta percentual
-- [ ] 5.2 Renderizar Chart.js bar chart com `indexAxis: 'y'`, barras divergentes verdes/vermelhas
-- [ ] 5.3 Adicionar labels nas extremidades das barras com maior variação
+- [x] 5.1 Em `renderSoftwareCharts()`, quando `vizState.mode === 'delta'`, calcular baseline (versão mais antiga) e converter datasets para delta percentual
+- [x] 5.2 Renderizar Chart.js bar chart com `indexAxis: 'y'`, barras divergentes verdes/vermelhas
+- [x] 5.3 Adicionar labels nas extremidades das barras com maior variação
 
 ## 6. Normalized Scale
 
-- [ ] 6.1 Quando `vizState.normalize === true`, pós-processar datasets: normalizar cada hardware para 0-100% (melhor = 100%)
-- [ ] 6.2 Ajustar eixo Y para mostrar porcentagem
-- [ ] 6.3 Tooltip mostrar % + valor absoluto original
+- [x] 6.1 Quando `vizState.normalize === true`, pós-processar datasets: normalizar cada hardware para 0-100% (melhor = 100%)
+- [x] 6.2 Ajustar eixo Y para mostrar porcentagem
+- [x] 6.3 Tooltip mostrar % + valor absoluto original
 
 ## 7. Integration & Cleanup
 
 - [x] 7.1 Garantir que `renderSoftwareCharts()` destrua instâncias anteriores antes de re-renderizar
-- [ ] 7.2 Verificar que controles só afetam Software Comparison, não outras seções
+- [x] 7.2 Verificar que controles só afetam Software Comparison, não outras seções
 - [ ] 7.3 Testar combinações (Delta + Normalize, Box Plot + Absolute, etc.)
