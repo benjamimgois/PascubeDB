@@ -1407,7 +1407,7 @@ function getGPUBrandDistribution(data) {
             brands.Broadcom++;
         } else if (gpu.includes('arm') || gpu.includes('mali') || gpu.includes('rk3588')) {
             brands.ARM++;
-        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('550x') || gpu.includes('hd 8') || gpu.includes('hd 7') || gpu.includes('hd 6') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
+        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('680m') || gpu.includes('550x') || gpu.includes('w5500') || gpu.includes('hd 8') || gpu.includes('hd 7') || gpu.includes('hd 6') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
             brands.AMD++;
         } else if (gpu.includes('intel') || gpu.includes('arc') || gpu.includes('uhd') || gpu.includes('hd graphics')) {
             brands.Intel++;
@@ -1415,10 +1415,6 @@ function getGPUBrandDistribution(data) {
             brands.llvmpipe++;
         } else {
             brands.Other++;
-            if (gpu && !gpu.toLowerCase().includes('n/d')) {
-                if (!window._otherGpus) window._otherGpus = new Set();
-                window._otherGpus.add(gpu);
-            }
         }
     });
     return brands;
@@ -2311,9 +2307,6 @@ function renderCharts() {
 
     // 8. Pie/Doughnut GPU Brand Distribution Chart
     const gpuBrandDist = getGPUBrandDistribution(benchmarkData);
-    if (window._otherGpus && window._otherGpus.size > 0) {
-        console.warn('GPUs categorized as Other:', [...window._otherGpus].join(', '));
-    }
     if (gpuBrandDist.Other === 0) {
         delete gpuBrandDist.Other;
     }
