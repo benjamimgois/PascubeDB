@@ -112,16 +112,6 @@ Anonymous,i5-5250U @ 1.60GHz,8GB,Intel(R) HD Graphics 6000 (BDW GT3),7.7GB,Mesa 
 Anonymous,Raspberry Pi 5,8GB,VideoCore VII,0.5GB,Mesa 26.1.2,7.0.12-1-cachyos,Ubuntu 24.04 LTS,94,1,1,67,20/06/2026 12:00:00,,aarch64,native,,Raspberry Pi 5 Rev 1.0
 Anonymous,Orange Pi 5 Plus,16GB,Mali G610,2GB,Mesa 26.1.2,7.0.12-1-cachyos,Debian 12,78,1,1,52,22/06/2026 14:30:00,,aarch64,native,,Orange Pi 5 Plus 16GB`;
 
-// Score type color scheme — consistent across all charts
-const SCORE_COLORS = {
-    cpuSingle: { bg: 'rgba(99, 102, 241, 0.85)', border: '#818cf8' },
-    cpuMulti: { bg: 'rgba(168, 85, 247, 0.85)', border: '#c084fc' },
-    gpu: { bg: 'rgba(16, 185, 129, 0.85)', border: '#10b981' },
-    popular: { bg: 'rgba(245, 158, 11, 0.85)', border: '#f59e0b' },
-    popularGpu: { bg: 'rgba(217, 119, 6, 0.85)', border: '#d97706' },
-    portableRuns: { bg: 'rgba(6, 182, 212, 0.85)', border: '#22d3ee' },
-};
-
 // State Variables
 let benchmarkData = [];
 let filteredData = [];
@@ -2177,8 +2167,8 @@ function renderCharts() {
         mainRuns.map(r => `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`),
         mainScores,
         'Main Score',
-        SCORE_COLORS.portableRuns.bg,
-        SCORE_COLORS.portableRuns.border,
+        'rgba(16, 185, 129, 0.85)',
+        '#10b981',
         undefined,
         mainXMin,
         mainRuns.map(r => getDisplayName(r)),
@@ -2201,8 +2191,8 @@ function renderCharts() {
         cpuSingleRuns.map(r => r.cpu),
         cpuSingleScores,
         'CPU Single Score',
-        SCORE_COLORS.cpuSingle.bg,
-        SCORE_COLORS.cpuSingle.border,
+        'rgba(99, 102, 241, 0.85)',
+        '#818cf8',
         undefined,
         cpuSingleXMin,
         cpuSingleRuns.map(r => getDisplayName(r))
@@ -2223,8 +2213,8 @@ function renderCharts() {
         cpuMultiRuns.map(r => r.cpu),
         cpuMultiScores,
         'CPU Multi Score',
-        SCORE_COLORS.cpuMulti.bg,
-        SCORE_COLORS.cpuMulti.border,
+        'rgba(168, 85, 247, 0.85)',
+        '#c084fc',
         undefined,
         cpuMultiXMin,
         cpuMultiRuns.map(r => getDisplayName(r))
@@ -2241,8 +2231,8 @@ function renderCharts() {
         gpuRuns.map(r => r.gpu),
         gpuRuns.map(r => r.gpuScore),
         'GPU Score',
-        SCORE_COLORS.gpu.bg,
-        SCORE_COLORS.gpu.border,
+        'rgba(250, 204, 21, 0.85)',
+        '#facc15',
         undefined,
         undefined,
         gpuRuns.map(r => getDisplayName(r))
@@ -2266,8 +2256,8 @@ function renderCharts() {
         popularGPUs.map(g => g.name),
         popularGPUs.map(g => g.count),
         'Count',
-        SCORE_COLORS.popularGpu.bg,
-        SCORE_COLORS.popularGpu.border
+        'rgba(16, 185, 129, 0.85)',
+        '#10b981'
     );
 
     // 6. Pie/Doughnut OS Distribution Chart
@@ -2435,8 +2425,8 @@ function renderCharts() {
         gpuAverages.map(g => g.name),
         gpuAverages.map(g => g.average),
         'Average GPU Score',
-        SCORE_COLORS.gpu.bg,
-        SCORE_COLORS.gpu.border,
+        'rgba(14, 165, 233, 0.85)',
+        '#38bdf8',
         10
     );
 
@@ -2574,8 +2564,8 @@ function renderCharts() {
             runsData.map(h => h.label),
             runsData.map(h => h.score),
             'Main Score',
-            SCORE_COLORS.portableRuns.bg,
-            SCORE_COLORS.portableRuns.border
+            'rgba(16, 185, 129, 0.85)',
+            '#10b981'
         );
 
         // OS distribution
@@ -2621,8 +2611,8 @@ function renderCharts() {
             gpuLabels,
             gpuData.map(g => g.avg),
             'Avg GPU Score',
-            SCORE_COLORS.gpu.bg,
-            SCORE_COLORS.gpu.border,
+            'rgba(14, 165, 233, 0.85)',
+            '#38bdf8',
             undefined,
             undefined,
             gpuData.map(g => g.displayName)
