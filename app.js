@@ -328,7 +328,7 @@ function setupModelSelectorListeners() {
 }
 
 function setupChartVizControls() {
-    ['mesa', 'nvidia', 'kernel', 'cpuAverage', 'gpuAverage'].forEach(type => {
+    ['mesa', 'nvidia', 'kernel', 'os', 'cpuAverage', 'gpuAverage'].forEach(type => {
         const modeGroup = document.getElementById(VIZ_CHART_IDS[type].mode);
         const toggle = document.getElementById(VIZ_CHART_IDS[type].toggle);
         const chartId = BASELINE_CHART_MAP[type];
