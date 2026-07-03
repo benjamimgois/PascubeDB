@@ -199,7 +199,12 @@ function populateBaselineSelects() {
     if (osHwSelect && osData && osData.hwLabels) {
         osHwSelect.innerHTML = '';
         const curHw = modelSelection.os || '';
-        osData.hwLabels.forEach(h => {
+        const sorted = [...osData.hwLabels].sort((a, b) => {
+            const sa = Math.max(...osData.points.filter(p => p.hardwareLabel === a).map(p => p.y));
+            const sb = Math.max(...osData.points.filter(p => p.hardwareLabel === b).map(p => p.y));
+            return sb - sa;
+        });
+        sorted.forEach(h => {
             const opt = document.createElement('option');
             opt.value = h;
             opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
@@ -233,7 +238,12 @@ function populateBaselineSelects() {
     if (kernelHwSelect && kernelData && kernelData.hwLabels) {
         kernelHwSelect.innerHTML = '';
         const curHw = modelSelection.kernel || '';
-        kernelData.hwLabels.forEach(h => {
+        const sorted = [...kernelData.hwLabels].sort((a, b) => {
+            const sa = Math.max(...kernelData.points.filter(p => p.hardwareLabel === a).map(p => p.y));
+            const sb = Math.max(...kernelData.points.filter(p => p.hardwareLabel === b).map(p => p.y));
+            return sb - sa;
+        });
+        sorted.forEach(h => {
             const opt = document.createElement('option');
             opt.value = h;
             opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
@@ -267,7 +277,12 @@ function populateBaselineSelects() {
         if (hwSelect && data && data.hwLabels) {
             hwSelect.innerHTML = '';
             const curHw = modelSelection[type] || '';
-            data.hwLabels.forEach(h => {
+            const sorted = [...data.hwLabels].sort((a, b) => {
+                const sa = Math.max(...data.points.filter(p => p.hardwareLabel === a).map(p => p.y));
+                const sb = Math.max(...data.points.filter(p => p.hardwareLabel === b).map(p => p.y));
+                return sb - sa;
+            });
+            sorted.forEach(h => {
                 const opt = document.createElement('option');
                 opt.value = h;
                 opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
