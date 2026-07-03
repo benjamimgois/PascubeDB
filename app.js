@@ -234,8 +234,16 @@ function populateBaselineSelects() {
                     opt.textContent = os;
                     blSelect.appendChild(opt);
                 });
-                blSelect.options[0].selected = true;
-                baselineState.os = availableOS[0];
+                let preferred = null;
+                for (let i = 0; i < blSelect.options.length; i++) {
+                    if (blSelect.options[i].value === 'CachyOS') {
+                        preferred = blSelect.options[i];
+                        break;
+                    }
+                }
+                const target = preferred || blSelect.options[0];
+                target.selected = true;
+                baselineState.os = target.value;
             }
             const osChartId = BASELINE_CHART_MAP.os;
             if (chartVizState.os.mode === 'delta' && document.getElementById(osChartId)) {
@@ -316,8 +324,18 @@ function populateBaselineSelects() {
                         opt.textContent = v;
                         blSelect.appendChild(opt);
                     });
-                    blSelect.options[0].selected = true;
-                    baselineState[type] = available[0];
+                    if (type === 'os') {
+                        let pref = null;
+                        for (let i = 0; i < blSelect.options.length; i++) {
+                            if (blSelect.options[i].value === 'CachyOS') { pref = blSelect.options[i]; break; }
+                        }
+                        const tgt = pref || blSelect.options[0];
+                        tgt.selected = true;
+                        baselineState.os = tgt.value;
+                    } else {
+                        blSelect.options[0].selected = true;
+                        baselineState[type] = available[0];
+                    }
                 }
             }
         }
