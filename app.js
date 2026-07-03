@@ -4853,8 +4853,9 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     dsMeta.data.forEach((bar, idx) => {
                         const v = bar.$context.raw;
                         if (isNaN(v)) return;
-                        const orig = ds._origData ? ds._origData[idx] : null;
                         const label = ds.label || '';
+                        if (label === chart.data._baselineLabel) return;
+                        const orig = ds._origData ? ds._origData[idx] : null;
                         const count = orig && orig.count ? orig.count : 0;
                         const text = count > 0 ? label + ' (n=' + count + ')' : label;
                         const y = bar.y;
