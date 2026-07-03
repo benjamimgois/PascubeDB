@@ -214,8 +214,16 @@ function populateBaselineSelects() {
             osHwSelect.appendChild(opt);
         });
         if (!modelSelection.os && osHwSelect.options.length > 0) {
-            osHwSelect.options[0].selected = true;
-            modelSelection.os = osHwSelect.options[0].value;
+            let preferred = null;
+            for (let i = 0; i < osHwSelect.options.length; i++) {
+                if (osHwSelect.options[i].value.includes('9800X3D + RX 9070')) {
+                    preferred = osHwSelect.options[i];
+                    break;
+                }
+            }
+            const target = preferred || osHwSelect.options[0];
+            target.selected = true;
+            modelSelection.os = target.value;
             const availableOS = [...new Set(osData.points.filter(p => p.hardwareLabel === modelSelection.os).map(p => p.label))].sort();
             const blSelect = document.getElementById('os-baseline');
             if (blSelect && availableOS.length > 0) {
