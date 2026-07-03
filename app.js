@@ -4756,6 +4756,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                             let lines = [deltaStr];
                             if (versionName) lines[0] = versionName + ': ' + lines[0];
                             if (orig && orig.origY) lines.push('Abs: ' + orig.origY.toLocaleString());
+                            if (orig && orig.count) lines.push('Samples: ' + orig.count);
                             if (orig && orig.baseLabel) lines.push('Baseline: ' + orig.baseLabel);
                             return lines;
                         }
