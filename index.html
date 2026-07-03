@@ -487,10 +487,14 @@
                         <p>CPU Single score variation with different Linux kernel versions on same hardware</p>
                         <div class="chart-viz-row">
                             <div class="chart-mode-group" id="kernel-mode">
-                                <button class="chart-mode-btn active" data-value="absolute">Absolute</button>
-                                <button class="chart-mode-btn" data-value="delta">Delta %</button>
+                                <button class="chart-mode-btn" data-value="absolute">Absolute</button>
+                                <button class="chart-mode-btn active" data-value="delta">Delta %</button>
                             </div>
                             <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline kernel version.</div></span>
+                            <div class="baseline-row" id="kernel-hw-row">
+                                <span class="baseline-label">Hardware</span>
+                                <select id="kernel-hardware" class="baseline-select"></select>
+                            </div>
                             <div class="baseline-row">
                                 <span class="baseline-label">Baseline</span>
                                 <select id="kernel-baseline" class="baseline-select"></select>
