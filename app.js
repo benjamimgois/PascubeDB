@@ -252,23 +252,16 @@ function populateBaselineSelects() {
         }
     }
     const kernelHwSelect = document.getElementById('kernel-hardware');
-    if (kernelHwSelect) {
+    const kernelData = lastSoftwareData.kernel;
+    if (kernelHwSelect && kernelData && kernelData.hwLabels) {
         kernelHwSelect.innerHTML = '';
         const curHw = modelSelection.kernel || '';
-        const cpuScores = {};
-        (benchmarkData || []).forEach(r => {
-            const cpu = normalizeCPU(r.cpu || '');
-            const score = cleanNumber(r.cpuSingle);
-            const kernel = (r.kernel || '').match(/^(\d+\.\d+)/);
-            if (cpu && cpu !== 'Unknown CPU' && cpu !== 'N/D' && score !== null && kernel) {
-                if (!cpuScores[cpu]) cpuScores[cpu] = [];
-                cpuScores[cpu].push(score);
-            }
-        });
-        const sorted = Object.keys(cpuScores).sort((a, b) => {
-            const avgA = cpuScores[a].reduce((s, v) => s + v, 0) / cpuScores[a].length;
-            const avgB = cpuScores[b].reduce((s, v) => s + v, 0) / cpuScores[b].length;
-            return avgB - avgA;
+        const sorted = [...kernelData.hwLabels].sort((a, b) => {
+            const pa = kernelData.points.filter(p => p.hardwareLabel === a);
+            const pb = kernelData.points.filter(p => p.hardwareLabel === b);
+            const sa = pa.reduce((s, p) => s + p.y, 0) / pa.length;
+            const sb = pb.reduce((s, p) => s + p.y, 0) / pb.length;
+            return sb - sa;
         });
         sorted.forEach(h => {
             const opt = document.createElement('option');
@@ -280,10 +273,7 @@ function populateBaselineSelects() {
         if (!modelSelection.kernel && kernelHwSelect.options.length > 0) {
             kernelHwSelect.options[0].selected = true;
             modelSelection.kernel = kernelHwSelect.options[0].value;
-            const availableKernels = [...new Set((benchmarkData || []).filter(r => {
-                const cpu = normalizeCPU(r.cpu || '');
-                return cpu === modelSelection.kernel && !!(r.kernel || '').match(/^(\d+\.\d+)/);
-            }).map(r => 'Kernel ' + r.kernel.match(/^(\d+\.\d+)/)[1]))].sort();
+            const availableKernels = [...new Set(kernelData.points.filter(p => p.hardwareLabel === modelSelection.kernel).map(p => p.label))].sort();
             const blSelect = document.getElementById('kernel-baseline');
             if (blSelect && availableKernels.length > 0) {
                 blSelect.innerHTML = '';
@@ -303,54 +293,28 @@ function populateBaselineSelects() {
     }
     ['mesa', 'nvidia'].forEach(type => {
         const hwSelect = document.getElementById(`${type}-hardware`);
-        if (!hwSelect) return;
-        hwSelect.innerHTML = '';
-        const curHw = modelSelection[type] || '';
-        const gpuScores = {};
-        (benchmarkData || []).forEach(r => {
-            const gpuRaw = r.gpu || '';
-            const driver = r.driver || '';
-            const gpuLow = gpuRaw.toLowerCase();
-            if (type === 'mesa') {
-                if (gpuLow.includes('nvidia') || gpuLow.includes('rtx') || gpuLow.includes('geforce')) return;
-                if (!driver.match(/Mesa\s+\d+\.\d+/i)) return;
-            } else {
-                if (!gpuLow.includes('nvidia') && !gpuLow.includes('rtx') && !gpuLow.includes('geforce')) return;
-                if (!driver.includes('NVRM') && !driver.includes('NVIDIA')) return;
-            }
-            const key = normalizeGPU(gpuRaw);
-            const score = cleanNumber(r.gpuScore);
-            if (key && key !== 'Unknown GPU' && key !== 'N/D' && score !== null) {
-                if (!gpuScores[key]) gpuScores[key] = [];
-                gpuScores[key].push(score);
-            }
-        });
-        const sorted = Object.keys(gpuScores).sort((a, b) => {
-            const avgA = gpuScores[a].reduce((s, v) => s + v, 0) / gpuScores[a].length;
-            const avgB = gpuScores[b].reduce((s, v) => s + v, 0) / gpuScores[b].length;
-            return avgB - avgA;
-        });
-        sorted.forEach(h => {
-            const opt = document.createElement('option');
-            opt.value = h;
-            opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
-            if (h === curHw) opt.selected = true;
-            hwSelect.appendChild(opt);
-        });
-        if (!modelSelection[type] && hwSelect.options.length > 0) {
-            hwSelect.options[0].selected = true;
-            modelSelection[type] = hwSelect.options[0].value;
-            const filtered = (benchmarkData || []).filter(r => {
-                const key = normalizeGPU(r.gpu || '');
-                if (key !== modelSelection[type]) return false;
-                if (type === 'mesa') return !!(r.driver || '').match(/Mesa\s+\d+\.\d+/i);
-                return (r.driver || '').includes('NVRM') || (r.driver || '').includes('NVIDIA');
+        const data = lastSoftwareData[type];
+        if (hwSelect && data && data.hwLabels) {
+            hwSelect.innerHTML = '';
+            const curHw = modelSelection[type] || '';
+            const sorted = [...data.hwLabels].sort((a, b) => {
+                const pa = data.points.filter(p => p.hardwareLabel === a);
+                const pb = data.points.filter(p => p.hardwareLabel === b);
+                const sa = pa.reduce((s, p) => s + p.y, 0) / pa.length;
+                const sb = pb.reduce((s, p) => s + p.y, 0) / pb.length;
+                return sb - sa;
             });
-            const versions = filtered.map(r => {
-                if (type === 'mesa') return (r.driver || '').match(/Mesa\s+(\d+\.\d+)/i)?.[1];
-                return (r.driver || '').match(/(?:NVRM|NVIDIA).*?(\d+\.\d+)/i)?.[1];
-            }).filter(Boolean);
-            const available = [...new Set(versions)].sort();
+            sorted.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
+                if (h === curHw) opt.selected = true;
+                hwSelect.appendChild(opt);
+            });
+            if (!modelSelection[type] && hwSelect.options.length > 0) {
+                hwSelect.options[0].selected = true;
+                modelSelection[type] = hwSelect.options[0].value;
+                const available = [...new Set(data.points.filter(p => p.hardwareLabel === modelSelection[type]).map(p => p.label))].sort();
                 const blSelect = document.getElementById(`${type}-baseline`);
                 if (blSelect && available.length > 0) {
                     blSelect.innerHTML = '';
@@ -371,6 +335,7 @@ function populateBaselineSelects() {
                     } else {
                         blSelect.options[0].selected = true;
                         baselineState[type] = available[0];
+                    }
                 }
             }
         }
