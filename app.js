@@ -208,6 +208,20 @@ function populateBaselineSelects() {
         });
         if (!modelSelection.os && osHwSelect.options.length > 0) {
             osHwSelect.options[0].selected = true;
+            modelSelection.os = osHwSelect.options[0].value;
+            const availableOS = [...new Set(osData.points.filter(p => p.hardwareLabel === modelSelection.os).map(p => p.label))].sort();
+            const blSelect = document.getElementById('os-baseline');
+            if (blSelect && availableOS.length > 0) {
+                blSelect.innerHTML = '';
+                availableOS.forEach(os => {
+                    const opt = document.createElement('option');
+                    opt.value = os;
+                    opt.textContent = os;
+                    blSelect.appendChild(opt);
+                });
+                blSelect.options[0].selected = true;
+                baselineState.os = availableOS[0];
+            }
         }
     }
 }
@@ -3081,8 +3095,11 @@ function renderCharts() {
                             borderWidth: 1,
                             cornerRadius: 8,
                             displayColors: false,
-                            callbacks: {
-                                label: function(context) {
+                    callbacks: {
+                        title: function(context) {
+                            return context[0]?.dataset?.label || '';
+                        },
+                        label: function(context) {
                                     return `Submissions: ${context.parsed.y}`;
                                 }
                             }
@@ -4662,8 +4679,10 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     callbacks: {
                         label: function(context) {
                             const orig = context.dataset._origData[context.dataIndex];
+                            const versionName = context.dataset.label || '';
                             const deltaStr = context.raw > 0 ? '+' + context.raw + '%' : context.raw + '%';
                             let lines = [deltaStr];
+                            if (versionName) lines[0] = versionName + ': ' + lines[0];
                             if (orig && orig.origY) lines.push('Abs: ' + orig.origY.toLocaleString());
                             if (orig && orig.baseLabel) lines.push('Baseline: ' + orig.baseLabel);
                             return lines;
