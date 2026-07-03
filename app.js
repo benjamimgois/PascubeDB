@@ -271,8 +271,16 @@ function populateBaselineSelects() {
             kernelHwSelect.appendChild(opt);
         });
         if (!modelSelection.kernel && kernelHwSelect.options.length > 0) {
-            kernelHwSelect.options[0].selected = true;
-            modelSelection.kernel = kernelHwSelect.options[0].value;
+            let prefHw = null;
+            for (let i = 0; i < kernelHwSelect.options.length; i++) {
+                if (kernelHwSelect.options[i].value.includes('7800X3D')) {
+                    prefHw = kernelHwSelect.options[i];
+                    break;
+                }
+            }
+            const hwTarget = prefHw || kernelHwSelect.options[0];
+            hwTarget.selected = true;
+            modelSelection.kernel = hwTarget.value;
             const availableKernels = [...new Set(kernelData.points.filter(p => p.hardwareLabel === modelSelection.kernel).map(p => p.label))].sort();
             const blSelect = document.getElementById('kernel-baseline');
             if (blSelect && availableKernels.length > 0) {
@@ -283,8 +291,16 @@ function populateBaselineSelects() {
                     opt.textContent = k;
                     blSelect.appendChild(opt);
                 });
-                blSelect.options[0].selected = true;
-                baselineState.kernel = availableKernels[0];
+                let prefBl = null;
+                for (let i = 0; i < blSelect.options.length; i++) {
+                    if (blSelect.options[i].value === 'Kernel 7.0') {
+                        prefBl = blSelect.options[i];
+                        break;
+                    }
+                }
+                const blTarget = prefBl || blSelect.options[0];
+                blTarget.selected = true;
+                baselineState.kernel = blTarget.value;
             }
             if (chartVizState.kernel.mode === 'delta' && document.getElementById('kernelScatterChart')) {
                 renderSoftwareDeltaChart('kernel');
