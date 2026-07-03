@@ -127,9 +127,9 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
-let chartVizState = { mesa: { mode: 'delta', normalize: false }, nvidia: { mode: 'delta', normalize: false }, kernel: { mode: 'delta', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
+let chartVizState = { mesa: { mode: 'absolute', normalize: false }, nvidia: { mode: 'absolute', normalize: false }, kernel: { mode: 'absolute', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
 let baselineState = { mesa: null, nvidia: null, kernel: null, cpuAverage: null, gpuAverage: null };
-let modelSelection = { cpuAverage: [], gpuAverage: [] };
+let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null, kernel: null };
 let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, cpuAverage: null, gpuAverage: null };
 let modelSelectorActiveType = null;
 
@@ -229,32 +229,46 @@ function renderAverageChart(type) {
 
 function openModelSelector(type) {
     const data = lastSoftwareData[type];
-    if (!data || data.length < 2) return;
+    if (!data) return;
+    const isAverage = type === 'cpuAverage' || type === 'gpuAverage';
+    const maxItems = isAverage ? 5 : 10;
+
+    let items;
+    if (isAverage) {
+        if (!data.length || data.length < 2) return;
+        items = data.map(d => d.name);
+    } else {
+        items = [...new Set(data.points.map(p => p.label))];
+        if (items.length < 2) return;
+    }
+
     modelSelectorActiveType = type;
     const modal = document.getElementById('model-select-modal');
     const list = document.getElementById('model-select-list');
     const title = document.getElementById('model-select-title');
     if (!modal || !list) return;
-    title.textContent = type === 'cpuAverage' ? 'Select CPU Models to Compare' : 'Select GPU Models to Compare';
+
+    const names = { cpuAverage: 'CPU Models', gpuAverage: 'GPU Models', mesa: 'Mesa Versions', nvidia: 'NVIDIA Driver Versions', kernel: 'Kernel Versions' };
+    title.textContent = `Select ${names[type] || 'Items'} to Compare (max ${maxItems})`;
 
     const prevSelected = modelSelection[type] || [];
     list.innerHTML = '';
-    data.forEach(d => {
+    items.forEach(v => {
         const label = document.createElement('label');
         label.className = 'model-select-item';
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        cb.value = d.name;
-        cb.checked = prevSelected.includes(d.name);
+        cb.value = v;
+        cb.checked = prevSelected.includes(v);
         cb.addEventListener('change', () => {
             const checked = list.querySelectorAll('input:checked');
-            if (cb.checked && checked.length > 5) {
+            if (cb.checked && checked.length > maxItems) {
                 cb.checked = false;
                 return;
             }
         });
         const name = document.createElement('span');
-        name.textContent = d.name;
+        name.textContent = v;
         label.appendChild(cb);
         label.appendChild(name);
         list.appendChild(label);
@@ -262,6 +276,17 @@ function openModelSelector(type) {
 
     modal.showModal();
     document.body.classList.add('modal-open');
+}
+
+function renderSoftwareDeltaChart(type) {
+    const data = lastSoftwareData[type];
+    if (!data) return;
+    const sel = modelSelection[type];
+    if (!sel || sel.length < 2) return;
+    const filtered = { points: data.points.filter(p => sel.includes(p.label)), hwLabels: data.hwLabels };
+    const chartId = BASELINE_CHART_MAP[type];
+    if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+    renderDivergingBarChart(chartId, computeDeltaData(filtered, baselineState[type], chartVizState[type].normalize), chartVizState[type].normalize);
 }
 
 function setupModelSelectorListeners() {
@@ -272,8 +297,12 @@ function setupModelSelectorListeners() {
         modelSelection[type] = Array.from(checked).map(cb => cb.value);
         document.getElementById('model-select-modal').close();
         document.body.classList.remove('modal-open');
-        if (modelSelection[type].length >= 2) {
+        if (modelSelection[type].length < 2) return;
+        const isAverage = type === 'cpuAverage' || type === 'gpuAverage';
+        if (isAverage) {
             renderAverageChart(type);
+        } else {
+            renderSoftwareDeltaChart(type);
         }
     });
     document.getElementById('model-select-cancel')?.addEventListener('click', () => {
@@ -288,7 +317,12 @@ function setupModelSelectorListeners() {
                 const absBtn = modeGroup.querySelector('[data-value="absolute"]');
                 if (absBtn) absBtn.classList.add('active');
             }
-            renderAverageChart(type);
+            const isAverage = type === 'cpuAverage' || type === 'gpuAverage';
+            if (isAverage) {
+                renderAverageChart(type);
+            } else {
+                renderSoftwareDeltaChart(type);
+            }
         }
     });
     document.getElementById('close-model-select')?.addEventListener('click', () => {
@@ -313,16 +347,21 @@ function setupChartVizControls() {
                     if (isAverageChart) {
                         renderAverageChart(type);
                     } else {
-                        const data = lastSoftwareData[type];
-                        if (!data || !document.getElementById(chartId)) return;
-                        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
-                        const vs = chartVizState[type];
-                        if (vs.mode === 'delta') {
-                            renderDivergingBarChart(chartId, computeDeltaData(data, baselineState[type], vs.normalize), vs.normalize);
-                        } else if (vs.normalize) {
-                            renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                        if (btn.dataset.value === 'delta') {
+                            if (!modelSelection[type] || modelSelection[type].length === 0) {
+                                openModelSelector(type);
+                            } else {
+                                renderSoftwareDeltaChart(type);
+                            }
                         } else {
-                            renderHardwareComparisonBars(chartId, data);
+                            const data = lastSoftwareData[type];
+                            if (!data || !document.getElementById(chartId)) return;
+                            if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                            if (chartVizState[type].normalize) {
+                                renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                            } else {
+                                renderHardwareComparisonBars(chartId, data);
+                            }
                         }
                     }
                 });
@@ -337,16 +376,22 @@ function setupChartVizControls() {
                     if (isAverageChart) {
                         renderAverageChart(type);
                     } else {
-                        const data = lastSoftwareData[type];
-                        if (!data || !document.getElementById(chartId)) return;
-                        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                         const vs = chartVizState[type];
                         if (vs.mode === 'delta') {
-                            renderDivergingBarChart(chartId, computeDeltaData(data, baselineState[type], vs.normalize), vs.normalize);
-                        } else if (vs.normalize) {
-                            renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                            if (!modelSelection[type] || modelSelection[type].length === 0) {
+                                openModelSelector(type);
+                            } else {
+                                renderSoftwareDeltaChart(type);
+                            }
                         } else {
-                            renderHardwareComparisonBars(chartId, data);
+                            const data = lastSoftwareData[type];
+                            if (!data || !document.getElementById(chartId)) return;
+                            if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                            if (vs.normalize) {
+                                renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                            } else {
+                                renderHardwareComparisonBars(chartId, data);
+                            }
                         }
                     }
                 });
@@ -3139,7 +3184,9 @@ function renderCharts() {
     if (document.getElementById('mesaDriverScatterChart')) {
         const vsm = chartVizState.mesa;
         if (vsm.mode === 'delta') {
-            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData, baselineState.mesa, vsm.normalize), vsm.normalize);
+            if (modelSelection.mesa && modelSelection.mesa.length >= 2) {
+                renderSoftwareDeltaChart('mesa');
+            }
         } else if (vsm.normalize) {
             renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
         } else {
@@ -3153,7 +3200,9 @@ function renderCharts() {
     if (document.getElementById('nvidiaDriverScatterChart')) {
         const vsn = chartVizState.nvidia;
         if (vsn.mode === 'delta') {
-            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData, baselineState.nvidia, vsn.normalize), vsn.normalize);
+            if (modelSelection.nvidia && modelSelection.nvidia.length >= 2) {
+                renderSoftwareDeltaChart('nvidia');
+            }
         } else if (vsn.normalize) {
             renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
         } else {
@@ -3167,8 +3216,12 @@ function renderCharts() {
     if (document.getElementById('kernelScatterChart')) {
         const vsk = chartVizState.kernel;
         if (vsk.mode === 'delta') {
-            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData, baselineState.kernel, vsk.normalize), vsk.normalize);
+            if (modelSelection.kernel && modelSelection.kernel.length >= 2) {
+                renderSoftwareDeltaChart('kernel');
+            }
         } else if (vsk.normalize) {
+
+            // 10. Average CPU score by model
             renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
         } else {
             renderHardwareComparisonBars('kernelScatterChart', kernelData);
@@ -4324,7 +4377,9 @@ function renderSoftwareCharts() {
     if (document.getElementById('mesaDriverScatterChart')) {
         const vsm = chartVizState.mesa;
         if (vsm.mode === 'delta') {
-            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData, baselineState.mesa, vsm.normalize), vsm.normalize);
+            if (modelSelection.mesa && modelSelection.mesa.length >= 2) {
+                renderSoftwareDeltaChart('mesa');
+            }
         } else if (vsm.normalize) {
             renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
         } else {
@@ -4337,7 +4392,9 @@ function renderSoftwareCharts() {
     if (document.getElementById('nvidiaDriverScatterChart')) {
         const vsn = chartVizState.nvidia;
         if (vsn.mode === 'delta') {
-            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData, baselineState.nvidia, vsn.normalize), vsn.normalize);
+            if (modelSelection.nvidia && modelSelection.nvidia.length >= 2) {
+                renderSoftwareDeltaChart('nvidia');
+            }
         } else if (vsn.normalize) {
             renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
         } else {
@@ -4350,7 +4407,9 @@ function renderSoftwareCharts() {
     if (document.getElementById('kernelScatterChart')) {
         const vsk = chartVizState.kernel;
         if (vsk.mode === 'delta') {
-            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData, baselineState.kernel, vsk.normalize), vsk.normalize);
+            if (modelSelection.kernel && modelSelection.kernel.length >= 2) {
+                renderSoftwareDeltaChart('kernel');
+            }
         } else if (vsk.normalize) {
             renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
         } else {
