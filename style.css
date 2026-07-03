@@ -423,6 +423,48 @@ h1, h2, h3, h4 {
     align-items: center;
     gap: 0.5rem;
     margin-top: 0.6rem;
+    position: relative;
+}
+
+.viz-info-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    cursor: help;
+    transition: color var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.viz-info-icon:hover {
+    color: var(--primary);
+}
+
+.viz-info-tooltip {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    max-width: 280px;
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.viz-info-icon:hover + .viz-info-tooltip,
+.viz-info-tooltip:hover {
+    opacity: 1;
+    visibility: visible;
 }
 
 .baseline-label {
@@ -770,6 +812,7 @@ h1, h2, h3, h4 {
     gap: 1rem;
     margin-top: 0.6rem;
     flex-wrap: wrap;
+    position: relative;
 }
 
 .chart-mode-group {
@@ -803,6 +846,7 @@ h1, h2, h3, h4 {
     align-items: center;
     gap: 0.4rem;
     cursor: pointer;
+    position: relative;
 }
 
 .chart-toggle-cb {
@@ -846,6 +890,54 @@ h1, h2, h3, h4 {
     font-size: 0.7rem;
     color: var(--text-muted);
     white-space: nowrap;
+}
+
+.viz-info-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.viz-info-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    cursor: help;
+    transition: color var(--transition-fast);
+}
+
+.viz-info-icon:hover {
+    color: var(--primary);
+}
+
+.viz-info-tooltip {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 260px;
+    width: max-content;
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    text-align: left;
+}
+
+.viz-info-wrap:hover .viz-info-tooltip {
+    opacity: 1;
+    visibility: visible;
 }
 
 .segmented-control {

@@ -411,14 +411,17 @@
                                     <button class="chart-mode-btn active" data-value="absolute">Absolute</button>
                                     <button class="chart-mode-btn" data-value="delta">Delta %</button>
                                 </div>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline version.</div></span>
                                 <div class="baseline-row">
                                     <span class="baseline-label">Baseline</span>
                                     <select id="mesa-baseline" class="baseline-select"></select>
+                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the driver/kernel version used as the 0% reference for Delta % calculations.</div></span>
                                 </div>
                                 <label class="chart-toggle-wrap" id="mesa-toggle">
                                     <input type="checkbox" class="chart-toggle-cb">
                                     <span class="chart-toggle-slider"></span>
                                     <span class="chart-toggle-label">Normalize</span>
+                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
                                 </label>
                             </div>
                         </div>
@@ -436,14 +439,17 @@
                                     <button class="chart-mode-btn active" data-value="absolute">Absolute</button>
                                     <button class="chart-mode-btn" data-value="delta">Delta %</button>
                                 </div>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline version.</div></span>
                                 <div class="baseline-row">
                                     <span class="baseline-label">Baseline</span>
                                     <select id="nvidia-baseline" class="baseline-select"></select>
+                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the driver version used as the 0% reference for Delta % calculations.</div></span>
                                 </div>
                                 <label class="chart-toggle-wrap" id="nvidia-toggle">
                                     <input type="checkbox" class="chart-toggle-cb">
                                     <span class="chart-toggle-slider"></span>
                                     <span class="chart-toggle-label">Normalize</span>
+                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
                                 </label>
                             </div>
                         </div>
@@ -462,14 +468,17 @@
                                 <button class="chart-mode-btn active" data-value="absolute">Absolute</button>
                                 <button class="chart-mode-btn" data-value="delta">Delta %</button>
                             </div>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline kernel version.</div></span>
                             <div class="baseline-row">
                                 <span class="baseline-label">Baseline</span>
                                 <select id="kernel-baseline" class="baseline-select"></select>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the kernel version used as the 0% reference for Delta % calculations.</div></span>
                             </div>
                             <label class="chart-toggle-wrap" id="kernel-toggle">
                                 <input type="checkbox" class="chart-toggle-cb">
                                 <span class="chart-toggle-slider"></span>
                                 <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
                             </label>
                         </div>
                     </div>
