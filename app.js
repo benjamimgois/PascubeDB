@@ -200,8 +200,10 @@ function populateBaselineSelects() {
         osHwSelect.innerHTML = '';
         const curHw = modelSelection.os || '';
         const sorted = [...osData.hwLabels].sort((a, b) => {
-            const sa = Math.max(...osData.points.filter(p => p.hardwareLabel === a).map(p => p.y));
-            const sb = Math.max(...osData.points.filter(p => p.hardwareLabel === b).map(p => p.y));
+            const pa = osData.points.filter(p => p.hardwareLabel === a);
+            const pb = osData.points.filter(p => p.hardwareLabel === b);
+            const sa = pa.reduce((s, p) => s + p.y, 0) / pa.length;
+            const sb = pb.reduce((s, p) => s + p.y, 0) / pb.length;
             return sb - sa;
         });
         sorted.forEach(h => {
@@ -239,8 +241,10 @@ function populateBaselineSelects() {
         kernelHwSelect.innerHTML = '';
         const curHw = modelSelection.kernel || '';
         const sorted = [...kernelData.hwLabels].sort((a, b) => {
-            const sa = Math.max(...kernelData.points.filter(p => p.hardwareLabel === a).map(p => p.y));
-            const sb = Math.max(...kernelData.points.filter(p => p.hardwareLabel === b).map(p => p.y));
+            const pa = kernelData.points.filter(p => p.hardwareLabel === a);
+            const pb = kernelData.points.filter(p => p.hardwareLabel === b);
+            const sa = pa.reduce((s, p) => s + p.y, 0) / pa.length;
+            const sb = pb.reduce((s, p) => s + p.y, 0) / pb.length;
             return sb - sa;
         });
         sorted.forEach(h => {
@@ -278,8 +282,10 @@ function populateBaselineSelects() {
             hwSelect.innerHTML = '';
             const curHw = modelSelection[type] || '';
             const sorted = [...data.hwLabels].sort((a, b) => {
-                const sa = Math.max(...data.points.filter(p => p.hardwareLabel === a).map(p => p.y));
-                const sb = Math.max(...data.points.filter(p => p.hardwareLabel === b).map(p => p.y));
+                const pa = data.points.filter(p => p.hardwareLabel === a);
+                const pb = data.points.filter(p => p.hardwareLabel === b);
+                const sa = pa.reduce((s, p) => s + p.y, 0) / pa.length;
+                const sb = pb.reduce((s, p) => s + p.y, 0) / pb.length;
                 return sb - sa;
             });
             sorted.forEach(h => {
