@@ -238,7 +238,7 @@ function openModelSelector(type) {
         if (!data.length || data.length < 2) return;
         items = data.map(d => d.name);
     } else {
-        items = [...new Set(data.points.map(p => p.label))];
+        items = data.hwLabels;
         if (items.length < 2) return;
     }
 
@@ -248,7 +248,7 @@ function openModelSelector(type) {
     const title = document.getElementById('model-select-title');
     if (!modal || !list) return;
 
-    const names = { cpuAverage: 'CPU Models', gpuAverage: 'GPU Models', mesa: 'Mesa Versions', nvidia: 'NVIDIA Driver Versions', kernel: 'Kernel Versions' };
+    const names = { cpuAverage: 'CPU Models', gpuAverage: 'GPU Models', mesa: 'GPU Models', nvidia: 'GPU Models', kernel: 'CPU Models' };
     title.textContent = `Select ${names[type] || 'Items'} to Compare (max ${maxItems})`;
 
     const prevSelected = modelSelection[type] || [];
@@ -283,7 +283,7 @@ function renderSoftwareDeltaChart(type) {
     if (!data) return;
     const sel = modelSelection[type];
     if (!sel || sel.length < 2) return;
-    const filtered = { points: data.points.filter(p => sel.includes(p.label)), hwLabels: data.hwLabels };
+    const filtered = { points: data.points.filter(p => sel.includes(p.hardwareLabel)), hwLabels: data.hwLabels.filter(h => sel.includes(h)) };
     const chartId = BASELINE_CHART_MAP[type];
     if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
     renderDivergingBarChart(chartId, computeDeltaData(filtered, baselineState[type], chartVizState[type].normalize), chartVizState[type].normalize);
@@ -4520,7 +4520,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
 
     chartInstances[canvasId] = new Chart(ctx, {
         type: 'bar',
-        data: { labels, datasets },
+        data: { labels, datasets, _baselineLabel: data.baselineLabel || '' },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -4582,6 +4582,48 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     if (d.borderWidth === undefined) d.borderWidth = 1;
                 });
             }
+        }, {
+            id: 'baselineLine',
+            afterDraw: function(chart) {
+                if (!chart.data.datasets.length) return;
+                const xScale = chart.scales.x;
+                const yScale = chart.scales.y;
+                if (!xScale || !yScale) return;
+                const zeroPx = xScale.getPixelForValue(0);
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(zeroPx, yScale.top);
+                const bl = chart.data._baselineLabel || '';
+                let lineColor = 'rgba(99, 102, 241, 0.5)';
+                if (bl) {
+                    const ds = chart.data.datasets.find(d => d.label === bl);
+                    if (ds && ds.backgroundColor && ds.backgroundColor.length > 0) {
+                        lineColor = ds.backgroundColor[0];
+                    }
+                }
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(zeroPx, yScale.top);
+                ctx.lineTo(zeroPx, yScale.bottom);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = lineColor;
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                if (bl) {
+                    ctx.fillText(bl, zeroPx, yScale.top + 14);
+                }
+                ctx.restore();
+            }
         }]
     });
 }
+
+// Baseline zero line plugin — draws colored line at x=0 with baseline name
