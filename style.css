@@ -495,6 +495,11 @@ h1, h2, h3, h4 {
     border-color: var(--primary);
 }
 
+.baseline-select option {
+    background: #1a1f2e;
+    color: var(--text-primary);
+}
+
 .chart-canvas-area {
     position: relative;
     width: 100%;
