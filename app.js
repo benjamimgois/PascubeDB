@@ -127,7 +127,7 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
-let chartVizState = { mesa: { mode: 'absolute', normalize: false }, nvidia: { mode: 'absolute', normalize: false }, kernel: { mode: 'absolute', normalize: false }, os: { mode: 'absolute', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
+let chartVizState = { mesa: { mode: 'absolute', normalize: false }, nvidia: { mode: 'absolute', normalize: false }, kernel: { mode: 'absolute', normalize: false }, os: { mode: 'delta', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
 let baselineState = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
 let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null, kernel: null, os: null };
 let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
@@ -221,6 +221,10 @@ function populateBaselineSelects() {
                 });
                 blSelect.options[0].selected = true;
                 baselineState.os = availableOS[0];
+            }
+            const osChartId = BASELINE_CHART_MAP.os;
+            if (chartVizState.os.mode === 'delta' && document.getElementById(osChartId)) {
+                renderSoftwareDeltaChart('os');
             }
         }
     }
