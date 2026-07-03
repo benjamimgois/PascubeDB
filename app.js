@@ -354,6 +354,10 @@ function setupChartVizControls() {
                                     chartVizState[type].mode = 'absolute';
                                     btn.classList.remove('active');
                                     modeGroup.querySelector('[data-value="absolute"]')?.classList.add('active');
+                                    const baselineRow = modeGroup.closest('.chart-viz-row')?.querySelector('.baseline-row');
+                                    const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
+                                    if (baselineRow) baselineRow.style.display = 'none';
+                                    if (toggleLabel) toggleLabel.style.display = '';
                                     const data = lastSoftwareData[type];
                                     if (data && document.getElementById(chartId)) {
                                         if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
