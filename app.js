@@ -344,6 +344,10 @@ function setupChartVizControls() {
                     modeGroup.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     chartVizState[type].mode = btn.dataset.value;
+                    const baselineRow = document.querySelector(`#${VIZ_CHART_IDS[type].mode}`).closest('.chart-viz-row').querySelector('.baseline-row');
+                    const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
+                    if (baselineRow) baselineRow.style.display = btn.dataset.value === 'delta' ? '' : 'none';
+                    if (toggleLabel) toggleLabel.style.display = btn.dataset.value === 'absolute' ? '' : 'none';
                     if (isAverageChart) {
                         renderAverageChart(type);
                     } else {
@@ -397,6 +401,15 @@ function setupChartVizControls() {
                 });
             }
         }
+    });
+    ['mesa', 'nvidia', 'kernel'].forEach(type => {
+        const modeEl = document.getElementById(VIZ_CHART_IDS[type].mode);
+        if (!modeEl) return;
+        const baselineRow = modeEl.closest('.chart-viz-row')?.querySelector('.baseline-row');
+        const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
+        const isDefaultDelta = chartVizState[type].mode === 'delta';
+        if (baselineRow) baselineRow.style.display = isDefaultDelta ? '' : 'none';
+        if (toggleLabel) toggleLabel.style.display = isDefaultDelta ? 'none' : '';
     });
 }
 
