@@ -4835,6 +4835,39 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                 }
                 ctx.restore();
             }
+        }, {
+            id: 'deltaLabels',
+            afterDraw: function(chart) {
+                if (!chart.data.datasets.length) return;
+                const xScale = chart.scales.x;
+                const yScale = chart.scales.y;
+                if (!xScale || !yScale) return;
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textBaseline = 'middle';
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) { ctx.restore(); return; }
+                const barH = meta.data[0] ? Math.abs(meta.data[0].getCenterPoint().y - (meta.data[0].y || 0)) * 1.2 : 14;
+                chart.data.datasets.forEach((ds, di) => {
+                    const dsMeta = chart.getDatasetMeta(di);
+                    if (!dsMeta || !dsMeta.data) return;
+                    dsMeta.data.forEach((bar, idx) => {
+                        const v = bar.$context.raw;
+                        if (isNaN(v)) return;
+                        const orig = ds._origData ? ds._origData[idx] : null;
+                        const label = ds.label || '';
+                        const count = orig && orig.count ? orig.count : 0;
+                        const text = count > 0 ? label + ' (n=' + count + ')' : label;
+                        const x = bar.x + (v >= 0 ? 6 : -6);
+                        const y = bar.y;
+                        ctx.textAlign = v >= 0 ? 'left' : 'right';
+                        ctx.fillStyle = 'rgba(243, 244, 246, 0.85)';
+                        ctx.fillText(text, x, y);
+                    });
+                });
+                ctx.restore();
+            }
         }]
     });
 }
