@@ -4857,11 +4857,20 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                         if (label === chart.data._baselineLabel) return;
                         const orig = ds._origData ? ds._origData[idx] : null;
                         const count = orig && orig.count ? orig.count : 0;
-                        const text = count > 0 ? label + ' (n=' + count + ')' : label;
                         const y = bar.y;
+                        const x = basePx + (v >= 0 ? 4 : -4);
                         ctx.textAlign = v >= 0 ? 'left' : 'right';
                         ctx.fillStyle = 'rgba(243, 244, 246, 0.9)';
-                        ctx.fillText(text, basePx + (v >= 0 ? 4 : -4), y);
+                        ctx.fillText(label, x, y - 12);
+                        if (count > 0) {
+                            ctx.fillStyle = 'rgba(156, 163, 175, 0.85)';
+                            ctx.font = '9px Inter, sans-serif';
+                            ctx.fillText('Samples=' + count, x, y + 1);
+                            ctx.font = '10px Inter, sans-serif';
+                            ctx.fillStyle = count >= 10 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
+                            ctx.fillText(count >= 10 ? '\u25B2' : '\u25BC', x, y + 14);
+                            ctx.font = '10px Inter, sans-serif';
+                        }
                     });
                 });
                 ctx.restore();
