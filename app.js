@@ -358,7 +358,7 @@ function setupChartVizControls() {
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                             if (chartVizState[type].normalize) {
-                                renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                                renderHardwareComparisonBars(chartId, computeNormalizedData(data));
                             } else {
                                 renderHardwareComparisonBars(chartId, data);
                             }
@@ -388,7 +388,7 @@ function setupChartVizControls() {
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                             if (vs.normalize) {
-                                renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                                renderHardwareComparisonBars(chartId, computeNormalizedData(data));
                             } else {
                                 renderHardwareComparisonBars(chartId, data);
                             }
@@ -3188,7 +3188,7 @@ function renderCharts() {
                 renderSoftwareDeltaChart('mesa');
             }
         } else if (vsm.normalize) {
-            renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
+            renderHardwareComparisonBars('mesaDriverScatterChart', computeNormalizedData(mesaData));
         } else {
             renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
         }
@@ -3204,7 +3204,7 @@ function renderCharts() {
                 renderSoftwareDeltaChart('nvidia');
             }
         } else if (vsn.normalize) {
-            renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
+            renderHardwareComparisonBars('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData));
         } else {
             renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
         }
@@ -3219,10 +3219,8 @@ function renderCharts() {
             if (modelSelection.kernel && modelSelection.kernel.length >= 2) {
                 renderSoftwareDeltaChart('kernel');
             }
-        } else if (vsk.normalize) {
-
-            // 10. Average CPU score by model
-            renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
+                } else if (vsk.normalize) {
+            renderHardwareComparisonBars('kernelScatterChart', computeNormalizedData(kernelData));
         } else {
             renderHardwareComparisonBars('kernelScatterChart', kernelData);
         }
@@ -4381,7 +4379,7 @@ function renderSoftwareCharts() {
                 renderSoftwareDeltaChart('mesa');
             }
         } else if (vsm.normalize) {
-            renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
+            renderHardwareComparisonBars('mesaDriverScatterChart', computeNormalizedData(mesaData));
         } else {
             renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
         }
@@ -4396,7 +4394,7 @@ function renderSoftwareCharts() {
                 renderSoftwareDeltaChart('nvidia');
             }
         } else if (vsn.normalize) {
-            renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
+            renderHardwareComparisonBars('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData));
         } else {
             renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
         }
@@ -4411,7 +4409,7 @@ function renderSoftwareCharts() {
                 renderSoftwareDeltaChart('kernel');
             }
         } else if (vsk.normalize) {
-            renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
+            renderHardwareComparisonBars('kernelScatterChart', computeNormalizedData(kernelData));
         } else {
             renderHardwareComparisonBars('kernelScatterChart', kernelData);
         }
