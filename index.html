@@ -390,24 +390,6 @@
                 <p>How operating systems and driver versions impact hardware performance</p>
             </div>
 
-            <!-- Visualization Controls Panel -->
-            <div class="viz-controls">
-                <div class="viz-control-group">
-                    <span class="viz-control-label">Mode</span>
-                    <div class="segmented-control" id="seg-mode">
-                        <button class="seg-btn" data-value="absolute">Absolute</button>
-                        <button class="seg-btn active" data-value="delta">Delta %</button>
-                    </div>
-                </div>
-                <div class="viz-control-group">
-                    <span class="viz-control-label">Normalize Scale</span>
-                    <label class="toggle-switch" id="toggle-normalize">
-                        <input type="checkbox">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-            </div>
-
             <div class="software-scatter-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
@@ -424,6 +406,21 @@
                         <div class="chart-header">
                             <h3>Mesa Driver vs. GPU</h3>
                             <p>GPU score variation with different Mesa versions</p>
+                            <div class="chart-viz-row">
+                                <div class="chart-mode-group" id="mesa-mode">
+                                    <button class="chart-mode-btn" data-value="absolute">Absolute</button>
+                                    <button class="chart-mode-btn active" data-value="delta">Delta %</button>
+                                </div>
+                                <label class="chart-toggle-wrap" id="mesa-toggle">
+                                    <input type="checkbox" class="chart-toggle-cb">
+                                    <span class="chart-toggle-slider"></span>
+                                    <span class="chart-toggle-label">Normalize</span>
+                                </label>
+                            </div>
+                            <div class="baseline-row">
+                                <span class="baseline-label">Baseline</span>
+                                <select id="mesa-baseline" class="baseline-select"></select>
+                            </div>
                         </div>
                         <div class="chart-canvas-area" style="height: 520px;">
                             <canvas id="mesaDriverScatterChart"></canvas>
@@ -434,6 +431,21 @@
                         <div class="chart-header">
                             <h3>NVIDIA Driver vs. GPU</h3>
                             <p>GPU score variation with different NVIDIA driver versions</p>
+                            <div class="chart-viz-row">
+                                <div class="chart-mode-group" id="nvidia-mode">
+                                    <button class="chart-mode-btn" data-value="absolute">Absolute</button>
+                                    <button class="chart-mode-btn active" data-value="delta">Delta %</button>
+                                </div>
+                                <label class="chart-toggle-wrap" id="nvidia-toggle">
+                                    <input type="checkbox" class="chart-toggle-cb">
+                                    <span class="chart-toggle-slider"></span>
+                                    <span class="chart-toggle-label">Normalize</span>
+                                </label>
+                            </div>
+                            <div class="baseline-row">
+                                <span class="baseline-label">Baseline</span>
+                                <select id="nvidia-baseline" class="baseline-select"></select>
+                            </div>
                         </div>
                         <div class="chart-canvas-area" style="height: 520px;">
                             <canvas id="nvidiaDriverScatterChart"></canvas>
@@ -445,6 +457,21 @@
                     <div class="chart-header">
                         <h3>Kernel vs. CPU Score</h3>
                         <p>CPU Single score variation with different Linux kernel versions on same hardware</p>
+                        <div class="chart-viz-row">
+                            <div class="chart-mode-group" id="kernel-mode">
+                                <button class="chart-mode-btn" data-value="absolute">Absolute</button>
+                                <button class="chart-mode-btn active" data-value="delta">Delta %</button>
+                            </div>
+                            <label class="chart-toggle-wrap" id="kernel-toggle">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                            </label>
+                        </div>
+                        <div class="baseline-row">
+                            <span class="baseline-label">Baseline</span>
+                            <select id="kernel-baseline" class="baseline-select"></select>
+                        </div>
                     </div>
                     <div class="chart-canvas-area" style="height: 520px;">
                         <canvas id="kernelScatterChart"></canvas>
@@ -784,6 +811,26 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Model Selector Modal -->
+    <dialog id="model-select-modal" class="modal-dialog" style="max-width: 420px;">
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <h2 id="model-select-title">Select Models to Compare</h2>
+            </div>
+            <button id="close-model-select" class="btn-close-modal" aria-label="Close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body-wrapper">
+            <p class="model-select-hint">Select up to 5 models to compare in Delta % mode.</p>
+            <div id="model-select-list" class="model-select-list"></div>
+            <div class="model-select-actions">
+                <button id="model-select-confirm" class="btn btn-primary">Compare</button>
+                <button id="model-select-cancel" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     </dialog>

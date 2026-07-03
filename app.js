@@ -127,13 +127,19 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
-let vizState = { mode: 'delta', normalize: false };
+let chartVizState = { mesa: { mode: 'delta', normalize: false }, nvidia: { mode: 'delta', normalize: false }, kernel: { mode: 'delta', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
+let baselineState = { mesa: null, nvidia: null, kernel: null, cpuAverage: null, gpuAverage: null };
+let modelSelection = { cpuAverage: [], gpuAverage: [] };
+let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, cpuAverage: null, gpuAverage: null };
+let modelSelectorActiveType = null;
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupTabNavigation();
-    setupVizControls();
+    setupBaselineListeners();
+    setupChartVizControls();
+    setupModelSelectorListeners();
     initSkeletonLoading();
     initScrollObservers();
     initBackToTop();
@@ -158,31 +164,195 @@ function setupTabNavigation() {
     });
 }
 
-// Viz Controls — Software Comparison
-function setupVizControls() {
-    const segMode = document.getElementById('seg-mode');
-    const toggleNorm = document.getElementById('toggle-normalize');
+const BASELINE_CHART_MAP = { mesa: 'mesaDriverScatterChart', nvidia: 'nvidiaDriverScatterChart', kernel: 'kernelScatterChart' };
+const VIZ_CHART_IDS = { mesa: { mode: 'mesa-mode', toggle: 'mesa-toggle' }, nvidia: { mode: 'nvidia-mode', toggle: 'nvidia-toggle' }, kernel: { mode: 'kernel-mode', toggle: 'kernel-toggle' }, cpuAverage: { mode: 'cpuAverage-mode', toggle: 'cpuAverage-toggle' }, gpuAverage: { mode: 'gpuAverage-mode', toggle: 'gpuAverage-toggle' } };
+const AVERAGE_CHART_CONFIG = { cpuAverage: { chartId: 'cpuAverageChart', color: 'rgba(99, 102, 241, 0.85)', border: '#818cf8', label: 'Average CPU Single Score', maxItems: 10 }, gpuAverage: { chartId: 'gpuAverageChart', color: SCORE_COLORS.gpu.bg, border: SCORE_COLORS.gpu.border, label: 'Average GPU Score', maxItems: 10 } };
 
-    if (segMode) {
-        segMode.querySelectorAll('.seg-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                segMode.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                vizState.mode = btn.dataset.value;
-                renderSoftwareCharts();
-            });
+function populateBaselineSelects() {
+    ['mesa', 'nvidia', 'kernel', 'cpuAverage', 'gpuAverage'].forEach(type => {
+        const data = lastSoftwareData[type];
+        if (!data) return;
+        const select = document.getElementById(`${type}-baseline`);
+        if (!select) return;
+        select.innerHTML = '';
+        let items, currentVal = select.value || baselineState[type];
+        if (type === 'cpuAverage' || type === 'gpuAverage') {
+            items = data.map(d => d.name);
+        } else {
+            items = [...new Set(data.points.map(p => p.label))];
+        }
+        items.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            if (v === currentVal || (!currentVal && !baselineState[type] && opt === select.options[0])) opt.selected = true;
+            select.appendChild(opt);
         });
-    }
+        if (!baselineState[type] && select.options.length > 0) {
+            select.options[0].selected = true;
+            baselineState[type] = select.options[0].value;
+        }
+    });
+}
 
-    if (toggleNorm) {
-        const cb = toggleNorm.querySelector('input');
-        if (cb) {
-            cb.addEventListener('change', () => {
-                vizState.normalize = cb.checked;
-                renderSoftwareCharts();
+function setupBaselineListeners() {
+    ['mesa', 'nvidia', 'kernel'].forEach(type => {
+        const select = document.getElementById(`${type}-baseline`);
+        if (!select) return;
+        select.addEventListener('change', () => {
+            baselineState[type] = select.value;
+            const chartId = BASELINE_CHART_MAP[type];
+            const data = lastSoftwareData[type];
+            if (!data || !document.getElementById(chartId)) return;
+            if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+            renderDivergingBarChart(chartId, computeDeltaData(data, baselineState[type], chartVizState[type].normalize), chartVizState[type].normalize);
+        });
+    });
+    ['cpuAverage', 'gpuAverage'].forEach(type => {
+        const select = document.getElementById(`${type}-baseline`);
+        if (!select) return;
+        select.addEventListener('change', () => {
+            baselineState[type] = select.value;
+            renderAverageChart(type);
+        });
+    });
+}
+
+function renderAverageChart(type) {
+    const cfg = AVERAGE_CHART_CONFIG[type];
+    if (!cfg) return;
+    const data = lastSoftwareData[type];
+    if (!data || !document.getElementById(cfg.chartId)) return;
+    if (chartInstances[cfg.chartId]) { chartInstances[cfg.chartId].destroy(); delete chartInstances[cfg.chartId]; }
+    makeChartScrollable(cfg.chartId, data.map(d => d.name), data.map(d => d.average), cfg.label, cfg.color, cfg.border, cfg.maxItems);
+}
+
+function openModelSelector(type) {
+    const data = lastSoftwareData[type];
+    if (!data || data.length < 2) return;
+    modelSelectorActiveType = type;
+    const modal = document.getElementById('model-select-modal');
+    const list = document.getElementById('model-select-list');
+    const title = document.getElementById('model-select-title');
+    if (!modal || !list) return;
+    title.textContent = type === 'cpuAverage' ? 'Select CPU Models to Compare' : 'Select GPU Models to Compare';
+
+    const prevSelected = modelSelection[type] || [];
+    list.innerHTML = '';
+    data.forEach(d => {
+        const label = document.createElement('label');
+        label.className = 'model-select-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = d.name;
+        cb.checked = prevSelected.includes(d.name);
+        cb.addEventListener('change', () => {
+            const checked = list.querySelectorAll('input:checked');
+            if (cb.checked && checked.length > 5) {
+                cb.checked = false;
+                return;
+            }
+        });
+        const name = document.createElement('span');
+        name.textContent = d.name;
+        label.appendChild(cb);
+        label.appendChild(name);
+        list.appendChild(label);
+    });
+
+    modal.showModal();
+    document.body.classList.add('modal-open');
+}
+
+function setupModelSelectorListeners() {
+    document.getElementById('model-select-confirm')?.addEventListener('click', () => {
+        const type = modelSelectorActiveType;
+        if (!type) return;
+        const checked = document.querySelectorAll('#model-select-list input:checked');
+        modelSelection[type] = Array.from(checked).map(cb => cb.value);
+        document.getElementById('model-select-modal').close();
+        document.body.classList.remove('modal-open');
+        if (modelSelection[type].length >= 2) {
+            renderAverageChart(type);
+        }
+    });
+    document.getElementById('model-select-cancel')?.addEventListener('click', () => {
+        const type = modelSelectorActiveType;
+        document.getElementById('model-select-modal').close();
+        document.body.classList.remove('modal-open');
+        if (type) {
+            chartVizState[type].mode = 'absolute';
+            const modeGroup = document.getElementById(VIZ_CHART_IDS[type].mode);
+            if (modeGroup) {
+                modeGroup.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
+                const absBtn = modeGroup.querySelector('[data-value="absolute"]');
+                if (absBtn) absBtn.classList.add('active');
+            }
+            renderAverageChart(type);
+        }
+    });
+    document.getElementById('close-model-select')?.addEventListener('click', () => {
+        document.getElementById('model-select-cancel')?.click();
+    });
+}
+
+function setupChartVizControls() {
+    ['mesa', 'nvidia', 'kernel', 'cpuAverage', 'gpuAverage'].forEach(type => {
+        const modeGroup = document.getElementById(VIZ_CHART_IDS[type].mode);
+        const toggle = document.getElementById(VIZ_CHART_IDS[type].toggle);
+        const chartId = BASELINE_CHART_MAP[type];
+
+        const isAverageChart = type === 'cpuAverage' || type === 'gpuAverage';
+
+        if (modeGroup) {
+            modeGroup.querySelectorAll('.chart-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modeGroup.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    chartVizState[type].mode = btn.dataset.value;
+                    if (isAverageChart) {
+                        renderAverageChart(type);
+                    } else {
+                        const data = lastSoftwareData[type];
+                        if (!data || !document.getElementById(chartId)) return;
+                        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                        const vs = chartVizState[type];
+                        if (vs.mode === 'delta') {
+                            renderDivergingBarChart(chartId, computeDeltaData(data, baselineState[type], vs.normalize), vs.normalize);
+                        } else if (vs.normalize) {
+                            renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                        } else {
+                            renderHardwareComparisonBars(chartId, data);
+                        }
+                    }
+                });
             });
         }
-    }
+
+        if (toggle) {
+            const cb = toggle.querySelector('.chart-toggle-cb');
+            if (cb) {
+                cb.addEventListener('change', () => {
+                    chartVizState[type].normalize = cb.checked;
+                    if (isAverageChart) {
+                        renderAverageChart(type);
+                    } else {
+                        const data = lastSoftwareData[type];
+                        if (!data || !document.getElementById(chartId)) return;
+                        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                        const vs = chartVizState[type];
+                        if (vs.mode === 'delta') {
+                            renderDivergingBarChart(chartId, computeDeltaData(data, baselineState[type], vs.normalize), vs.normalize);
+                        } else if (vs.normalize) {
+                            renderDivergingBarChart(chartId, computeNormalizedData(data), false);
+                        } else {
+                            renderHardwareComparisonBars(chartId, data);
+                        }
+                    }
+                });
+            }
+        }
+    });
 }
 
 // Setup Events (search, filter, sort, sync)
@@ -2447,27 +2617,19 @@ function renderCharts() {
 
     // 10. Average CPU score by model
     const cpuAverages = getAverageScores(benchmarkData, 'cpu');
-    makeChartScrollable(
-        'cpuAverageChart',
-        cpuAverages.map(c => c.name),
-        cpuAverages.map(c => c.average),
-        'Average CPU Single Score',
-        'rgba(99, 102, 241, 0.85)',
-        '#818cf8',
-        10
-    );
+    lastSoftwareData.cpuAverage = cpuAverages;
+    {
+        const cfg = AVERAGE_CHART_CONFIG.cpuAverage;
+        makeChartScrollable(cfg.chartId, cpuAverages.map(c => c.name), cpuAverages.map(c => c.average), cfg.label, cfg.color, cfg.border, cfg.maxItems);
+    }
 
     // 11. Average GPU score by model
     const gpuAverages = getAverageScores(benchmarkData, 'gpu');
-    makeChartScrollable(
-        'gpuAverageChart',
-        gpuAverages.map(g => g.name),
-        gpuAverages.map(g => g.average),
-        'Average GPU Score',
-        SCORE_COLORS.gpu.bg,
-        SCORE_COLORS.gpu.border,
-        10
-    );
+    lastSoftwareData.gpuAverage = gpuAverages;
+    {
+        const cfg = AVERAGE_CHART_CONFIG.gpuAverage;
+        makeChartScrollable(cfg.chartId, gpuAverages.map(g => g.name), gpuAverages.map(g => g.average), cfg.label, cfg.color, cfg.border, cfg.maxItems);
+    }
 
     /*
     // 13. Score Distribution Histogram
@@ -2973,10 +3135,12 @@ function renderCharts() {
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'os'), 'os');
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
+    lastSoftwareData.mesa = mesaData;
     if (document.getElementById('mesaDriverScatterChart')) {
-        if (vizState.mode === 'delta') {
-            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData), vizState.normalize);
-        } else if (vizState.normalize) {
+        const vsm = chartVizState.mesa;
+        if (vsm.mode === 'delta') {
+            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData, baselineState.mesa, vsm.normalize), vsm.normalize);
+        } else if (vsm.normalize) {
             renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
         } else {
             renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
@@ -2985,10 +3149,12 @@ function renderCharts() {
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'mesa'), 'mesa');
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
+    lastSoftwareData.nvidia = nvidiaData;
     if (document.getElementById('nvidiaDriverScatterChart')) {
-        if (vizState.mode === 'delta') {
-            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData), vizState.normalize);
-        } else if (vizState.normalize) {
+        const vsn = chartVizState.nvidia;
+        if (vsn.mode === 'delta') {
+            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData, baselineState.nvidia, vsn.normalize), vsn.normalize);
+        } else if (vsn.normalize) {
             renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
         } else {
             renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
@@ -2997,16 +3163,19 @@ function renderCharts() {
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'nvidia'), 'nvidia');
 
     const kernelData = getKernelScatterData(benchmarkData);
+    lastSoftwareData.kernel = kernelData;
     if (document.getElementById('kernelScatterChart')) {
-        if (vizState.mode === 'delta') {
-            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData), vizState.normalize);
-        } else if (vizState.normalize) {
+        const vsk = chartVizState.kernel;
+        if (vsk.mode === 'delta') {
+            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData, baselineState.kernel, vsk.normalize), vsk.normalize);
+        } else if (vsk.normalize) {
             renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
         } else {
             renderHardwareComparisonBars('kernelScatterChart', kernelData);
         }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'kernel'), 'kernel');
+    populateBaselineSelects();
 
     } catch(e) {
         console.error('Software comparison charts error:', e);
@@ -4151,10 +4320,12 @@ function renderSoftwareCharts() {
     }
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
+    lastSoftwareData.mesa = mesaData;
     if (document.getElementById('mesaDriverScatterChart')) {
-        if (vizState.mode === 'delta') {
-            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData), vizState.normalize);
-        } else if (vizState.normalize) {
+        const vsm = chartVizState.mesa;
+        if (vsm.mode === 'delta') {
+            renderDivergingBarChart('mesaDriverScatterChart', computeDeltaData(mesaData, baselineState.mesa, vsm.normalize), vsm.normalize);
+        } else if (vsm.normalize) {
             renderDivergingBarChart('mesaDriverScatterChart', computeNormalizedData(mesaData), false);
         } else {
             renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
@@ -4162,10 +4333,12 @@ function renderSoftwareCharts() {
     }
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
+    lastSoftwareData.nvidia = nvidiaData;
     if (document.getElementById('nvidiaDriverScatterChart')) {
-        if (vizState.mode === 'delta') {
-            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData), vizState.normalize);
-        } else if (vizState.normalize) {
+        const vsn = chartVizState.nvidia;
+        if (vsn.mode === 'delta') {
+            renderDivergingBarChart('nvidiaDriverScatterChart', computeDeltaData(nvidiaData, baselineState.nvidia, vsn.normalize), vsn.normalize);
+        } else if (vsn.normalize) {
             renderDivergingBarChart('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData), false);
         } else {
             renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
@@ -4173,15 +4346,19 @@ function renderSoftwareCharts() {
     }
 
     const kernelData = getKernelScatterData(benchmarkData);
+    lastSoftwareData.kernel = kernelData;
     if (document.getElementById('kernelScatterChart')) {
-        if (vizState.mode === 'delta') {
-            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData), vizState.normalize);
-        } else if (vizState.normalize) {
+        const vsk = chartVizState.kernel;
+        if (vsk.mode === 'delta') {
+            renderDivergingBarChart('kernelScatterChart', computeDeltaData(kernelData, baselineState.kernel, vsk.normalize), vsk.normalize);
+        } else if (vsk.normalize) {
             renderDivergingBarChart('kernelScatterChart', computeNormalizedData(kernelData), false);
         } else {
             renderHardwareComparisonBars('kernelScatterChart', kernelData);
         }
     }
+
+    populateBaselineSelects();
 }
 
 // Normalize scores: per hardware group, best = 100%
@@ -4205,8 +4382,8 @@ function computeNormalizedData(data) {
     return { points: normPoints, hwLabels };
 }
 
-// Delta from baseline: per hardware, oldest version = 0%, others = % change
-function computeDeltaData(data) {
+// Delta from baseline: per hardware, user-selected or oldest version = 0%, others = % change
+function computeDeltaData(data, baseline, normalize) {
     const groups = {};
     data.points.forEach(p => {
         if (!groups[p.hardwareLabel]) groups[p.hardwareLabel] = [];
@@ -4215,20 +4392,28 @@ function computeDeltaData(data) {
     const deltaPoints = [];
     const hwLabels = [];
     Object.entries(groups).forEach(([hwLabel, pts]) => {
-        // Extract numeric version parts for sorting
         const extractNum = (label) => {
             const m = (label || '').match(/(\d+\.?\d*)/g);
             if (!m) return 0;
             return parseFloat(m.join('').replace(/\./g, ''));
         };
-        const sorted = [...pts].sort((a, b) => extractNum(a.label) - extractNum(b.label));
-        const baseline = sorted[0];
-        const baseY = vizState.normalize ? (baseline.origY || baseline.y) : baseline.y;
-        sorted.forEach(p => {
-            const val = vizState.normalize ? (p.origY || p.y) : p.y;
+        let baselinePoint;
+        if (baseline) {
+            baselinePoint = pts.find(p => p.label === baseline);
+            if (!baselinePoint) {
+                const sorted = [...pts].sort((a, b) => extractNum(a.label) - extractNum(b.label));
+                baselinePoint = sorted[0];
+            }
+        } else {
+            const sorted = [...pts].sort((a, b) => extractNum(a.label) - extractNum(b.label));
+            baselinePoint = sorted[0];
+        }
+        const baseY = normalize ? (baselinePoint.origY || baselinePoint.y) : baselinePoint.y;
+        pts.forEach(p => {
+            const val = normalize ? (p.origY || p.y) : p.y;
             const delta = baseY > 0 ? Math.round(((val - baseY) / baseY) * 100) : 0;
             deltaPoints.push({
-                ...p, y: delta, baseLabel: baseline.label, origY: val, baseY: baseY
+                ...p, y: delta, baseLabel: baselinePoint.label, origY: val, baseY: baseY
             });
         });
         hwLabels.push(hwLabel);
@@ -4312,7 +4497,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     max: xMax,
                     grid: { color: 'rgba(255,255,255,0.05)', tickBorderDash: [3, 3] },
                     ticks: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 }, callback: v => v + '%' },
-                    title: { display: true, text: isNormalized ? 'Delta % (normalized)' : 'Delta %', color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 12 } }
+                    title: { display: true, text: isNormalized ? 'Delta % (normalized)' : data.baselineLabel ? `Delta %  —  Baseline: ${data.baselineLabel}` : 'Delta %', color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 12 } }
                 },
                 y: {
                     grid: { display: false },
