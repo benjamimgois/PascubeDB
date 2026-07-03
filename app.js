@@ -261,6 +261,38 @@ function populateBaselineSelects() {
             }
         }
     }
+    ['mesa', 'nvidia'].forEach(type => {
+        const hwSelect = document.getElementById(`${type}-hardware`);
+        const data = lastSoftwareData[type];
+        if (hwSelect && data && data.hwLabels) {
+            hwSelect.innerHTML = '';
+            const curHw = modelSelection[type] || '';
+            data.hwLabels.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
+                if (h === curHw) opt.selected = true;
+                hwSelect.appendChild(opt);
+            });
+            if (!modelSelection[type] && hwSelect.options.length > 0) {
+                hwSelect.options[0].selected = true;
+                modelSelection[type] = hwSelect.options[0].value;
+                const available = [...new Set(data.points.filter(p => p.hardwareLabel === modelSelection[type]).map(p => p.label))].sort();
+                const blSelect = document.getElementById(`${type}-baseline`);
+                if (blSelect && available.length > 0) {
+                    blSelect.innerHTML = '';
+                    available.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v;
+                        opt.textContent = v;
+                        blSelect.appendChild(opt);
+                    });
+                    blSelect.options[0].selected = true;
+                    baselineState[type] = available[0];
+                }
+            }
+        }
+    });
 }
 
 function setupBaselineListeners() {
@@ -283,7 +315,7 @@ function setupBaselineListeners() {
 }
 
 function setupHardwareListeners() {
-    ['os', 'kernel'].forEach(type => {
+    ['os', 'kernel', 'mesa', 'nvidia'].forEach(type => {
         const chartType = type;
         const hwSelect = document.getElementById(`${type}-hardware`);
         if (!hwSelect) return;
@@ -377,7 +409,7 @@ function renderSoftwareDeltaChart(type) {
     if (!data) return;
     const chartId = BASELINE_CHART_MAP[type];
 
-    if (type === 'os' || type === 'kernel') {
+    if (type === 'os' || type === 'kernel' || type === 'mesa' || type === 'nvidia') {
         const hw = modelSelection[type];
         if (!hw) return;
         const hwPoints = data.points.filter(p => p.hardwareLabel === hw);
@@ -456,7 +488,7 @@ function setupChartVizControls() {
                     btn.classList.add('active');
                     chartVizState[type].mode = btn.dataset.value;
                     const vizRow = document.querySelector(`#${VIZ_CHART_IDS[type].mode}`).closest('.chart-viz-row');
-                    const hwRow = vizRow?.querySelector('#os-hw-row, #kernel-hw-row');
+        const hwRow = vizRow?.querySelector('#os-hw-row, #kernel-hw-row, #mesa-hw-row, #nvidia-hw-row');
                     const blRow = vizRow?.querySelector('[id$="-baseline"]')?.closest('.baseline-row');
                     const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
                     const isDelta = btn.dataset.value === 'delta';
@@ -465,7 +497,7 @@ function setupChartVizControls() {
                     if (toggleLabel) toggleLabel.style.display = isDelta ? 'none' : '';
                     if (isAverageChart) {
                         renderAverageChart(type);
-                    } else if ((type === 'os' || type === 'kernel') && btn.dataset.value === 'delta') {
+                    } else if ((type === 'mesa' || type === 'nvidia' || type === 'os' || type === 'kernel') && btn.dataset.value === 'delta') {
                         if (!modelSelection[type]) {
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                         } else {
@@ -3353,7 +3385,7 @@ function renderCharts() {
     if (document.getElementById('mesaDriverScatterChart')) {
         const vsm = chartVizState.mesa;
         if (vsm.mode === 'delta') {
-            if (modelSelection.mesa && modelSelection.mesa.length >= 2) {
+            if (modelSelection.mesa) {
                 renderSoftwareDeltaChart('mesa');
             }
         } else if (vsm.normalize) {
@@ -3369,7 +3401,7 @@ function renderCharts() {
     if (document.getElementById('nvidiaDriverScatterChart')) {
         const vsn = chartVizState.nvidia;
         if (vsn.mode === 'delta') {
-            if (modelSelection.nvidia && modelSelection.nvidia.length >= 2) {
+            if (modelSelection.nvidia) {
                 renderSoftwareDeltaChart('nvidia');
             }
         } else if (vsn.normalize) {
@@ -4555,7 +4587,7 @@ function renderSoftwareCharts() {
     if (document.getElementById('mesaDriverScatterChart')) {
         const vsm = chartVizState.mesa;
         if (vsm.mode === 'delta') {
-            if (modelSelection.mesa && modelSelection.mesa.length >= 2) {
+            if (modelSelection.mesa) {
                 renderSoftwareDeltaChart('mesa');
             }
         } else if (vsm.normalize) {
@@ -4570,7 +4602,7 @@ function renderSoftwareCharts() {
     if (document.getElementById('nvidiaDriverScatterChart')) {
         const vsn = chartVizState.nvidia;
         if (vsn.mode === 'delta') {
-            if (modelSelection.nvidia && modelSelection.nvidia.length >= 2) {
+            if (modelSelection.nvidia) {
                 renderSoftwareDeltaChart('nvidia');
             }
         } else if (vsn.normalize) {
