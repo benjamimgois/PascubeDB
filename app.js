@@ -4865,11 +4865,12 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                         if (count > 0) {
                             ctx.fillStyle = 'rgba(156, 163, 175, 0.85)';
                             ctx.font = '9px Inter, sans-serif';
-                            ctx.fillText('Samples=' + count, x, y + 1);
-                            ctx.font = '10px Inter, sans-serif';
+                            const sampleText = 'Samples=' + count;
+                            const tw = ctx.measureText(sampleText).width;
+                            ctx.fillText(sampleText, x, y + 1);
                             ctx.fillStyle = count >= 10 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
-                            ctx.fillText(count >= 10 ? '\u25B2' : '\u25BC', x, y + 14);
                             ctx.font = '10px Inter, sans-serif';
+                            ctx.fillText(count >= 10 ? '\u25B2' : '\u25BC', x + (v >= 0 ? tw + 3 : -tw - 3), y + 1);
                         }
                     });
                 });
