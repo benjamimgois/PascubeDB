@@ -625,7 +625,7 @@ function setupChartVizControls() {
         const modeEl = document.getElementById(VIZ_CHART_IDS[type].mode);
         if (!modeEl) return;
         const vizRow = modeEl.closest('.chart-viz-row');
-        const hwRow = vizRow?.querySelector('#os-hw-row, #kernel-hw-row, #mesa-hw-row, #nvidia-hw-row');
+        const hwRow = vizRow?.querySelector('#os-hw-row, #kernel-hw-row');
         const blRow = vizRow?.querySelector('[id$="-baseline"]')?.closest('.baseline-row');
         const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
         const isDefaultDelta = chartVizState[type].mode === 'delta';
