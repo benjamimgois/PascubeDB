@@ -127,10 +127,10 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
-let chartVizState = { mesa: { mode: 'absolute', normalize: false }, nvidia: { mode: 'absolute', normalize: false }, kernel: { mode: 'absolute', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
-let baselineState = { mesa: null, nvidia: null, kernel: null, cpuAverage: null, gpuAverage: null };
-let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null, kernel: null };
-let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, cpuAverage: null, gpuAverage: null };
+let chartVizState = { mesa: { mode: 'absolute', normalize: false }, nvidia: { mode: 'absolute', normalize: false }, kernel: { mode: 'absolute', normalize: false }, os: { mode: 'absolute', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
+let baselineState = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
+let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null, kernel: null, os: null };
+let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
 let modelSelectorActiveType = null;
 
 // Initialize Application
@@ -164,12 +164,12 @@ function setupTabNavigation() {
     });
 }
 
-const BASELINE_CHART_MAP = { mesa: 'mesaDriverScatterChart', nvidia: 'nvidiaDriverScatterChart', kernel: 'kernelScatterChart' };
-const VIZ_CHART_IDS = { mesa: { mode: 'mesa-mode', toggle: 'mesa-toggle' }, nvidia: { mode: 'nvidia-mode', toggle: 'nvidia-toggle' }, kernel: { mode: 'kernel-mode', toggle: 'kernel-toggle' }, cpuAverage: { mode: 'cpuAverage-mode', toggle: 'cpuAverage-toggle' }, gpuAverage: { mode: 'gpuAverage-mode', toggle: 'gpuAverage-toggle' } };
+const BASELINE_CHART_MAP = { mesa: 'mesaDriverScatterChart', nvidia: 'nvidiaDriverScatterChart', kernel: 'kernelScatterChart', os: 'osHardwareScatterChart' };
+const VIZ_CHART_IDS = { mesa: { mode: 'mesa-mode', toggle: 'mesa-toggle' }, nvidia: { mode: 'nvidia-mode', toggle: 'nvidia-toggle' }, kernel: { mode: 'kernel-mode', toggle: 'kernel-toggle' }, os: { mode: 'os-mode', toggle: 'os-toggle' }, cpuAverage: { mode: 'cpuAverage-mode', toggle: 'cpuAverage-toggle' }, gpuAverage: { mode: 'gpuAverage-mode', toggle: 'gpuAverage-toggle' } };
 const AVERAGE_CHART_CONFIG = { cpuAverage: { chartId: 'cpuAverageChart', color: 'rgba(99, 102, 241, 0.85)', border: '#818cf8', label: 'Average CPU Single Score', maxItems: 10 }, gpuAverage: { chartId: 'gpuAverageChart', color: SCORE_COLORS.gpu.bg, border: SCORE_COLORS.gpu.border, label: 'Average GPU Score', maxItems: 10 } };
 
 function populateBaselineSelects() {
-    ['mesa', 'nvidia', 'kernel', 'cpuAverage', 'gpuAverage'].forEach(type => {
+    ['mesa', 'nvidia', 'kernel', 'os', 'cpuAverage', 'gpuAverage'].forEach(type => {
         const data = lastSoftwareData[type];
         if (!data) return;
         const select = document.getElementById(`${type}-baseline`);
@@ -196,16 +196,12 @@ function populateBaselineSelects() {
 }
 
 function setupBaselineListeners() {
-    ['mesa', 'nvidia', 'kernel'].forEach(type => {
+    ['mesa', 'nvidia', 'kernel', 'os'].forEach(type => {
         const select = document.getElementById(`${type}-baseline`);
         if (!select) return;
         select.addEventListener('change', () => {
             baselineState[type] = select.value;
-            const chartId = BASELINE_CHART_MAP[type];
-            const data = lastSoftwareData[type];
-            if (!data || !document.getElementById(chartId)) return;
-            if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
-            renderDivergingBarChart(chartId, computeDeltaData(data, baselineState[type], chartVizState[type].normalize), chartVizState[type].normalize);
+            renderSoftwareDeltaChart(type);
         });
     });
     ['cpuAverage', 'gpuAverage'].forEach(type => {
@@ -402,7 +398,7 @@ function setupChartVizControls() {
             }
         }
     });
-    ['mesa', 'nvidia', 'kernel'].forEach(type => {
+    ['mesa', 'nvidia', 'kernel', 'os'].forEach(type => {
         const modeEl = document.getElementById(VIZ_CHART_IDS[type].mode);
         if (!modeEl) return;
         const baselineRow = modeEl.closest('.chart-viz-row')?.querySelector('.baseline-row');
@@ -3187,8 +3183,18 @@ function renderCharts() {
     }
 
     const osScatterData = getOSvsHardwareScatterData(benchmarkData);
+    lastSoftwareData.os = osScatterData;
     if (document.getElementById('osHardwareScatterChart')) {
-        renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+        const vso = chartVizState.os;
+        if (vso.mode === 'delta') {
+            if (modelSelection.os && modelSelection.os.length >= 2) {
+                renderSoftwareDeltaChart('os');
+            }
+        } else if (vso.normalize) {
+            renderHardwareComparisonBars('osHardwareScatterChart', computeNormalizedData(osScatterData));
+        } else {
+            renderHardwareComparisonBars('osHardwareScatterChart', osScatterData);
+        }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'os'), 'os');
 
@@ -3366,6 +3372,7 @@ function getOSvsHardwareScatterData(data, maxHardware = 15, minSamples = 3) {
             points.push({
                 x: hwIndex,
                 y: avgScore,
+                label: osName,
                 os: osName,
                 user: bestRun.user,
                 clientId: bestRun.clientId,
@@ -4379,8 +4386,18 @@ function renderSoftwareCharts() {
     });
 
     const osScatterData = getOSvsHardwareScatterData(benchmarkData);
+    lastSoftwareData.os = osScatterData;
     if (document.getElementById('osHardwareScatterChart')) {
-        renderOSHardwareScatterChart('osHardwareScatterChart', osScatterData);
+        const vso = chartVizState.os;
+        if (vso.mode === 'delta') {
+            if (modelSelection.os && modelSelection.os.length >= 2) {
+                renderSoftwareDeltaChart('os');
+            }
+        } else if (vso.normalize) {
+            renderHardwareComparisonBars('osHardwareScatterChart', computeNormalizedData(osScatterData));
+        } else {
+            renderHardwareComparisonBars('osHardwareScatterChart', osScatterData);
+        }
     }
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');

@@ -395,8 +395,26 @@
                     <div class="chart-header">
                         <h3>OS vs. Hardware</h3>
                         <p>Main score of identical hardware across different operating systems</p>
+                        <div class="chart-viz-row">
+                            <div class="chart-mode-group" id="os-mode">
+                                <button class="chart-mode-btn active" data-value="absolute">Absolute</button>
+                                <button class="chart-mode-btn" data-value="delta">Delta %</button>
+                            </div>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline OS.</div></span>
+                            <div class="baseline-row">
+                                <span class="baseline-label">Baseline</span>
+                                <select id="os-baseline" class="baseline-select"></select>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the OS used as the 0% reference for Delta % calculations.</div></span>
+                            </div>
+                            <label class="chart-toggle-wrap" id="os-toggle">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
+                            </label>
+                        </div>
                     </div>
-                    <div class="chart-canvas-area" style="height: 420px;">
+                    <div class="chart-canvas-area" style="height: 520px;">
                         <canvas id="osHardwareScatterChart"></canvas>
                     </div>
                     <div class="scatter-insight" id="insight-os-scatter"></div>
