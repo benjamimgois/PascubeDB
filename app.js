@@ -231,20 +231,20 @@ function openModelSelector(type) {
 
     let items;
     if (isAverage) {
-        if (!data.length || data.length < 2) return;
+        if (!data.length || data.length < 2) return false;
         items = data.map(d => d.name);
     } else {
         items = data.hwLabels;
-        if (items.length < 2) return;
+        if (items.length < 2) return false;
     }
 
     modelSelectorActiveType = type;
     const modal = document.getElementById('model-select-modal');
     const list = document.getElementById('model-select-list');
     const title = document.getElementById('model-select-title');
-    if (!modal || !list) return;
+    if (!modal || !list) return false;
 
-    const names = { cpuAverage: 'CPU Models', gpuAverage: 'GPU Models', mesa: 'GPU Models', nvidia: 'GPU Models', kernel: 'CPU Models' };
+    const names = { cpuAverage: 'CPU Models', gpuAverage: 'GPU Models', mesa: 'GPU Models', nvidia: 'GPU Models', kernel: 'CPU Models', os: 'Operating Systems' };
     title.textContent = `Select ${names[type] || 'Items'} to Compare (max ${maxItems})`;
 
     const prevSelected = modelSelection[type] || [];
@@ -272,6 +272,7 @@ function openModelSelector(type) {
 
     modal.showModal();
     document.body.classList.add('modal-open');
+    return true;
 }
 
 function renderSoftwareDeltaChart(type) {
@@ -349,7 +350,16 @@ function setupChartVizControls() {
                     } else {
                         if (btn.dataset.value === 'delta') {
                             if (!modelSelection[type] || modelSelection[type].length === 0) {
-                                openModelSelector(type);
+                                if (!openModelSelector(type)) {
+                                    chartVizState[type].mode = 'absolute';
+                                    btn.classList.remove('active');
+                                    modeGroup.querySelector('[data-value="absolute"]')?.classList.add('active');
+                                    const data = lastSoftwareData[type];
+                                    if (data && document.getElementById(chartId)) {
+                                        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                                        renderHardwareComparisonBars(chartId, data);
+                                    }
+                                }
                             } else {
                                 renderSoftwareDeltaChart(type);
                             }
@@ -379,7 +389,13 @@ function setupChartVizControls() {
                         const vs = chartVizState[type];
                         if (vs.mode === 'delta') {
                             if (!modelSelection[type] || modelSelection[type].length === 0) {
-                                openModelSelector(type);
+                                if (!openModelSelector(type)) {
+                                    const data = lastSoftwareData[type];
+                                    if (data && document.getElementById(chartId)) {
+                                        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                                        renderHardwareComparisonBars(chartId, data);
+                                    }
+                                }
                             } else {
                                 renderSoftwareDeltaChart(type);
                             }
