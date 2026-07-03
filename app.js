@@ -4615,10 +4615,10 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                 ctx.setLineDash([]);
                 ctx.fillStyle = lineColor;
                 ctx.font = 'bold 10px Inter, sans-serif';
-                ctx.textAlign = 'center';
+                ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
                 if (bl) {
-                    ctx.fillText(bl, zeroPx, yScale.top + 14);
+                    ctx.fillText(bl, zeroPx + 6, yScale.top + 8);
                 }
                 ctx.restore();
             }
