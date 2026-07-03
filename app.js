@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabNavigation();
     setupBaselineListeners();
     setupChartVizControls();
+    setupHardwareListeners();
     setupModelSelectorListeners();
     initSkeletonLoading();
     initScrollObservers();
@@ -193,6 +194,22 @@ function populateBaselineSelects() {
             baselineState[type] = select.options[0].value;
         }
     });
+    const osHwSelect = document.getElementById('os-hardware');
+    const osData = lastSoftwareData.os;
+    if (osHwSelect && osData && osData.hwLabels) {
+        osHwSelect.innerHTML = '';
+        const curHw = modelSelection.os || '';
+        osData.hwLabels.forEach(h => {
+            const opt = document.createElement('option');
+            opt.value = h;
+            opt.textContent = h.length > 40 ? h.substring(0, 40) + '...' : h;
+            if (h === curHw) opt.selected = true;
+            osHwSelect.appendChild(opt);
+        });
+        if (!modelSelection.os && osHwSelect.options.length > 0) {
+            osHwSelect.options[0].selected = true;
+        }
+    }
 }
 
 function setupBaselineListeners() {
@@ -211,6 +228,32 @@ function setupBaselineListeners() {
             baselineState[type] = select.value;
             renderAverageChart(type);
         });
+    });
+}
+
+function setupHardwareListeners() {
+    const hwSelect = document.getElementById('os-hardware');
+    if (!hwSelect) return;
+    hwSelect.addEventListener('change', () => {
+        modelSelection.os = hwSelect.value;
+        const osData = lastSoftwareData.os;
+        if (!osData) return;
+        const availableOS = [...new Set(osData.points.filter(p => p.hardwareLabel === hwSelect.value).map(p => p.label))].sort();
+        const blSelect = document.getElementById('os-baseline');
+        if (blSelect) {
+            blSelect.innerHTML = '';
+            availableOS.forEach(os => {
+                const opt = document.createElement('option');
+                opt.value = os;
+                opt.textContent = os;
+                if (os === baselineState.os || (!baselineState.os && opt === blSelect.options[0])) opt.selected = true;
+                blSelect.appendChild(opt);
+            });
+            if (availableOS.length > 0) {
+                baselineState.os = blSelect.value || availableOS[0];
+            }
+        }
+        renderSoftwareDeltaChart('os');
     });
 }
 
@@ -278,10 +321,27 @@ function openModelSelector(type) {
 function renderSoftwareDeltaChart(type) {
     const data = lastSoftwareData[type];
     if (!data) return;
+    const chartId = BASELINE_CHART_MAP[type];
+
+    if (type === 'os') {
+        const hw = modelSelection.os;
+        if (!hw) return;
+        const hwPoints = data.points.filter(p => p.hardwareLabel === hw);
+        if (hwPoints.length < 2) return;
+        const baselineLabel = baselineState.os || hwPoints[0].label;
+        const baselineScore = (hwPoints.find(p => p.label === baselineLabel)?.y || hwPoints[0].y);
+        const points = hwPoints.map((p, i) => {
+            const delta = baselineScore > 0 ? Math.round(((p.y / baselineScore) - 1) * 100) : 0;
+            return { x: i, y: delta, label: p.label, hardwareLabel: hw, count: p.count, baseLabel: baselineLabel, origY: p.y, baseY: baselineScore };
+        });
+        if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+        renderDivergingBarChart(chartId, { points, hwLabels: [hw], baselineLabel }, chartVizState.os.normalize);
+        return;
+    }
+
     const sel = modelSelection[type];
     if (!sel || sel.length < 2) return;
     const filtered = { points: data.points.filter(p => sel.includes(p.hardwareLabel)), hwLabels: data.hwLabels.filter(h => sel.includes(h)) };
-    const chartId = BASELINE_CHART_MAP[type];
     if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
     renderDivergingBarChart(chartId, computeDeltaData(filtered, baselineState[type], chartVizState[type].normalize), chartVizState[type].normalize);
 }
@@ -341,12 +401,22 @@ function setupChartVizControls() {
                     modeGroup.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     chartVizState[type].mode = btn.dataset.value;
-                    const baselineRow = document.querySelector(`#${VIZ_CHART_IDS[type].mode}`).closest('.chart-viz-row').querySelector('.baseline-row');
+                    const vizRow = document.querySelector(`#${VIZ_CHART_IDS[type].mode}`).closest('.chart-viz-row');
+                    const hwRow = vizRow?.querySelector('#os-hw-row');
+                    const blRow = vizRow?.querySelector('#os-baseline')?.closest('.baseline-row');
                     const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
-                    if (baselineRow) baselineRow.style.display = btn.dataset.value === 'delta' ? '' : 'none';
-                    if (toggleLabel) toggleLabel.style.display = btn.dataset.value === 'absolute' ? '' : 'none';
+                    const isDelta = btn.dataset.value === 'delta';
+                    if (hwRow) hwRow.style.display = isDelta ? '' : 'none';
+                    if (blRow) blRow.style.display = isDelta ? '' : 'none';
+                    if (toggleLabel) toggleLabel.style.display = isDelta ? 'none' : '';
                     if (isAverageChart) {
                         renderAverageChart(type);
+                    } else if (type === 'os' && btn.dataset.value === 'delta') {
+                        if (!modelSelection.os) {
+                            if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                        } else {
+                            renderSoftwareDeltaChart('os');
+                        }
                     } else {
                         if (btn.dataset.value === 'delta') {
                             if (!modelSelection[type] || modelSelection[type].length === 0) {
@@ -421,10 +491,13 @@ function setupChartVizControls() {
     ['mesa', 'nvidia', 'kernel', 'os'].forEach(type => {
         const modeEl = document.getElementById(VIZ_CHART_IDS[type].mode);
         if (!modeEl) return;
-        const baselineRow = modeEl.closest('.chart-viz-row')?.querySelector('.baseline-row');
+        const vizRow = modeEl.closest('.chart-viz-row');
+        const hwRow = vizRow?.querySelector('#os-hw-row');
+        const blRow = vizRow?.querySelector('#os-baseline')?.closest('.baseline-row');
         const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
         const isDefaultDelta = chartVizState[type].mode === 'delta';
-        if (baselineRow) baselineRow.style.display = isDefaultDelta ? '' : 'none';
+        if (hwRow) hwRow.style.display = isDefaultDelta ? '' : 'none';
+        if (blRow) blRow.style.display = isDefaultDelta ? '' : 'none';
         if (toggleLabel) toggleLabel.style.display = isDefaultDelta ? 'none' : '';
     });
 }
