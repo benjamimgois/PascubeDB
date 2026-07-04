@@ -783,6 +783,8 @@ function processGvizData(jsonResponse) {
         cpuVal = cpuVal.replace(/\s+(w\/|with) Radeon.*/i, '').trim();
         if (cpuVal.trim() === 'Custom APU 0405') {
             cpuVal = 'Steam Deck';
+        } else if (cpuVal.trim() === 'Custom APU 0932') {
+            cpuVal = 'Steam Deck OLED';
         }
         
         let gpuVal = getVal(3) || 'Unknown GPU';
@@ -790,6 +792,8 @@ function processGvizData(jsonResponse) {
             gpuVal = 'Radeon Graphics';
         } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
             gpuVal = 'Steam Deck';
+        } else if (gpuVal.trim() === 'AMD Custom GPU 0932') {
+            gpuVal = 'Steam Deck OLED';
         } else if (/intel.*?\barc.*?\b([ab]\d{3})\b/i.test(gpuVal)) {
             const modelMatch = gpuVal.match(/\b([ab]\d{3})\b/i);
             gpuVal = `Arc ${modelMatch[1].toUpperCase()}`;
@@ -942,6 +946,8 @@ function processCSVData(csvText) {
         cpuVal = cpuVal.replace(/\s+(w\/|with) Radeon.*/i, '').trim();
         if (cpuVal.trim() === 'Custom APU 0405') {
             cpuVal = 'Steam Deck';
+        } else if (cpuVal.trim() === 'Custom APU 0932') {
+            cpuVal = 'Steam Deck OLED';
         }
         
         let gpuVal = row[3] || 'Unknown GPU';
@@ -949,6 +955,8 @@ function processCSVData(csvText) {
             gpuVal = 'Radeon Graphics';
         } else if (gpuVal.trim() === 'AMD Custom GPU 0405') {
             gpuVal = 'Steam Deck';
+        } else if (gpuVal.trim() === 'AMD Custom GPU 0932') {
+            gpuVal = 'Steam Deck OLED';
         } else if (/intel.*?\barc.*?\b([ab]\d{3})\b/i.test(gpuVal)) {
             const modelMatch = gpuVal.match(/\b([ab]\d{3})\b/i);
             gpuVal = `Arc ${modelMatch[1].toUpperCase()}`;
