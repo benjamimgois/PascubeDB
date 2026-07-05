@@ -4793,7 +4793,13 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
             const match = hwPts.find(p => p.label === lbl);
             return match ? match.y : NaN;
         });
-        return { label: lbl, data: pts, _origData: hwEntries.map(([hw, hwPts]) => hwPts.find(p => p.label === lbl) || null) };
+        const isBaseline = lbl === (data.baselineLabel || '');
+        return { 
+            label: lbl, 
+            data: pts, 
+            _origData: hwEntries.map(([hw, hwPts]) => hwPts.find(p => p.label === lbl) || null),
+            minBarLength: isBaseline ? 0 : 3
+        };
     });
 
     const allVals = [].concat(...datasets.map(d => d.data.filter(v => !isNaN(v))));
