@@ -822,7 +822,8 @@ function processGvizData(jsonResponse) {
             clientId: getVal(13) || 'N/D',
             architecture: getVal(14) || 'N/D',
             packageType: getVal(15) || 'N/D',
-            productName: getVal(17) || 'N/D'
+            productName: getVal(17) || 'N/D',
+            cpuMaxFreq: getVal(27) ? cleanNumber(getVal(27)) : null
         };
     }).filter(row => row !== null);
     
@@ -985,7 +986,8 @@ function processCSVData(csvText) {
             clientId: row[13] || 'N/D',
             architecture: row[14] || 'N/D',
             packageType: row[15] || 'N/D',
-            productName: row[17] || 'N/D'
+            productName: row[17] || 'N/D',
+            cpuMaxFreq: row[27] ? cleanNumber(row[27]) : null
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -2715,7 +2717,10 @@ function renderCharts() {
         SCORE_COLORS.cpuSingle.border,
         undefined,
         cpuSingleXMin,
-        cpuSingleRuns.map(r => getDisplayName(r))
+        cpuSingleRuns.map(r => getDisplayName(r)),
+        null,
+        null,
+        cpuSingleRuns.map(r => r.cpuMaxFreq)
     );
     
     // 2. CPU Multi Thread Top 10 Chart (best per CPU model)
@@ -2744,7 +2749,10 @@ function renderCharts() {
         SCORE_COLORS.cpuMulti.border,
         undefined,
         cpuMultiXMin,
-        cpuMultiRuns.map(r => getDisplayName(r))
+        cpuMultiRuns.map(r => getDisplayName(r)),
+        null,
+        null,
+        cpuMultiRuns.map(r => r.cpuMaxFreq)
     );
     
     // 3. GPU Performance Top 10 Chart (best per client)
@@ -4245,7 +4253,7 @@ function updateSectionInsights() {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, cpuFreqs) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -4268,7 +4276,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 barPercentage: 0.65,
                 clientIds: clientIds,
                 cpus: cpus,
-                gpus: gpus
+                gpus: gpus,
+                cpuFreqs: cpuFreqs
             }]
         },
         options: {
@@ -4298,6 +4307,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     callbacks: {
                         label: function(context) {
                             const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`];
+                            const freq = context.dataset.cpuFreqs && context.dataset.cpuFreqs[context.dataIndex];
+                            if (freq) lines.push(`CPU Max Freq: ${freq.toLocaleString()} MHz`);
                             if (context.dataset.cpus && context.dataset.cpus[context.dataIndex]) {
                                 lines.push(`CPU: ${context.dataset.cpus[context.dataIndex]}`);
                             }
@@ -4351,7 +4362,29 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     }
                 }
             }
-        }
+        },
+        plugins: [{
+            id: 'cpuFreqLabels',
+            afterDraw(chart) {
+                const freqs = chart.data.datasets[0].cpuFreqs;
+                if (!freqs) return;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) return;
+                const c = chart.ctx;
+                c.save();
+                c.font = 'bold 10px Inter, sans-serif';
+                c.textAlign = 'center';
+                c.textBaseline = 'middle';
+                meta.data.forEach((bar, i) => {
+                    const freq = freqs[i];
+                    if (!freq) return;
+                    if (bar.x < 1 || bar.height < 1) return;
+                    c.fillStyle = 'rgba(255,255,255,0.85)';
+                    c.fillText(`${freq} MHz`, bar.x, bar.y);
+                });
+                c.restore();
+            }
+        }]
     });
 }
 
