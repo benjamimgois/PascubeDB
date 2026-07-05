@@ -3525,7 +3525,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
     const ctx = canvas.getContext('2d');
 
     // Group points by version (dataset) and hardware (label)
-    const labels = scatterData.hwLabels;
+    const maxItems = canvasId.includes('os') ? 15 : 12;
+    const labels = scatterData.hwLabels.slice(0, maxItems);
     const verSet = new Set(scatterData.points.map(p => p.label || p.os || ''));
     const palettes = [
         'rgba(99, 102, 241, 0.85)', 'rgba(16, 185, 129, 0.85)',
@@ -3592,7 +3593,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
 }
 
 // OS vs Hardware Scatter Data Aggregation
-function getOSvsHardwareScatterData(data, maxHardware = 15, minSamples = 3) {
+function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
     const groups = {};
     data.forEach(r => {
         const key = `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`;
@@ -3642,7 +3643,7 @@ function getOSvsHardwareScatterData(data, maxHardware = 15, minSamples = 3) {
 }
 
 // Kernel vs CPU Score Scatter Data
-function getKernelScatterData(data, maxHardware = 12, minSamples = 2) {
+function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
     const groups = {};
     data.forEach(r => {
         const k = r.kernel || '';
@@ -3693,19 +3694,15 @@ function getKernelScatterData(data, maxHardware = 12, minSamples = 2) {
 }
 
 // Driver vs Hardware Scatter Data — GPU model × GPU Score per driver version
-function getDriverScatterData(data, driverType, maxHardware = 12, minSamples = 2) {
+function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2) {
     const groups = {};
     data.forEach(r => {
         let version = null;
         if (driverType === 'mesa') {
-            const gpuLower = (r.gpu || '').toLowerCase();
-            if (gpuLower.includes('nvidia') || gpuLower.includes('rtx') || gpuLower.includes('geforce')) return;
             const d = r.driver || '';
             const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
             if (match) version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
         } else if (driverType === 'nvidia') {
-            const gpuLower = (r.gpu || '').toLowerCase();
-            if (!gpuLower.includes('nvidia') && !gpuLower.includes('rtx') && !gpuLower.includes('geforce')) return;
             const d = r.driver || '';
             if (d.includes('NVRM') || d.includes('NVIDIA')) {
                 const match = d.match(/(?:NVRM|NVIDIA).*?(\d+\.\d+)/i);
@@ -3714,7 +3711,7 @@ function getDriverScatterData(data, driverType, maxHardware = 12, minSamples = 2
         }
         if (!version) return;
         const key = normalizeGPU(r.gpu);
-        if (key === 'Unknown GPU' || key === 'N/D') return;
+        if (!key || key.trim() === '' || key === 'Unknown GPU' || key === 'N/D') return;
         if (!groups[key]) groups[key] = [];
         groups[key].push({ ...r, _driverVer: version });
     });
