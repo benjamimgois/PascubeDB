@@ -4798,7 +4798,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
             label: lbl, 
             data: pts, 
             _origData: hwEntries.map(([hw, hwPts]) => hwPts.find(p => p.label === lbl) || null),
-            minBarLength: isBaseline ? 0 : 3
+            minBarLength: isBaseline ? 0 : 6
         };
     });
 
@@ -4858,101 +4858,109 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
         plugins: [{
             id: 'deltaColors',
             beforeRender: function(chart) {
-                const ds = chart.data.datasets;
-                ds.forEach(d => {
-                    const colors = d.data.map(v => {
-                        if (isNaN(v)) return 'transparent';
-                        return v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+                try {
+                    const ds = chart.data.datasets;
+                    console.log("Diverging Bar Chart datasets:", JSON.stringify(ds.map(d => ({ label: d.label, data: d.data, minBarLength: d.minBarLength })), null, 2));
+                    ds.forEach(d => {
+                        const colors = d.data.map(v => {
+                            if (isNaN(v)) return 'transparent';
+                            return v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+                        });
+                        d.backgroundColor = colors;
+                        const borders = d.data.map(v => {
+                            if (isNaN(v)) return 'transparent';
+                            return v >= 0 ? '#10b981' : '#ef4444';
+                        });
+                        d.borderColor = borders;
+                        if (d.borderWidth === undefined) d.borderWidth = 1;
                     });
-                    d.backgroundColor = colors;
-                    const borders = d.data.map(v => {
-                        if (isNaN(v)) return 'transparent';
-                        return v >= 0 ? '#10b981' : '#ef4444';
-                    });
-                    d.borderColor = borders;
-                    if (d.borderWidth === undefined) d.borderWidth = 1;
-                });
+                } catch (e) {
+                    console.error("Error in deltaColors plugin:", e);
+                }
             }
         }, {
             id: 'baselineLine',
             afterDraw: function(chart) {
-                if (!chart.data.datasets.length) return;
-                const xScale = chart.scales.x;
-                const yScale = chart.scales.y;
-                if (!xScale || !yScale) return;
-                const zeroPx = xScale.getPixelForValue(0);
-                const ctx = chart.ctx;
-                ctx.save();
-                ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.moveTo(zeroPx, yScale.top);
-                const bl = chart.data._baselineLabel || '';
-                let lineColor = 'rgba(99, 102, 241, 0.5)';
-                if (bl) {
-                    const ds = chart.data.datasets.find(d => d.label === bl);
-                    if (ds && ds.backgroundColor && ds.backgroundColor.length > 0) {
-                        lineColor = ds.backgroundColor[0];
+                try {
+                    if (!chart.data.datasets.length) return;
+                    const xScale = chart.scales.x;
+                    const yScale = chart.scales.y;
+                    if (!xScale || !yScale) return;
+                    const zeroPx = xScale.getPixelForValue(0);
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    const bl = chart.data._baselineLabel || '';
+                    let lineColor = 'rgba(99, 102, 241, 0.5)';
+                    if (bl) {
+                        const ds = chart.data.datasets.find(d => d.label === bl);
+                        if (ds && ds.backgroundColor && ds.backgroundColor.length > 0) {
+                            lineColor = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[0] : ds.backgroundColor;
+                        }
                     }
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(zeroPx, yScale.top);
+                    ctx.lineTo(zeroPx, yScale.bottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = lineColor;
+                    ctx.font = 'bold 10px Inter, sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    if (bl) {
+                        ctx.fillText(bl, zeroPx + 6, yScale.top + 8);
+                    }
+                    ctx.restore();
+                } catch (e) {
+                    console.error("Error in baselineLine plugin:", e);
                 }
-                ctx.strokeStyle = lineColor;
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.moveTo(zeroPx, yScale.top);
-                ctx.lineTo(zeroPx, yScale.bottom);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.fillStyle = lineColor;
-                ctx.font = 'bold 10px Inter, sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'top';
-                if (bl) {
-                    ctx.fillText(bl, zeroPx + 6, yScale.top + 8);
-                }
-                ctx.restore();
             }
         }, {
             id: 'deltaLabels',
             afterDraw: function(chart) {
-                if (!chart.data.datasets.length) return;
-                const xScale = chart.scales.x;
-                const yScale = chart.scales.y;
-                if (!xScale || !yScale) return;
-                const ctx = chart.ctx;
-                ctx.save();
-                ctx.font = '10px Inter, sans-serif';
-                ctx.textBaseline = 'middle';
-                const basePx = xScale.getPixelForValue(0);
-                chart.data.datasets.forEach((ds, di) => {
-                    const dsMeta = chart.getDatasetMeta(di);
-                    if (!dsMeta || !dsMeta.data) return;
-                    dsMeta.data.forEach((bar, idx) => {
-                        const v = bar.$context.raw;
-                        if (isNaN(v)) return;
-                        const label = ds.label || '';
-                        if (label === chart.data._baselineLabel) return;
-                        const orig = ds._origData ? ds._origData[idx] : null;
-                        const count = orig && orig.count ? orig.count : 0;
-                        const y = bar.y;
-                        const x = basePx + (v >= 0 ? 4 : -4);
-                        ctx.textAlign = v >= 0 ? 'left' : 'right';
-                        ctx.fillStyle = 'rgba(243, 244, 246, 0.9)';
-                        ctx.fillText(label, x, y - 12);
-                        if (count > 0) {
-                            ctx.fillStyle = 'rgba(156, 163, 175, 0.85)';
-                            ctx.font = '9px Inter, sans-serif';
-                            const sampleText = 'Samples=' + count;
-                            const tw = ctx.measureText(sampleText).width;
-                            ctx.fillText(sampleText, x, y + 1);
-                            ctx.fillStyle = count >= 10 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
-                            ctx.font = '10px Inter, sans-serif';
-                            ctx.fillText(count >= 10 ? '\u25B2' : '\u25BC', x + (v >= 0 ? tw + 3 : -tw - 3), y + 1);
-                        }
+                try {
+                    if (!chart.data.datasets.length) return;
+                    const xScale = chart.scales.x;
+                    const yScale = chart.scales.y;
+                    if (!xScale || !yScale) return;
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.font = '10px Inter, sans-serif';
+                    ctx.textBaseline = 'middle';
+                    const basePx = xScale.getPixelForValue(0);
+                    chart.data.datasets.forEach((ds, di) => {
+                        const dsMeta = chart.getDatasetMeta(di);
+                        if (!dsMeta || !dsMeta.data) return;
+                        dsMeta.data.forEach((bar, idx) => {
+                            const v = ds.data[idx];
+                            if (v === undefined || v === null || isNaN(v)) return;
+                            const label = ds.label || '';
+                            if (label === chart.data._baselineLabel) return;
+                            const orig = ds._origData ? ds._origData[idx] : null;
+                            const count = orig && orig.count ? orig.count : 0;
+                            const y = bar.y;
+                            const x = basePx + (v >= 0 ? 4 : -4);
+                            ctx.textAlign = v >= 0 ? 'left' : 'right';
+                            ctx.fillStyle = 'rgba(243, 244, 246, 0.9)';
+                            ctx.fillText(label, x, y - 12);
+                            if (count > 0) {
+                                ctx.fillStyle = 'rgba(156, 163, 175, 0.85)';
+                                ctx.font = '9px Inter, sans-serif';
+                                const sampleText = 'Samples=' + count;
+                                const tw = ctx.measureText(sampleText).width;
+                                ctx.fillText(sampleText, x, y + 1);
+                                ctx.fillStyle = count >= 10 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
+                                ctx.font = '10px Inter, sans-serif';
+                                ctx.fillText(count >= 10 ? '\u25B2' : '\u25BC', x + (v >= 0 ? tw + 3 : -tw - 3), y + 1);
+                            }
+                        });
                     });
-                });
-                ctx.restore();
+                    ctx.restore();
+                } catch (e) {
+                    console.error("Error in deltaLabels plugin:", e);
+                }
             }
         }]
     });
