@@ -3596,7 +3596,11 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
 function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
     const groups = {};
     data.forEach(r => {
-        const key = `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`;
+        const cpuKey = normalizeCPU(r.cpu);
+        const gpuKey = normalizeGPU(r.gpu);
+        if (!cpuKey || cpuKey.trim() === '' || cpuKey === 'Unknown CPU' || cpuKey === 'N/D') return;
+        if (!gpuKey || gpuKey.trim() === '' || gpuKey === 'Unknown GPU' || gpuKey === 'N/D') return;
+        const key = `${cpuKey} + ${gpuKey}`;
         if (!groups[key]) groups[key] = [];
         groups[key].push(r);
     });
@@ -3651,7 +3655,7 @@ function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
         if (!match) return;
         const version = match[1];
         const key = normalizeCPU(r.cpu);
-        if (key === 'Unknown CPU' || key === 'N/D') return;
+        if (!key || key.trim() === '' || key === 'Unknown CPU' || key === 'N/D') return;
         if (!groups[key]) groups[key] = [];
         groups[key].push({ ...r, _kernelVer: version });
     });
