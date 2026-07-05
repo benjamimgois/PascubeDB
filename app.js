@@ -2689,11 +2689,18 @@ function renderCharts() {
         mainRuns.map(r => r.gpu)
     );
 
-    // 1. CPU Single Thread Top 10 Chart (best per client)
-    const cpuSingleRuns = dedupeBestPerClient(
-        benchmarkData.filter(r => r.cpuSingle !== null),
-        'cpuSingle'
-    ).slice(0, 10);
+    // 1. CPU Single Thread Top 10 Chart (best per CPU model)
+    const cpuSingleBest = {};
+    benchmarkData.filter(r => r.cpuSingle !== null).forEach(r => {
+        const key = normalizeCPU(r.cpu);
+        if (!key || key === 'Unknown CPU') return;
+        if (!cpuSingleBest[key] || r.cpuSingle > cpuSingleBest[key].cpuSingle) {
+            cpuSingleBest[key] = r;
+        }
+    });
+    const cpuSingleRuns = Object.values(cpuSingleBest)
+        .sort((a, b) => b.cpuSingle - a.cpuSingle)
+        .slice(0, 10);
     
     const cpuSingleScores = cpuSingleRuns.map(r => r.cpuSingle);
     const cpuSingleMin = cpuSingleScores.length > 0 ? Math.min(...cpuSingleScores) : 0;
@@ -2711,11 +2718,18 @@ function renderCharts() {
         cpuSingleRuns.map(r => getDisplayName(r))
     );
     
-    // 2. CPU Multi Thread Top 10 Chart (best per client)
-    const cpuMultiRuns = dedupeBestPerClient(
-        benchmarkData.filter(r => r.cpuMulti !== null),
-        'cpuMulti'
-    ).slice(0, 10);
+    // 2. CPU Multi Thread Top 10 Chart (best per CPU model)
+    const cpuMultiBest = {};
+    benchmarkData.filter(r => r.cpuMulti !== null).forEach(r => {
+        const key = normalizeCPU(r.cpu);
+        if (!key || key === 'Unknown CPU') return;
+        if (!cpuMultiBest[key] || r.cpuMulti > cpuMultiBest[key].cpuMulti) {
+            cpuMultiBest[key] = r;
+        }
+    });
+    const cpuMultiRuns = Object.values(cpuMultiBest)
+        .sort((a, b) => b.cpuMulti - a.cpuMulti)
+        .slice(0, 10);
         
     const cpuMultiScores = cpuMultiRuns.map(r => r.cpuMulti);
     const cpuMultiMin = cpuMultiScores.length > 0 ? Math.min(...cpuMultiScores) : 0;
