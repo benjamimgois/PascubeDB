@@ -825,8 +825,8 @@ function processGvizData(jsonResponse) {
             architecture: getVal(14) || 'N/D',
             packageType: getVal(15) || 'N/D',
             productName: getVal(17) || 'N/D',
-            cpuMaxFreq: getVal(27) ? cleanNumber(getVal(27)) : null,
-            gpuMaxFreq: getVal(28) ? cleanNumber(getVal(28)) : null
+            cpuMaxFreq: cleanNumber(getVal(27)),
+            gpuMaxFreq: cleanNumber(getVal(28))
         };
     }).filter(row => row !== null);
     
@@ -990,8 +990,8 @@ function processCSVData(csvText) {
             architecture: row[14] || 'N/D',
             packageType: row[15] || 'N/D',
             productName: row[17] || 'N/D',
-            cpuMaxFreq: row[27] ? cleanNumber(row[27]) : null,
-            gpuMaxFreq: row[28] ? cleanNumber(row[28]) : null
+            cpuMaxFreq: cleanNumber(row[27]),
+            gpuMaxFreq: cleanNumber(row[28])
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -1803,8 +1803,10 @@ function getTopHandheldRuns(data, limit = 10) {
         .sort((a, b) => b.mainScore - a.mainScore)
         .slice(0, limit)
         .map(r => ({
-            label: r.user && r.user !== 'Anonymous' ? `${r.user} (${normalizeCPU(r.cpu)})` : normalizeCPU(r.cpu),
-            score: r.mainScore
+            label: normalizeCPU(r.cpu),
+            score: r.mainScore,
+            cpuMaxFreq: r.cpuMaxFreq,
+            userName: r.user && r.user !== 'Anonymous' ? r.user : null
         }));
 }
 
@@ -1825,7 +1827,8 @@ function getTopSbcRuns(data, limit = 10) {
         .slice(0, limit)
         .map(r => ({
             label: getSbcLabel(r),
-            score: r.mainScore
+            score: r.mainScore,
+            cpuMaxFreq: r.cpuMaxFreq
         }));
 }
 
@@ -1861,8 +1864,10 @@ function getTopNotebookRuns(data, limit = 10) {
         .sort((a, b) => b.mainScore - a.mainScore)
         .slice(0, limit)
         .map(r => ({
-            label: r.user && r.user !== 'Anonymous' ? `${r.user} (${normalizeCPU(r.cpu)})` : normalizeCPU(r.cpu),
-            score: r.mainScore
+            label: normalizeCPU(r.cpu),
+            score: r.mainScore,
+            cpuMaxFreq: r.cpuMaxFreq,
+            userName: r.user && r.user !== 'Anonymous' ? r.user : null
         }));
 }
 
@@ -2719,7 +2724,10 @@ function renderCharts() {
         mainXMin,
         mainRuns.map(r => getDisplayName(r)),
         mainRuns.map(r => r.cpu),
-        mainRuns.map(r => r.gpu)
+        mainRuns.map(r => r.gpu),
+        mainRuns.map(r => r.cpuMaxFreq),
+        'CPU Max Freq',
+        mainRuns.map(r => r.gpuMaxFreq)
     );
 
     // 1. CPU Single Thread Top 10 Chart (best per CPU model)
@@ -3136,7 +3144,14 @@ function renderCharts() {
             runsData.map(h => h.score),
             'Main Score',
             SCORE_COLORS.portableRuns.bg,
-            SCORE_COLORS.portableRuns.border
+            SCORE_COLORS.portableRuns.border,
+            undefined,
+            undefined,
+            runsData.map(h => h.userName),
+            runsData.map(h => h.cpuMaxFreq ? normalizeCPU(h.label) : null),
+            null,
+            runsData.map(h => h.cpuMaxFreq),
+            'CPU Max Freq'
         );
 
         // OS distribution
@@ -4305,7 +4320,7 @@ function updateSectionInsights() {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -4330,7 +4345,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 cpus: cpus,
                 gpus: gpus,
                 freqs: freqs,
-                freqLabel: freqLabel
+                freqLabel: freqLabel,
+                gpuFreqs: gpuFreqs
             }]
         },
         options: {
@@ -4362,8 +4378,12 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`];
                             const freq = context.dataset.freqs && context.dataset.freqs[context.dataIndex];
                             if (freq) {
-                                const fl = context.dataset.freqLabel || 'Max Freq';
+                                const fl = context.dataset.freqLabel || 'CPU Max Freq';
                                 lines.push(`${fl}: ${freq.toLocaleString()} MHz`);
+                            }
+                            const gpuFreq = context.dataset.gpuFreqs && context.dataset.gpuFreqs[context.dataIndex];
+                            if (gpuFreq) {
+                                lines.push(`GPU Max Freq: ${gpuFreq.toLocaleString()} MHz`);
                             }
                             if (context.dataset.cpus && context.dataset.cpus[context.dataIndex]) {
                                 lines.push(`CPU: ${context.dataset.cpus[context.dataIndex]}`);
@@ -4431,12 +4451,26 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 c.font = 'bold 10px Inter, sans-serif';
                 c.textAlign = 'center';
                 c.textBaseline = 'middle';
+                const xScale = chart.scales.x;
+                const baseVal = xScale.min || 0;
+                const vals = chart.data.datasets[0].data;
+                const gpuFreqs = chart.data.datasets[0].gpuFreqs;
                 meta.data.forEach((bar, i) => {
                     const freq = freqs[i];
-                    if (!freq) return;
                     if (bar.x < 1 || bar.height < 1) return;
-                    c.fillStyle = 'rgba(255,255,255,0.85)';
-                    c.fillText(`${freq} MHz`, bar.x, bar.y);
+                    const midVal = (vals[i] + baseVal) / 2;
+                    const midX = xScale.getPixelForValue(midVal);
+                    const gpuFreq = gpuFreqs ? gpuFreqs[i] : null;
+                    if (gpuFreq) {
+                        c.fillStyle = 'rgba(100,200,255,0.9)';
+                        const cpuLabel = freq ? `${freq}` : '';
+                        const gpuLabel = `GPU: ${gpuFreq} MHz`;
+                        const full = cpuLabel ? `${cpuLabel} / ${gpuLabel}` : gpuLabel;
+                        c.fillText(full, midX, bar.y);
+                    } else if (freq) {
+                        c.fillStyle = 'rgba(255,255,255,0.85)';
+                        c.fillText(`${freq} MHz`, midX, bar.y);
+                    }
                 });
                 c.restore();
             }
