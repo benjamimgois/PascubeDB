@@ -822,6 +822,12 @@
                         <option value="">ALL VRAM</option>
                     </select>
                 </div>
+                <div class="select-wrapper">
+                    <i data-lucide="terminal" class="filter-icon"></i>
+                    <select id="kernel-filter">
+                        <option value="">ALL Kernel</option>
+                    </select>
+                </div>
             </div>
 
             <div class="table-card modal-table-card">
@@ -836,6 +842,7 @@
                                 <th data-sort="gpu" class="sortable">GPU <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="vram" class="sortable">VRAM <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="os" class="sortable">OS <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="kernel" class="sortable">Kernel <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="mainScore" class="sortable">Main Score <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="cpuSingle" class="sortable">CPU Single <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="cpuMulti" class="sortable">CPU Multi <i data-lucide="chevrons-up-down"></i></th>
@@ -846,7 +853,7 @@
                         <tbody id="leaderboard-body">
                             <!-- Injected by JavaScript -->
                             <tr>
-                                <td colspan="12" class="loading-state">
+                                <td colspan="13" class="loading-state">
                                     <div class="spinner"></div>
                                     <p>Loading benchmark data...</p>
                                 </td>

@@ -660,6 +660,7 @@ function setupEventListeners() {
     document.getElementById('gpu-filter').addEventListener('change', handleFilterChange);
     document.getElementById('ram-filter').addEventListener('change', handleFilterChange);
     document.getElementById('vram-filter').addEventListener('change', handleFilterChange);
+    document.getElementById('kernel-filter').addEventListener('change', handleFilterChange);
     
     // Sort columns
     const headers = document.querySelectorAll('#leaderboard-table th.sortable');
@@ -1068,6 +1069,7 @@ function populateFilters() {
     const gpuFilter = document.getElementById('gpu-filter');
     const ramFilter = document.getElementById('ram-filter');
     const vramFilter = document.getElementById('vram-filter');
+    const kernelFilter = document.getElementById('kernel-filter');
     
     // Save current selected values
     const osSelected = osFilter.value;
@@ -1075,12 +1077,14 @@ function populateFilters() {
     const gpuSelected = gpuFilter.value;
     const ramSelected = ramFilter.value;
     const vramSelected = vramFilter.value;
+    const kernelSelected = kernelFilter.value;
     
     const osList = new Set();
     const cpuList = new Set();
     const gpuList = new Set();
     const ramList = new Set();
     const vramList = new Set();
+    const kernelList = new Set();
     
     benchmarkData.forEach(row => {
         if (row.os && row.os.trim() !== '' && row.os !== 'N/D') {
@@ -1097,6 +1101,10 @@ function populateFilters() {
         }
         if (row.vram && row.vram.trim() !== '' && row.vram !== 'N/D') {
             vramList.add(row.vram.trim());
+        }
+        if (row.kernel && row.kernel.trim() !== '' && row.kernel !== 'N/D') {
+            const match = row.kernel.trim().match(/^(\d+\.\d+)/);
+            if (match) kernelList.add(match[1]);
         }
     });
     
@@ -1159,6 +1167,22 @@ function populateFilters() {
     if (vramList.has(vramSelected)) {
         vramFilter.value = vramSelected;
     }
+    
+    // 6. Populate Kernel (numeric sort)
+    kernelFilter.innerHTML = '<option value="">ALL Kernel</option>';
+    Array.from(kernelList).sort((a, b) => {
+        const [aMaj, aMin] = a.split('.').map(Number);
+        const [bMaj, bMin] = b.split('.').map(Number);
+        return bMaj - aMaj || bMin - aMin;
+    }).forEach(kv => {
+        const option = document.createElement('option');
+        option.value = kv;
+        option.textContent = `Linux ${kv}`;
+        kernelFilter.appendChild(option);
+    });
+    if (kernelList.has(kernelSelected)) {
+        kernelFilter.value = kernelSelected;
+    }
 }
 
 // Handle Filters
@@ -1169,6 +1193,7 @@ function handleFilterChange() {
     const gpuSelection = document.getElementById('gpu-filter').value;
     const ramSelection = document.getElementById('ram-filter').value;
     const vramSelection = document.getElementById('vram-filter').value;
+    const kernelSelection = document.getElementById('kernel-filter').value;
     
     filteredData = benchmarkData.filter(row => {
         // Search filter
@@ -1176,6 +1201,7 @@ function handleFilterChange() {
             row.cpu.toLowerCase().includes(searchQuery) ||
             row.gpu.toLowerCase().includes(searchQuery) ||
             row.os.toLowerCase().includes(searchQuery) ||
+            row.kernel.toLowerCase().includes(searchQuery) ||
             row.user.toLowerCase().includes(searchQuery) ||
             (row.clientId && row.clientId.toLowerCase().includes(searchQuery));
             
@@ -1185,8 +1211,13 @@ function handleFilterChange() {
         const matchesGpu = !gpuSelection || row.gpu === gpuSelection;
         const matchesRam = !ramSelection || row.ram === ramSelection;
         const matchesVram = !vramSelection || row.vram === vramSelection;
+        let matchesKernel = !kernelSelection;
+        if (!matchesKernel && row.kernel && row.kernel !== 'N/D') {
+            const match = row.kernel.match(/^(\d+\.\d+)/);
+            if (match) matchesKernel = match[1] === kernelSelection;
+        }
         
-        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram;
+        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel;
     });
     
     // Keep current sort
@@ -1313,6 +1344,10 @@ function sortData(column, direction) {
                 valA = a.os.toLowerCase();
                 valB = b.os.toLowerCase();
                 break;
+            case 'kernel':
+                valA = a.kernel.toLowerCase();
+                valB = b.kernel.toLowerCase();
+                break;
             case 'mainScore':
                 valA = a.mainScore || 0;
                 valB = b.mainScore || 0;
@@ -1351,7 +1386,7 @@ function renderTable() {
     if (filteredData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="12" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                <td colspan="13" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     No benchmark results match your search or filters.
                 </td>
             </tr>
@@ -1404,6 +1439,7 @@ function renderTable() {
             <td title="${row.gpu}">${row.gpu}</td>
             <td>${row.vram}</td>
             <td title="${row.os}">${row.os}</td>
+            <td title="${row.kernel}">${row.kernel}</td>
             <td class="score-cell main">${row.mainScore ? row.mainScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
             <td class="score-cell secondary">${row.cpuSingle ? row.cpuSingle.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
             <td class="score-cell secondary">${row.cpuMulti ? row.cpuMulti.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>

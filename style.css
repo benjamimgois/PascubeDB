@@ -1167,13 +1167,13 @@ h1, h2, h3, h4 {
     padding: 0.65rem 2.5rem 0.65rem 2.5rem;
     color: var(--text-primary);
     font-family: var(--font-body);
-    font-size: 0.9rem;
+    font-size: 0.78rem;
     outline: none;
     cursor: pointer;
     appearance: none;
     -webkit-appearance: none;
     transition: var(--transition-fast);
-    width: 220px;
+    width: 190px;
 }
 
 .select-wrapper select:focus {
@@ -1181,15 +1181,15 @@ h1, h2, h3, h4 {
 }
 
 #os-filter {
-    width: 170px;
+    width: 150px;
 }
 
 #cpu-filter, #gpu-filter {
-    width: 220px;
+    width: 190px;
 }
 
-#ram-filter, #vram-filter {
-    width: 170px;
+#ram-filter, #vram-filter, #kernel-filter {
+    width: 150px;
 }
 
 .leaderboard-filters #search-input,
@@ -1530,7 +1530,7 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     -webkit-backdrop-filter: blur(20px);
     border-radius: 20px;
     padding: 0;
-    max-width: 1300px;
+    max-width: 1450px;
     width: 90vw;
     height: 85vh;
     max-height: 85vh;
@@ -1634,20 +1634,28 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
 .modal-dialog td:nth-child(2),
 .modal-dialog td:nth-child(4),
 .modal-dialog td:nth-child(6),
-.modal-dialog td:nth-child(8),
 .modal-dialog td:nth-child(9),
 .modal-dialog td:nth-child(10),
 .modal-dialog td:nth-child(11),
+.modal-dialog td:nth-child(12),
 .modal-dialog th:nth-child(1),
 .modal-dialog th:hover:nth-child(1),
 .modal-dialog th:nth-child(2),
 .modal-dialog th:nth-child(4),
 .modal-dialog th:nth-child(6),
-.modal-dialog th:nth-child(8),
 .modal-dialog th:nth-child(9),
 .modal-dialog th:nth-child(10),
-.modal-dialog th:nth-child(11) {
+.modal-dialog th:nth-child(11),
+.modal-dialog th:nth-child(12) {
     white-space: nowrap;
+}
+
+.modal-dialog td:nth-child(8),
+.modal-dialog th:nth-child(8) {
+    white-space: nowrap;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Centering and displaying the modal properly */
