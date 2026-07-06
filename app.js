@@ -474,6 +474,8 @@ function renderSoftwareDeltaChart(type) {
     const chartId = BASELINE_CHART_MAP[type];
 
     if (type === 'os' || type === 'kernel' || type === 'mesa' || type === 'nvidia') {
+        const pagEl = document.getElementById(`pag-${chartId}`);
+        if (pagEl) pagEl.style.display = 'none';
         const hw = modelSelection[type];
         if (!hw) return;
         const hwPoints = data.points.filter(p => p.hardwareLabel === hw);
@@ -581,6 +583,7 @@ function setupChartVizControls() {
                                     const data = lastSoftwareData[type];
                                     if (data && document.getElementById(chartId)) {
                                         if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                                        chartPageState[type] = 0;
                                         renderHardwareComparisonBars(chartId, data);
                                     }
                                 }
@@ -591,6 +594,7 @@ function setupChartVizControls() {
                             const data = lastSoftwareData[type];
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                            chartPageState[type] = 0;
                             if (chartVizState[type].normalize) {
                                 renderHardwareComparisonBars(chartId, computeNormalizedData(data));
                             } else {
@@ -617,6 +621,7 @@ function setupChartVizControls() {
                                     const data = lastSoftwareData[type];
                                     if (data && document.getElementById(chartId)) {
                                         if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                                        chartPageState[type] = 0;
                                         renderHardwareComparisonBars(chartId, data);
                                     }
                                 }
@@ -627,6 +632,7 @@ function setupChartVizControls() {
                             const data = lastSoftwareData[type];
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                            chartPageState[type] = 0;
                             if (vs.normalize) {
                                 renderHardwareComparisonBars(chartId, computeNormalizedData(data));
                             } else {
@@ -3601,6 +3607,9 @@ function renderCharts() {
 
 }
 
+const CHART_PAGE_MAP = { osHardwareScatterChart: 'os', mesaDriverScatterChart: 'mesa', nvidiaDriverScatterChart: 'nvidia', kernelScatterChart: 'kernel' };
+let chartPageState = { os: 0, mesa: 0, nvidia: 0, kernel: 0 };
+
 // Grouped Horizontal Bars for Hardware Comparison
 function renderHardwareComparisonBars(canvasId, scatterData) {
     if (!scatterData || !scatterData.points || scatterData.points.length === 0) return;
@@ -3610,9 +3619,13 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Group points by version (dataset) and hardware (label)
-    const maxItems = canvasId.includes('os') ? 15 : 12;
-    const labels = scatterData.hwLabels.slice(0, maxItems);
+    const PER_PAGE = 5;
+    const key = CHART_PAGE_MAP[canvasId];
+    const totalHw = scatterData.hwLabels.length;
+    const page = Math.min(chartPageState[key] || 0, Math.max(0, Math.ceil(totalHw / PER_PAGE) - 1));
+    chartPageState[key] = page;
+    const labels = scatterData.hwLabels.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
     const verSet = new Set(scatterData.points.map(p => p.label || p.os || ''));
     const palettes = [
         'rgba(99, 102, 241, 0.85)', 'rgba(16, 185, 129, 0.85)',
@@ -3662,7 +3675,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
                 }}
             },
             plugins: {
-                legend: { display: true, position: 'top', labels: { color: '#f3f4f6', font: { family: "'Inter', sans-serif", size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+                legend: { display: true, position: 'bottom', labels: { color: '#f3f4f6', font: { family: "'Inter', sans-serif", size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
                     padding: 10, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1, cornerRadius: 8, displayColors: true,
@@ -3676,6 +3689,36 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             }
         }
     });
+
+    chartInstances[canvasId].__scatterData = scatterData;
+
+    // Pagination controls
+    const chartArea = canvas.parentElement;
+    const headerEl = chartArea.closest('.chart-container-wrapper')?.querySelector('.chart-header');
+    let pagEl = document.getElementById(`pag-${canvasId}`);
+    if (!pagEl && headerEl) {
+        pagEl = document.createElement('div');
+        pagEl.id = `pag-${canvasId}`;
+        pagEl.className = 'chart-pagination';
+        pagEl.addEventListener('click', function(e) {
+            const btn = e.target.closest('.pag-btn');
+            if (!btn || btn.classList.contains('pag-disabled')) return;
+            const k = CHART_PAGE_MAP[canvasId];
+            chartPageState[k] += (btn.dataset.dir === 'prev' ? -1 : 1);
+            const sd = chartInstances[canvasId] && chartInstances[canvasId].__scatterData;
+            if (sd) renderHardwareComparisonBars(canvasId, sd);
+        });
+        headerEl.style.position = 'relative';
+        headerEl.appendChild(pagEl);
+    }
+    const totalPages = Math.ceil(totalHw / PER_PAGE);
+    if (totalPages <= 1) { pagEl.style.display = 'none'; return; }
+    pagEl.style.display = 'flex';
+    pagEl.innerHTML = `
+        <button class="pag-btn ${page <= 0 ? 'pag-disabled' : ''}" data-dir="prev">‹</button>
+        <span class="pag-info">${page + 1}/${totalPages}</span>
+        <button class="pag-btn ${page >= totalPages - 1 ? 'pag-disabled' : ''}" data-dir="next">›</button>
+    `;
 }
 
 // OS vs Hardware Scatter Data Aggregation
@@ -4423,6 +4466,8 @@ function removeSkeletonLoading() {
 // Render all Software Comparison charts respecting vizState
 function renderSoftwareCharts() {
     if (!benchmarkData || benchmarkData.length === 0) return;
+
+    chartPageState = { os: 0, mesa: 0, nvidia: 0, kernel: 0 };
 
     ['osHardwareScatterChart', 'mesaDriverScatterChart', 'nvidiaDriverScatterChart', 'kernelScatterChart'].forEach(id => {
         if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
