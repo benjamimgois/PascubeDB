@@ -823,7 +823,8 @@ function processGvizData(jsonResponse) {
             architecture: getVal(14) || 'N/D',
             packageType: getVal(15) || 'N/D',
             productName: getVal(17) || 'N/D',
-            cpuMaxFreq: getVal(27) ? cleanNumber(getVal(27)) : null
+            cpuMaxFreq: getVal(27) ? cleanNumber(getVal(27)) : null,
+            gpuMaxFreq: getVal(28) ? cleanNumber(getVal(28)) : null
         };
     }).filter(row => row !== null);
     
@@ -987,7 +988,8 @@ function processCSVData(csvText) {
             architecture: row[14] || 'N/D',
             packageType: row[15] || 'N/D',
             productName: row[17] || 'N/D',
-            cpuMaxFreq: row[27] ? cleanNumber(row[27]) : null
+            cpuMaxFreq: row[27] ? cleanNumber(row[27]) : null,
+            gpuMaxFreq: row[28] ? cleanNumber(row[28]) : null
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -1830,24 +1832,20 @@ function getTopNotebookRuns(data, limit = 10) {
 // Get top CPUs by category (Notebook/Handheld/SBC) by average CPU Single score
 function getTopCategoryCPUs(data, category, limit = 10) {
     const catData = data.filter(r => classifyDevice(r) === category && r.cpuSingle !== null);
-    const groups = {};
+    const best = {};
 
     catData.forEach(r => {
         const name = normalizeCPU(r.cpu);
-        if (name && name !== 'Unknown CPU' && name !== 'N/D') {
-            if (!groups[name]) groups[name] = [];
-            groups[name].push(r);
+        if (!name || name === 'Unknown CPU' || name === 'N/D') return;
+        if (!best[name] || r.cpuSingle > best[name].cpuSingle) {
+            best[name] = r;
         }
     });
 
-    return Object.entries(groups)
-        .map(([name, runs]) => {
-            const avg = Math.round(runs.reduce((sum, r) => sum + r.cpuSingle, 0) / runs.length);
-            const bestRun = runs.reduce((best, current) => current.cpuSingle > best.cpuSingle ? current : best, runs[0]);
-            return { name, avg, displayName: getDisplayName(bestRun) };
-        })
-        .sort((a, b) => b.avg - a.avg)
-        .slice(0, limit);
+    return Object.values(best)
+        .sort((a, b) => b.cpuSingle - a.cpuSingle)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq }));
 }
 
 // Get top GPUs by category (Notebook/Handheld/SBC) by average GPU score
@@ -1868,23 +1866,19 @@ function getTopCategoryGPUs(data, category, limit = 10) {
         return true;
     });
 
-    const groups = {};
+    const best = {};
     catData.forEach(r => {
         const name = normalizeGPU(r.gpu);
-        if (name && name !== 'Unknown GPU' && name !== 'N/D') {
-            if (!groups[name]) groups[name] = [];
-            groups[name].push(r);
+        if (!name || name === 'Unknown GPU' || name === 'N/D') return;
+        if (!best[name] || r.gpuScore > best[name].gpuScore) {
+            best[name] = r;
         }
     });
 
-    return Object.entries(groups)
-        .map(([name, runs]) => {
-            const avg = Math.round(runs.reduce((sum, r) => sum + r.gpuScore, 0) / runs.length);
-            const bestRun = runs.reduce((best, current) => current.gpuScore > best.gpuScore ? current : best, runs[0]);
-            return { name, avg, displayName: getDisplayName(bestRun) };
-        })
-        .sort((a, b) => b.avg - a.avg)
-        .slice(0, limit);
+    return Object.values(best)
+        .sort((a, b) => b.gpuScore - a.gpuScore)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq }));
 }
 
 // Helper to get CPU Brand distribution
@@ -2720,7 +2714,8 @@ function renderCharts() {
         cpuSingleRuns.map(r => getDisplayName(r)),
         null,
         null,
-        cpuSingleRuns.map(r => r.cpuMaxFreq)
+        cpuSingleRuns.map(r => r.cpuMaxFreq),
+        'CPU Max Freq'
     );
     
     // 2. CPU Multi Thread Top 10 Chart (best per CPU model)
@@ -2752,14 +2747,22 @@ function renderCharts() {
         cpuMultiRuns.map(r => getDisplayName(r)),
         null,
         null,
-        cpuMultiRuns.map(r => r.cpuMaxFreq)
+        cpuMultiRuns.map(r => r.cpuMaxFreq),
+        'CPU Max Freq'
     );
     
-    // 3. GPU Performance Top 10 Chart (best per client)
-    const gpuRuns = dedupeBestPerClient(
-        benchmarkData.filter(r => r.gpuScore !== null),
-        'gpuScore'
-    ).slice(0, 10);
+    // 3. GPU Performance Top 10 Chart (best per GPU model)
+    const gpuBest = {};
+    benchmarkData.filter(r => r.gpuScore !== null).forEach(r => {
+        const key = normalizeGPU(r.gpu);
+        if (!key || key === 'Unknown GPU') return;
+        if (!gpuBest[key] || r.gpuScore > gpuBest[key].gpuScore) {
+            gpuBest[key] = r;
+        }
+    });
+    const gpuRuns = Object.values(gpuBest)
+        .sort((a, b) => b.gpuScore - a.gpuScore)
+        .slice(0, 10);
         
     renderHorizontalBarChart(
         'gpuChart',
@@ -2770,7 +2773,11 @@ function renderCharts() {
         SCORE_COLORS.gpu.border,
         undefined,
         undefined,
-        gpuRuns.map(r => getDisplayName(r))
+        gpuRuns.map(r => getDisplayName(r)),
+        null,
+        null,
+        gpuRuns.map(r => r.gpuMaxFreq),
+        'GPU Max Freq'
     );
 
     // 4. Top 10 CPU - Most Used Chart
@@ -3119,13 +3126,17 @@ function renderCharts() {
         renderHorizontalBarChart(
             cpuChartId,
             cpuLabels,
-            cpuData.map(c => c.avg),
-            'Avg CPU Single Score',
+            cpuData.map(c => c.score),
+            'CPU Single Score',
             'rgba(99, 102, 241, 0.85)',
             '#818cf8',
             undefined,
             undefined,
-            cpuData.map(c => c.displayName)
+            cpuData.map(c => c.displayName),
+            null,
+            null,
+            cpuData.map(c => c.cpuMaxFreq),
+            'CPU Max Freq'
         );
 
         const gpuData = getTopCategoryGPUs(benchmarkData, category, 10);
@@ -3136,13 +3147,17 @@ function renderCharts() {
         renderHorizontalBarChart(
             gpuChartId,
             gpuLabels,
-            gpuData.map(g => g.avg),
-            'Avg GPU Score',
+            gpuData.map(g => g.score),
+            'GPU Score',
             SCORE_COLORS.gpu.bg,
             SCORE_COLORS.gpu.border,
             undefined,
             undefined,
-            gpuData.map(g => g.displayName)
+            gpuData.map(g => g.displayName),
+            null,
+            null,
+            gpuData.map(g => g.gpuMaxFreq),
+            'GPU Max Freq'
         );
     }
 
@@ -4253,7 +4268,7 @@ function updateSectionInsights() {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, cpuFreqs) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -4277,7 +4292,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 clientIds: clientIds,
                 cpus: cpus,
                 gpus: gpus,
-                cpuFreqs: cpuFreqs
+                freqs: freqs,
+                freqLabel: freqLabel
             }]
         },
         options: {
@@ -4307,8 +4323,11 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     callbacks: {
                         label: function(context) {
                             const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`];
-                            const freq = context.dataset.cpuFreqs && context.dataset.cpuFreqs[context.dataIndex];
-                            if (freq) lines.push(`CPU Max Freq: ${freq.toLocaleString()} MHz`);
+                            const freq = context.dataset.freqs && context.dataset.freqs[context.dataIndex];
+                            if (freq) {
+                                const fl = context.dataset.freqLabel || 'Max Freq';
+                                lines.push(`${fl}: ${freq.toLocaleString()} MHz`);
+                            }
                             if (context.dataset.cpus && context.dataset.cpus[context.dataIndex]) {
                                 lines.push(`CPU: ${context.dataset.cpus[context.dataIndex]}`);
                             }
@@ -4364,9 +4383,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
             }
         },
         plugins: [{
-            id: 'cpuFreqLabels',
+            id: 'freqLabels',
             afterDraw(chart) {
-                const freqs = chart.data.datasets[0].cpuFreqs;
+                const freqs = chart.data.datasets[0].freqs;
                 if (!freqs) return;
                 const meta = chart.getDatasetMeta(0);
                 if (!meta || !meta.data) return;
