@@ -553,19 +553,6 @@ h1, h2, h3, h4 {
     color: var(--text-secondary);
 }
 
-.section-insight {
-    margin-top: 1.5rem;
-    padding: 0.9rem 1.2rem;
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(12px) saturate(140%);
-    -webkit-backdrop-filter: blur(12px) saturate(140%);
-    border-left: 3px solid rgba(99, 102, 241, 0.4);
-    border-radius: 0 8px 8px 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.6;
-}
-
 /* Tab Navigation */
 .tab-nav {
     display: flex;
@@ -1017,15 +1004,6 @@ h1, h2, h3, h4 {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-}
-
-.scatter-insight {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    padding-top: 0.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    margin-top: 0.25rem;
 }
 
 .software-comparison-grid {
