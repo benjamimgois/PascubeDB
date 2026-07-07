@@ -4397,6 +4397,11 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     overlay.appendChild(spacer);
     parent.appendChild(overlay);
     
+    // Force redraw so afterDraw plugin renders percentage labels immediately
+    if (normalize) {
+        chart.update('none');
+    }
+    
     let lastIndex = 0;
     const updateVisibleData = () => {
         const scrollTop = overlay.scrollTop;
