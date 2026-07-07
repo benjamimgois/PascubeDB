@@ -2437,6 +2437,36 @@ function getVendorHottestRuns(data, vendor, limit = 10) {
     };
 }
 
+function getVendorBestCooling(data, vendor, limit) {
+    const vendorTest = {
+        amd: gpu => /^(AMD|Radeon|RX)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
+        nvidia: gpu => /^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu),
+        intel: gpu => /^(Intel|Arc)\b/i.test(gpu) || /^UHD\b/i.test(gpu) || /^Iris\b/i.test(gpu) || /\b(Intel|Arc)\b/i.test(gpu)
+    };
+    const test = vendorTest[vendor];
+    if (!test) return { labels: [], data: [], clientIds: [], gpuFreqs: [] };
+    const bestPerUser = {};
+    data.forEach(r => {
+        const rawGpu = r.gpu || '';
+        if (!test(rawGpu) || r.gpuTempDelta === null || isNaN(r.gpuTempDelta)) return;
+        const gpu = normalizeGPU(rawGpu);
+        const id = r.clientId || 'N/D';
+        const key = id + '|' + gpu;
+        if (!bestPerUser[key] || r.gpuTempDelta < bestPerUser[key].delta) {
+            bestPerUser[key] = { gpu, delta: r.gpuTempDelta, gpuFreq: r.gpuMaxFreq, display: getDisplayName(r) };
+        }
+    });
+    const sorted = Object.values(bestPerUser)
+        .sort((a, b) => a.delta - b.delta)
+        .slice(0, limit);
+    return {
+        labels: sorted.map(r => r.gpu),
+        data: sorted.map(r => r.delta),
+        clientIds: sorted.map(r => r.display),
+        gpuFreqs: sorted.map(r => r.gpuFreq || null)
+    };
+}
+
 function renderSystemCharts() {
     const hasChart = id => document.getElementById(id);
 
@@ -2454,11 +2484,17 @@ function renderSystemCharts() {
         const pct = (desktopDist.counts[0] / desktopDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
         document.getElementById('sys-top-desktop-pct').textContent = `${pct}% of submissions`;
     }
-    const storageDist = getStorageDistribution(bm);
-    if (storageDist.labels.length > 0) {
-        document.getElementById('sys-top-storage').textContent = storageDist.labels[0];
-        const pct = (storageDist.counts[0] / storageDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
-        document.getElementById('sys-top-storage-pct').textContent = `${pct}% of submissions`;
+    const coolAmd = getVendorHottestRuns(bm, 'amd', 999);
+    const coolNv = getVendorHottestRuns(bm, 'nvidia', 999);
+    const coolIn = getVendorHottestRuns(bm, 'intel', 999);
+    const allCooler = [
+        ...(coolAmd.labels.length ? [{ label: coolAmd.labels[coolAmd.labels.length - 1], temp: coolAmd.data[coolAmd.data.length - 1] }] : []),
+        ...(coolNv.labels.length ? [{ label: coolNv.labels[coolNv.labels.length - 1], temp: coolNv.data[coolNv.data.length - 1] }] : []),
+        ...(coolIn.labels.length ? [{ label: coolIn.labels[coolIn.labels.length - 1], temp: coolIn.data[coolIn.data.length - 1] }] : [])
+    ].sort((a, b) => a.temp - b.temp);
+    if (allCooler.length > 0) {
+        document.getElementById('sys-cooler-gpu').textContent = allCooler[0].label;
+        document.getElementById('sys-cooler-gpu-delta').textContent = `${allCooler[0].temp}°C max temp`;
     }
     const hottest = getVendorHottestRuns(bm, 'amd', 1);
     const hottestNv = getVendorHottestRuns(bm, 'nvidia', 1);
@@ -2541,14 +2577,6 @@ function renderSystemCharts() {
     renderVendorChart('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444');
     renderVendorChart('hottestNvidiaChart', 'nvidia', 'rgba(16, 185, 129, 0.8)', '#34d399');
     renderVendorChart('hottestIntelChart', 'intel', 'rgba(99, 102, 241, 0.8)', '#818cf8');
-    if (hasChart('bestCoolingChart')) {
-        const c = getBestCooling(bm, 10);
-        if (c.labels.length > 0) {
-            renderHorizontalBarChart('bestCoolingChart', c.labels, c.data, 'Avg Delta °C',
-                'rgba(16, 185, 129, 0.8)', '#34d399', null, 0, c.labels, null, null, null, null, null, null, null, true);
-            if (chartInstances['bestCoolingChart']) chartInstances['bestCoolingChart'].data.datasets[0].dataLabelUnit = '°C';
-        }
-    }
 }
 
 // Helper to get top contributors by number of benchmark submissions
