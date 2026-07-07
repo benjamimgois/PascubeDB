@@ -1821,8 +1821,8 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
 
 /* ─── Blog Modal ─── */
 .blog-modal {
-    max-width: 780px;
-    width: 85vw;
+    max-width: 960px;
+    width: 92vw;
     height: 85vh;
     max-height: 85vh;
 }
