@@ -840,7 +840,7 @@ function processGvizData(jsonResponse) {
             cpuSingle: cpuSingle,
             cpuMulti: cpuMulti,
             gpuScore: gpuScore,
-            dateTime: getFormattedVal(12) || 'N/D',
+            dateTime: normalizeDate(getFormattedVal(12)),
             clientId: getVal(13) || 'N/D',
             architecture: getVal(14) || 'N/D',
             packageType: getVal(15) || 'N/D',
@@ -1005,7 +1005,7 @@ function processCSVData(csvText) {
             cpuSingle: cleanNumber(row[9]),
             cpuMulti: cleanNumber(row[10]),
             gpuScore: cleanNumber(row[11]),
-            dateTime: row[12] || 'N/D',
+            dateTime: normalizeDate(row[12]),
             clientId: row[13] || 'N/D',
             architecture: row[14] || 'N/D',
             packageType: row[15] || 'N/D',
@@ -1385,10 +1385,16 @@ function sortData(column, direction) {
                 valA = a.gpuScore || 0;
                 valB = b.gpuScore || 0;
                 break;
-            case 'date':
-                valA = a.dateTime;
-                valB = b.dateTime;
+            case 'date': {
+                const dA = parseDate(a.dateTime);
+                const dB = parseDate(b.dateTime);
+                if (!dA && !dB) { valA = valB = 0; break; }
+                if (!dA) { valA = 0; valB = 1; break; }
+                if (!dB) { valA = 1; valB = 0; break; }
+                valA = dA.getTime();
+                valB = dB.getTime();
                 break;
+            }
             default:
                 valA = a.mainScore || 0;
                 valB = b.mainScore || 0;
@@ -1541,6 +1547,17 @@ function parseDate(dateStr) {
         return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
     }
     return null;
+}
+
+function normalizeDate(str) {
+    if (!str || str === 'N/D') return 'N/D';
+    const d = parseDate(str);
+    if (!d) return str;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const timePart = str.includes(' ') ? str.split(' ').slice(1).join(' ') : '';
+    const time = timePart && /^\d{2}:\d{2}:\d{2}/.test(timePart.trim()) ? timePart.trim() : '';
+    return time ? `${dd}/${mm}/${d.getFullYear()}, ${time}` : `${dd}/${mm}/${d.getFullYear()}`;
 }
 
 // Helper to normalize CPU names for popularity chart
