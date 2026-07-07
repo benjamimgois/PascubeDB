@@ -2,6 +2,12 @@
 
 const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1nlMgeW0ZFmtwwT3hty8JAFT3sM0SNhMpc24mH3In9zI/export?format=csv";
 
+// ─── Supabase (Blog + Comments) ───
+const SUPABASE_URL = 'https://abyocgxsepgbofevxgme.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFieW9jZ3hzZXBnYm9mZXZ4Z21lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MDM0MzMsImV4cCI6MjA5ODk3OTQzM30.tdlETv_h7BaFcEjDOXhxlOGzTVYl7uvFpxG43mMCPyk';
+const supa = window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let blogSession = null;
+
 // Fallback CSV Data to ensure the dashboard works even offline or in case of CORS/network issues
 const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,package,,product name,CPU Max Freq (MHz),GPU Max Freq (MHz),CPU Max Freq (MHz),GPU Max Freq (MHz)
 Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07,2648f98e2306731777b45289ec0a46e6d5466beb43cecb72104b6ea3449aa10a,,,,,,,,,,,,,,5700,2520
@@ -5004,5 +5010,394 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
         }]
     });
 }
+
+// ══════════════════════════════════════════════════════
+//  BLOG MODULE (Supabase-powered blog with GitHub auth)
+// ══════════════════════════════════════════════════════
+
+(function() {
+    if (!supa) { console.warn('Supabase not loaded — blog disabled.'); return; }
+
+    const blogBtn = document.getElementById('blog-btn');
+    const blogModal = document.getElementById('blog-modal');
+    const blogCloseBtn = document.getElementById('close-blog-modal');
+    const backBtn = document.getElementById('blog-back-btn');
+    const postsContainer = document.getElementById('blog-posts-container');
+    const listView = document.getElementById('blog-list-view');
+    const detailView = document.getElementById('blog-detail-view');
+    const postBody = document.getElementById('blog-post-body');
+    const commentsList = document.getElementById('blog-comments-list');
+    const commentFormArea = document.getElementById('blog-comment-form-area');
+    const commentsTitle = document.getElementById('blog-comments-title');
+
+    let currentPostId = null;
+
+    // ── Auth (tasks 4.2-4.5) ──
+
+    async function getSession() {
+        const { data } = await supa.auth.getSession();
+        blogSession = data.session;
+        return blogSession;
+    }
+
+    async function loginWithGitHub() {
+        const { error } = await supa.auth.signInWithOAuth({
+            provider: 'github',
+            options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) console.error('Login error:', error.message);
+    }
+
+    async function logout() {
+        await supa.auth.signOut();
+        renderCommentForm();
+    }
+
+    function formatBlogDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function formatCommentDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const now = new Date();
+        const diffMs = now - d;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    supa.auth.onAuthStateChange((event, session) => {
+        blogSession = session;
+        if (blogModal.open && detailView.style.display !== 'none') {
+            renderCommentForm();
+        }
+    });
+
+    // ── Blog Modal (tasks 5.1-5.7) ──
+
+    function openBlogModal() {
+        listView.style.display = 'block';
+        detailView.style.display = 'none';
+        currentPostId = null;
+        blogModal.showModal();
+        document.body.classList.add('modal-open');
+        loadPosts();
+        lucide.createIcons();
+    }
+
+    function closeBlogModal() {
+        blogModal.close();
+        document.body.classList.remove('modal-open');
+        listView.style.display = 'block';
+        detailView.style.display = 'none';
+        currentPostId = null;
+    }
+
+    function renderSkeletonCards(n) {
+        let html = '';
+        for (let i = 0; i < n; i++) {
+            html += `<div class="blog-skeleton blog-skeleton-card">
+                <div style="padding: 1.15rem 1.35rem;">
+                    <div class="blog-skeleton blog-skeleton-title"></div>
+                    <div class="blog-skeleton blog-skeleton-meta"></div>
+                </div>
+            </div>`;
+        }
+        return html;
+    }
+
+    function renderSkeletonPost() {
+        return `<div class="blog-skeleton blog-skeleton-body"></div>
+            <div class="blog-skeleton blog-skeleton-line" style="width:85%"></div>
+            <div class="blog-skeleton blog-skeleton-line" style="width:70%"></div>
+            <div class="blog-skeleton blog-skeleton-line" style="width:60%"></div>`;
+    }
+
+    function renderSkeletonComments(n) {
+        let html = '';
+        for (let i = 0; i < n; i++) {
+            html += `<div class="blog-skeleton blog-skeleton-comment"></div>`;
+        }
+        return html;
+    }
+
+    async function loadPosts() {
+        postsContainer.innerHTML = renderSkeletonCards(3);
+        try {
+            const { data, error } = await supa
+                .from('posts')
+                .select('id, title, slug, created_at, comments(count)')
+                .eq('published', true)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                postsContainer.innerHTML = `<div class="blog-empty-state">
+                    <i data-lucide="inbox" style="width:36px;height:36px;margin-bottom:0.5rem;"></i>
+                    <p>No posts yet. Stay tuned!</p>
+                </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            let html = '';
+            data.forEach(post => {
+                const commentCount = post.comments && post.comments[0] ? post.comments[0].count : 0;
+                html += `<div class="blog-post-card" data-post-id="${post.id}">
+                    <div class="blog-post-card-title">${escapeHtml(post.title)}</div>
+                    <div class="blog-post-card-meta">
+                        <span><i data-lucide="calendar"></i> ${formatBlogDate(post.created_at)}</span>
+                        <span><i data-lucide="message-circle"></i> ${commentCount} comment${commentCount !== 1 ? 's' : ''}</span>
+                    </div>
+                </div>`;
+            });
+            postsContainer.innerHTML = html;
+            lucide.createIcons();
+
+            postsContainer.querySelectorAll('.blog-post-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const postId = parseInt(card.dataset.postId);
+                    openPost(postId);
+                });
+            });
+        } catch (err) {
+            console.error('Error loading posts:', err);
+            postsContainer.innerHTML = `<div class="blog-error-state">
+                <i data-lucide="alert-triangle" style="width:36px;height:36px;margin-bottom:0.5rem;"></i>
+                <p>Failed to load posts.</p>
+            </div>`;
+            lucide.createIcons();
+        }
+    }
+
+    async function openPost(postId) {
+        currentPostId = postId;
+        listView.style.display = 'none';
+        detailView.style.display = 'block';
+        postBody.innerHTML = renderSkeletonPost();
+        commentsList.innerHTML = renderSkeletonComments(3);
+        commentFormArea.innerHTML = '';
+        commentsTitle.textContent = 'Comments';
+
+        try {
+            const { data: post, error } = await supa
+                .from('posts')
+                .select('id, title, content, created_at')
+                .eq('id', postId)
+                .single();
+
+            if (error || !post) throw error || new Error('Post not found');
+
+            const rendered = renderMarkdown(post.content);
+            postBody.innerHTML = `<h1 style="margin-top:0;">${escapeHtml(post.title)}</h1>
+                <div class="blog-post-card-meta" style="margin-bottom:1.25rem;">
+                    <span><i data-lucide="calendar"></i> ${formatBlogDate(post.created_at)}</span>
+                </div>
+                <div>${rendered}</div>`;
+            lucide.createIcons();
+        } catch (err) {
+            console.error('Error loading post:', err);
+            postBody.innerHTML = `<div class="blog-error-state">
+                <p>Could not load this post.</p>
+            </div>`;
+        }
+
+        await loadComments(postId);
+        renderCommentForm();
+    }
+
+    function backToList() {
+        currentPostId = null;
+        listView.style.display = 'block';
+        detailView.style.display = 'none';
+    }
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+        try {
+            if (typeof marked !== 'undefined') return marked.parse(text);
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        } catch (e) {
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
+    }
+
+    async function loadComments(postId) {
+        commentsList.innerHTML = renderSkeletonComments(3);
+        try {
+            const { data, error } = await supa
+                .from('comments')
+                .select('id, user_name, content, created_at')
+                .eq('post_id', postId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                commentsList.innerHTML = `<div class="blog-empty-state">
+                    <p>Be the first to comment!</p>
+                </div>`;
+                return;
+            }
+
+            commentsTitle.textContent = `Comments (${data.length})`;
+            let html = '';
+            data.forEach(c => {
+                const initial = (c.user_name || '?')[0].toUpperCase();
+                html += `<div class="comment-item">
+                    <div class="comment-avatar">${escapeHtml(initial)}</div>
+                    <div class="comment-body">
+                        <div class="comment-header">
+                            <span class="comment-name">${escapeHtml(c.user_name)}</span>
+                            <span class="comment-date">${formatCommentDate(c.created_at)}</span>
+                        </div>
+                        <div class="comment-text">${escapeHtml(c.content).replace(/\n/g, '<br>')}</div>
+                    </div>
+                </div>`;
+            });
+            commentsList.innerHTML = html;
+        } catch (err) {
+            console.error('Error loading comments:', err);
+            commentsList.innerHTML = `<div class="blog-error-state">
+                <p>Could not load comments.</p>
+            </div>`;
+        }
+    }
+
+    function renderCommentForm() {
+        if (!currentPostId) return;
+
+        if (!blogSession || !blogSession.user) {
+            commentFormArea.innerHTML = `<div class="blog-login-prompt">
+                <p>Sign in to leave a comment</p>
+                <button class="blog-login-btn" id="blog-login-btn">
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    <span>Login with GitHub</span>
+                </button>
+            </div>`;
+            document.getElementById('blog-login-btn')?.addEventListener('click', loginWithGitHub);
+            return;
+        }
+
+        const userName = blogSession.user.user_metadata?.user_name
+            || blogSession.user.user_metadata?.full_name
+            || blogSession.user.user_metadata?.name
+            || blogSession.user.email
+            || 'Anonymous';
+
+        commentFormArea.innerHTML = `<div class="blog-comment-form" id="blog-comment-form">
+            <textarea id="blog-comment-input" placeholder="Share your thoughts..." maxlength="2000"></textarea>
+            <div class="blog-comment-form-actions">
+                <span class="blog-logged-in-as">Signed in as <strong>${escapeHtml(userName)}</strong></span>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="blog-logout-btn" id="blog-logout-btn">Logout</button>
+                    <button class="btn btn-primary btn-sm" id="blog-submit-comment">Post Comment</button>
+                </div>
+            </div>
+        </div>
+        <div id="blog-comment-error" class="blog-error-state" style="display:none;"></div>`;
+
+        document.getElementById('blog-logout-btn')?.addEventListener('click', logout);
+
+        async function handleSubmit() {
+            const input = document.getElementById('blog-comment-input');
+            const submitBtn = document.getElementById('blog-submit-comment');
+            const errorEl = document.getElementById('blog-comment-error');
+            const content = input.value.trim();
+
+            if (!content) {
+                input.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                input.focus();
+                setTimeout(() => input.style.borderColor = '', 2000);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Posting...';
+            errorEl.style.display = 'none';
+
+            try {
+                const { error } = await supa
+                    .from('comments')
+                    .insert({
+                        post_id: currentPostId,
+                        user_id: blogSession.user.id,
+                        user_name: userName,
+                        content: content
+                    });
+
+                if (error) throw error;
+
+                input.value = '';
+                input.style.borderColor = '';
+                submitBtn.textContent = 'Post Comment';
+                submitBtn.disabled = false;
+                await loadComments(currentPostId);
+                renderCommentForm();
+            } catch (err) {
+                console.error('Error posting comment:', err);
+                errorEl.style.display = 'block';
+                errorEl.innerHTML = `<p>Failed to post comment.</p>`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Post Comment';
+            }
+        }
+
+        document.getElementById('blog-submit-comment')?.addEventListener('click', handleSubmit);
+        document.getElementById('blog-comment-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSubmit();
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ── Event Listeners ──
+
+    if (blogBtn && blogModal) {
+        blogBtn.addEventListener('click', openBlogModal);
+
+        if (blogCloseBtn) blogCloseBtn.addEventListener('click', closeBlogModal);
+        if (backBtn) backBtn.addEventListener('click', backToList);
+
+        blogModal.addEventListener('close', () => {
+            document.body.classList.remove('modal-open');
+            listView.style.display = 'block';
+            detailView.style.display = 'none';
+            currentPostId = null;
+        });
+
+        if (!('closedBy' in HTMLDialogElement.prototype)) {
+            blogModal.addEventListener('click', (event) => {
+                if (event.target !== blogModal) return;
+                const rect = blogModal.getBoundingClientRect();
+                const isInside = (
+                    rect.top <= event.clientY &&
+                    event.clientY <= rect.top + rect.height &&
+                    rect.left <= event.clientX &&
+                    event.clientX <= rect.left + rect.width
+                );
+                if (!isInside) closeBlogModal();
+            });
+        }
+    }
+
+    getSession();
+})();
 
 // Baseline zero line plugin — draws colored line at x=0 with baseline name

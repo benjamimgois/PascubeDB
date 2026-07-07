@@ -13,6 +13,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -34,6 +36,10 @@
                         </div>
                     </div>
                     <div class="header-actions">
+                        <button id="blog-btn" class="btn btn-secondary">
+                            <i data-lucide="newspaper"></i>
+                            <span>Blog</span>
+                        </button>
                         <button id="leaderboard-btn" class="btn btn-secondary">
                             <i data-lucide="trophy"></i>
                             <span>Leaderboard</span>
@@ -853,6 +859,36 @@
             <p>PascubeDB &copy; 2026. Data sourced in real-time from Google Sheets.</p>
         </footer>
     </div>
+
+    <!-- Blog Modal -->
+    <dialog id="blog-modal" class="modal-dialog blog-modal" closedby="any" aria-labelledby="blog-modal-title">
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <h2 id="blog-modal-title">Blog</h2>
+                <p>Updates, changelog, and community notes</p>
+            </div>
+            <button id="close-blog-modal" class="btn-close-modal" aria-label="Close blog modal">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body-wrapper">
+            <div id="blog-list-view">
+                <div id="blog-posts-container"></div>
+            </div>
+            <div id="blog-detail-view" style="display:none;">
+                <button id="blog-back-btn" class="btn btn-secondary btn-sm">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Back to list</span>
+                </button>
+                <div id="blog-post-body" class="blog-post-body"></div>
+                <div class="blog-comments-section">
+                    <h3 id="blog-comments-title">Comments</h3>
+                    <div id="blog-comments-list"></div>
+                    <div id="blog-comment-form-area"></div>
+                </div>
+            </div>
+        </div>
+    </dialog>
 
     <!-- Community Leaderboard Modal -->
     <dialog id="leaderboard-modal" class="modal-dialog" closedby="any" aria-labelledby="modal-title">
