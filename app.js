@@ -4249,12 +4249,15 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 x: {
                     max: xMax,
                     min: xMin !== undefined ? xMin : 0,
-                    display: !percentages,
+                    display: true,
                     grid: {
+                        display: !percentages,
+                        drawBorder: !percentages,
                         color: 'rgba(255, 255, 255, 0.05)',
                         tickBorderDash: [3, 3]
                     },
                     ticks: {
+                        display: !percentages,
                         color: '#9ca3af',
                         font: {
                             family: "'Inter', sans-serif",
@@ -4396,11 +4399,6 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     spacer.style.width = '1px';
     overlay.appendChild(spacer);
     parent.appendChild(overlay);
-    
-    // Force redraw so afterDraw plugin renders percentage labels immediately
-    if (normalize) {
-        chart.update('none');
-    }
     
     let lastIndex = 0;
     const updateVisibleData = () => {
