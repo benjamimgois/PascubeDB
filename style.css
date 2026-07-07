@@ -822,6 +822,8 @@ h1, h2, h3, h4 {
     margin-top: 0.6rem;
     flex-wrap: wrap;
     position: relative;
+    order: 10;
+    width: 100%;
 }
 
 .chart-mode-group {
@@ -856,6 +858,7 @@ h1, h2, h3, h4 {
     gap: 0.4rem;
     cursor: pointer;
     position: relative;
+    flex-shrink: 0;
 }
 
 .chart-toggle-cb {
@@ -1025,11 +1028,12 @@ h1, h2, h3, h4 {
 
 .chart-pagination {
     position: absolute;
-    top: 0;
+    bottom: 0;
     right: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    z-index: 5;
 }
 .pag-btn {
     background: rgba(255,255,255,0.08);

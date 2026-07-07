@@ -3832,8 +3832,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             const sd = chartInstances[canvasId] && chartInstances[canvasId].__scatterData;
             if (sd) renderHardwareComparisonBars(canvasId, sd);
         });
-        headerEl.style.position = 'relative';
-        headerEl.appendChild(pagEl);
+        chartArea.appendChild(pagEl);
     }
     const totalPages = Math.ceil(totalHw / PER_PAGE);
     if (totalPages <= 1) { pagEl.style.display = 'none'; return; }

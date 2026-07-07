@@ -427,6 +427,12 @@
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>OS vs. Hardware</h3>
+                        <label class="chart-toggle-wrap" id="os-toggle">
+                            <input type="checkbox" class="chart-toggle-cb">
+                            <span class="chart-toggle-slider"></span>
+                            <span class="chart-toggle-label">Normalize</span>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
+                        </label>
                         <p>Main score of identical hardware across different operating systems</p>
                         <div class="chart-viz-row">
                             <div class="chart-mode-group" id="os-mode">
@@ -443,12 +449,6 @@
                                 <select id="os-baseline" class="baseline-select"></select>
                                 <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the OS used as the 0% reference for Delta % calculations.</div></span>
                             </div>
-                            <label class="chart-toggle-wrap" id="os-toggle">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
-                            </label>
                         </div>
                     </div>
                     <div class="chart-canvas-area" style="height: 520px;">
@@ -458,6 +458,12 @@
                     <div class="chart-container-wrapper">
                         <div class="chart-header">
                             <h3>Mesa Driver vs. GPU</h3>
+                            <label class="chart-toggle-wrap" id="mesa-toggle">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
+                            </label>
                             <p>GPU score variation with different Mesa versions</p>
                             <div class="chart-viz-row">
                                 <div class="chart-mode-group" id="mesa-mode">
@@ -474,12 +480,6 @@
                                     <select id="mesa-baseline" class="baseline-select"></select>
                                     <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the driver/kernel version used as the 0% reference for Delta % calculations.</div></span>
                                 </div>
-                                <label class="chart-toggle-wrap" id="mesa-toggle">
-                                    <input type="checkbox" class="chart-toggle-cb">
-                                    <span class="chart-toggle-slider"></span>
-                                    <span class="chart-toggle-label">Normalize</span>
-                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
-                                </label>
                             </div>
                         </div>
                         <div class="chart-canvas-area" style="height: 520px;">
@@ -489,6 +489,12 @@
                     <div class="chart-container-wrapper">
                         <div class="chart-header">
                             <h3>NVIDIA Driver vs. GPU</h3>
+                            <label class="chart-toggle-wrap" id="nvidia-toggle">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
+                            </label>
                             <p>GPU score variation with different NVIDIA driver versions</p>
                             <div class="chart-viz-row">
                                 <div class="chart-mode-group" id="nvidia-mode">
@@ -505,12 +511,6 @@
                                     <select id="nvidia-baseline" class="baseline-select"></select>
                                     <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the driver version used as the 0% reference for Delta % calculations.</div></span>
                                 </div>
-                                <label class="chart-toggle-wrap" id="nvidia-toggle">
-                                    <input type="checkbox" class="chart-toggle-cb">
-                                    <span class="chart-toggle-slider"></span>
-                                    <span class="chart-toggle-label">Normalize</span>
-                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
-                                </label>
                             </div>
                         </div>
                         <div class="chart-canvas-area" style="height: 520px;">
@@ -521,6 +521,12 @@
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>Kernel vs. CPU Score</h3>
+                        <label class="chart-toggle-wrap" id="kernel-toggle">
+                            <input type="checkbox" class="chart-toggle-cb">
+                            <span class="chart-toggle-slider"></span>
+                            <span class="chart-toggle-label">Normalize</span>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
+                        </label>
                         <p>CPU Single score variation with different Linux kernel versions on same hardware</p>
                         <div class="chart-viz-row">
                             <div class="chart-mode-group" id="kernel-mode">
@@ -537,12 +543,6 @@
                                 <select id="kernel-baseline" class="baseline-select"></select>
                                 <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Select the kernel version used as the 0% reference for Delta % calculations.</div></span>
                             </div>
-                            <label class="chart-toggle-wrap" id="kernel-toggle">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100 per hardware group. Best = 100, others = % of best.</div></span>
-                            </label>
                         </div>
                     </div>
                     <div class="chart-canvas-area" style="height: 520px;">
