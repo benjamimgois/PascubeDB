@@ -128,7 +128,7 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
-let chartVizState = { mesa: { mode: 'absolute', normalize: false }, nvidia: { mode: 'absolute', normalize: false }, kernel: { mode: 'delta', normalize: false }, os: { mode: 'delta', normalize: false }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
+let chartVizState = { mesa: { mode: 'absolute', normalize: true }, nvidia: { mode: 'absolute', normalize: true }, kernel: { mode: 'delta', normalize: true }, os: { mode: 'delta', normalize: true }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
 let baselineState = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
 let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null, kernel: null, os: null };
 let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
@@ -591,6 +591,9 @@ function setupChartVizControls() {
                                 renderSoftwareDeltaChart(type);
                             }
                         } else {
+                            chartVizState[type].normalize = true;
+                            const cb = document.getElementById(VIZ_CHART_IDS[type].toggle)?.querySelector('.chart-toggle-cb');
+                            if (cb) cb.checked = true;
                             const data = lastSoftwareData[type];
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
@@ -609,6 +612,7 @@ function setupChartVizControls() {
         if (toggle) {
             const cb = toggle.querySelector('.chart-toggle-cb');
             if (cb) {
+                cb.checked = chartVizState[type].normalize;
                 cb.addEventListener('change', () => {
                     chartVizState[type].normalize = cb.checked;
                     if (isAverageChart) {
@@ -3619,7 +3623,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const PER_PAGE = canvasId === 'osHardwareScatterChart' || canvasId === 'nvidiaDriverScatterChart' ? 4 : 5;
+    const isNormalized = scatterData.__normalized === true;
+    const PER_PAGE = canvasId === 'osHardwareScatterChart' || canvasId === 'nvidiaDriverScatterChart' || canvasId === 'mesaDriverScatterChart' || canvasId === 'kernelScatterChart' ? 4 : 5;
     const key = CHART_PAGE_MAP[canvasId];
     const totalHw = scatterData.hwLabels.length;
     const page = Math.min(chartPageState[key] || 0, Math.max(0, Math.ceil(totalHw / PER_PAGE) - 1));
@@ -3640,7 +3645,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
 
     const maxVersions = canvasId === 'nvidiaDriverScatterChart' ? 4 : 8;
     let versions = [...verSet];
-    if (canvasId === 'nvidiaDriverScatterChart') {
+    if (canvasId === 'nvidiaDriverScatterChart' || canvasId === 'osHardwareScatterChart' || canvasId === 'kernelScatterChart' || canvasId === 'mesaDriverScatterChart') {
+        const isVerSort = canvasId === 'nvidiaDriverScatterChart' || canvasId === 'kernelScatterChart' || canvasId === 'mesaDriverScatterChart';
         versions = versions.map(v => {
             const coverage = labels.filter(hw =>
                 scatterData.points.some(p => p.hardwareLabel === hw && (p.label || p.os || '') === v)
@@ -3648,7 +3654,10 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             return { v, coverage };
         })
             .filter(x => x.coverage > 0)
-            .sort((a, b) => b.coverage - a.coverage || (b.v.localeCompare(a.v, undefined, { numeric: true })))
+            .sort(isVerSort
+                ? (a, b) => b.v.localeCompare(a.v, undefined, { numeric: true }) || (b.coverage - a.coverage)
+                : (a, b) => b.coverage - a.coverage || (b.v.localeCompare(a.v, undefined, { numeric: true }))
+            )
             .slice(0, maxVersions)
             .map(x => x.v);
     }
@@ -3691,18 +3700,30 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
                     if (!val || val === 0) return;
                     const width = Math.abs(element.x - element.base);
                     const count = dataset.sampleCounts ? dataset.sampleCounts[index] : 0;
-                    if (!count) return;
-                    const isHigh = count >= 10;
-                    const arrow = isHigh ? '\u2191' : '\u2193';
-                    const prefix = `${dataset.label} / Samples=${count} `;
-                    const full = `${prefix}${arrow}`;
+                    const hasCount = count > 0;
+                    const isHigh = hasCount && count >= 10;
+                    const arrow = isHigh ? '\u2191' : (hasCount ? '\u2193' : '');
+                    const prefix = arrow ? `${dataset.label} ` : `${dataset.label}`;
+                    const full = arrow ? `${prefix}${arrow}` : prefix;
                     const leftX = width >= 70
                         ? element.base + width / 2 - ctx.measureText(full).width / 2
                         : element.x + 6;
                     ctx.fillStyle = 'rgba(255,255,255,0.85)';
                     ctx.fillText(prefix, leftX, element.y);
-                    ctx.fillStyle = isHigh ? '#22c55e' : '#ef4444';
-                    ctx.fillText(arrow, leftX + ctx.measureText(prefix).width, element.y);
+                    if (arrow) {
+                        ctx.fillStyle = isHigh ? '#22c55e' : '#ef4444';
+                        ctx.fillText(arrow, leftX + ctx.measureText(prefix).width, element.y);
+                    }
+                    if (isNormalized) {
+                        const pct = `${val}%`;
+                        ctx.font = '9px Inter, sans-serif';
+                        const pctW = ctx.measureText(pct).width;
+                        const pctX = width >= 60 ? element.x - pctW - 4 : element.x + 6;
+                        const maxAtIdx = Math.max(...chart.data.datasets.map(ds => ds.data[index] || 0));
+                        ctx.fillStyle = val === maxAtIdx ? '#fbbf24' : 'rgba(255,255,255,0.85)';
+                        ctx.fillText(pct, pctX, element.y);
+                        ctx.font = 'bold 10px Inter, sans-serif';
+                    }
                 });
             });
             ctx.restore();
@@ -3717,7 +3738,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 } } },
+                x: { display: !isNormalized, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 } } },
                 y: { grid: { display: false }, ticks: { color: '#f3f4f6', font: { family: "'Outfit', sans-serif", size: 10, weight: 500 },
                     callback: function(v) { const lbl = this.getLabelForValue(v); return lbl.length > 25 ? lbl.substring(0, 25) + '...' : lbl; }
                 }}
@@ -3730,7 +3751,9 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
                     callbacks: {
                         label: function(context) {
                             const samples = context.dataset.sampleCounts ? context.dataset.sampleCounts[context.dataIndex] : 0;
-                            return [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`, `Samples: ${samples || 0}`];
+                            const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`, `Samples: ${samples || 0}`];
+                            if (samples > 0 && samples < 10) lines.push('⚠ low confidence');
+                            return lines;
                         }
                     }
                 }
@@ -4615,7 +4638,7 @@ function computeNormalizedData(data) {
         hwLabels.push(hwLabel);
         hwIdx++;
     });
-    return { points: normPoints, hwLabels };
+    return { points: normPoints, hwLabels, __normalized: true };
 }
 
 // Delta from baseline: per hardware, user-selected or oldest version = 0%, others = % change
@@ -4842,7 +4865,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                             ctx.fillText(label, x, y - 12);
                             if (count > 0) {
                                 ctx.fillStyle = 'rgba(156, 163, 175, 0.85)';
-                                ctx.font = '9px Inter, sans-serif';
+                        ctx.font = 'bold 9px Inter, sans-serif';
                                 const sampleText = 'Samples=' + count;
                                 const tw = ctx.measureText(sampleText).width;
                                 ctx.fillText(sampleText, x, y + 1);
