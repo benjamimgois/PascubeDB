@@ -63,6 +63,10 @@
                     <i data-lucide="git-compare"></i>
                     <span>Software Benchmark</span>
                 </button>
+                <button class="tab-btn" data-tab="system">
+                    <i data-lucide="monitor"></i>
+                    <span>System</span>
+                </button>
                 <button class="tab-btn" data-tab="community">
                     <i data-lucide="users"></i>
                     <span>Community Insights</span>
@@ -561,16 +565,6 @@
             </div>
         </section>
 
-        <div class="chart-container-wrapper">
-            <div class="chart-header">
-                <h3>Package Distribution</h3>
-                <p>Native vs. Flatpak vs. AppImage benchmark submissions</p>
-            </div>
-            <div class="chart-canvas-area donut-chart-canvas">
-                <canvas id="packageDistChart"></canvas>
-            </div>
-        </div>
-
         </div><!-- /tab-software -->
 
         <!-- Hardware Benchmark Content (continued) -->
@@ -852,9 +846,144 @@
                     </div>
                 </div>
             </div>
+
         </section>
 
         </div><!-- /tab-community -->
+
+        <!-- System Tab Content -->
+        <div id="tab-system" class="tab-content" data-tab="system">
+
+        <!-- Stats Grid -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon-box" style="background: rgba(99, 102, 241, 0.1); color: #818cf8;">
+                    <i data-lucide="monitor"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Top Display Server</span>
+                    <h3 class="stat-value" id="sys-top-display">-</h3>
+                    <p class="stat-sub" id="sys-top-display-pct">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-box" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                    <i data-lucide="layout-dashboard"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Top Desktop</span>
+                    <h3 class="stat-value" id="sys-top-desktop">-</h3>
+                    <p class="stat-sub" id="sys-top-desktop-pct">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-box" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24;">
+                    <i data-lucide="hard-drive"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Top Storage</span>
+                    <h3 class="stat-value" id="sys-top-storage">-</h3>
+                    <p class="stat-sub" id="sys-top-storage-pct">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-box" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                    <i data-lucide="thermometer"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Hottest GPU</span>
+                    <h3 class="stat-value" id="sys-hottest-gpu">-</h3>
+                    <p class="stat-sub" id="sys-hottest-gpu-temp">-</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- System Environment -->
+        <section class="demographics-section">
+            <div class="section-header">
+                <h2>System Environment</h2>
+                <p>Display server and desktop environment distribution</p>
+            </div>
+            <div class="demographics-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Display Server</h3>
+                        <p>Wayland vs. X11 vs. XWayland</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="displayServerChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Desktop Environment</h3>
+                        <p>KDE Plasma, GNOME, Hyprland, and others</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="desktopChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Package Distribution -->
+        <section class="demographics-section">
+            <div class="section-header">
+                <h2>Package Distribution</h2>
+                <p>Native vs. Flatpak vs. AppImage benchmark submissions</p>
+            </div>
+            <div class="chart-canvas-area donut-chart-canvas" style="max-width:400px;">
+                <canvas id="packageDistChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Thermal Performance -->
+        <section class="advanced-charts-section">
+            <div class="section-header">
+                <h2>Thermal Performance</h2>
+                <p>GPU temperature metrics by vendor</p>
+            </div>
+            <div class="advanced-charts-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Hottest AMD GPUs</h3>
+                        <p>Highest max temperatures recorded on AMD GPUs</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="hottestAmdChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Hottest NVIDIA GPUs</h3>
+                        <p>Highest max temperatures recorded on NVIDIA GPUs</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="hottestNvidiaChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Hottest Intel GPUs</h3>
+                        <p>Highest max temperatures recorded on Intel GPUs</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="hottestIntelChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper" style="grid-column:1/-1;">
+                    <div class="chart-header">
+                        <h3>Best Cooling</h3>
+                        <p>GPU models with smallest temperature delta</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="bestCoolingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        </div><!-- /tab-system -->
 
         <footer class="main-footer">
             <p>PascubeDB &copy; 2026. Data sourced in real-time from Google Sheets.</p>

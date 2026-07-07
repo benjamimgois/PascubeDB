@@ -851,6 +851,11 @@ function processGvizData(jsonResponse) {
             architecture: getVal(14) || 'N/D',
             packageType: getVal(15) || 'N/D',
             productName: getVal(17) || 'N/D',
+            displayServer: getVal(18) || 'N/D',
+            desktop: getVal(19) || 'N/D',
+            storageType: getVal(20) || 'N/D',
+            gpuMaxTemp: cleanNumber(getVal(24)),
+            gpuTempDelta: cleanNumber(getVal(25)),
             cpuMaxFreq: cleanNumber(getVal(27)),
             gpuMaxFreq: cleanNumber(getVal(28))
         };
@@ -1016,6 +1021,11 @@ function processCSVData(csvText) {
             architecture: row[14] || 'N/D',
             packageType: row[15] || 'N/D',
             productName: row[17] || 'N/D',
+            displayServer: row[18] || 'N/D',
+            desktop: row[19] || 'N/D',
+            storageType: row[20] || 'N/D',
+            gpuMaxTemp: cleanNumber(row[24]),
+            gpuTempDelta: cleanNumber(row[25]),
             cpuMaxFreq: cleanNumber(row[27]),
             gpuMaxFreq: cleanNumber(row[28])
         };
@@ -2320,6 +2330,198 @@ function getPackageDistribution(data) {
     return sorted;
 }
 
+// ─── System Tab Aggregation Helpers ───
+
+function getDisplayServerDistribution(data) {
+    const counts = {};
+    data.forEach(r => {
+        let v = (r.displayServer || '').trim();
+        if (!v || v === 'N/D') return;
+        counts[v] = (counts[v] || 0) + 1;
+    });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return { labels: sorted.map(e => e[0]), counts: sorted.map(e => e[1]) };
+}
+
+function getDesktopDistribution(data) {
+    const counts = {};
+    data.forEach(r => {
+        let v = (r.desktop || '').trim();
+        if (!v || v === 'N/D') return;
+        v = v.replace(/\s+\d+(\.\d+)*.*$/, '').trim();
+        counts[v] = (counts[v] || 0) + 1;
+    });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return { labels: sorted.map(e => e[0]), counts: sorted.map(e => e[1]) };
+}
+
+function getStorageDistribution(data) {
+    const counts = {};
+    data.forEach(r => {
+        let v = (r.storageType || '').trim().toLowerCase();
+        if (!v || v === 'n/d') return;
+        v = v.replace(/^.*\s+/, '').trim();
+        if (v === 'nvme') v = 'NVMe';
+        else if (v === 'ssd') v = 'SSD';
+        else if (v === 'hdd') v = 'HDD';
+        counts[v] = (counts[v] || 0) + 1;
+    });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return { labels: sorted.map(e => e[0]), counts: sorted.map(e => e[1]) };
+}
+
+function getHottestGPU(data, limit = 10, minSamples = 2) {
+    const groups = {};
+    data.forEach(r => {
+        const temp = r.gpuMaxTemp;
+        if (temp === null || temp === undefined || isNaN(temp)) return;
+        const gpu = normalizeGPU(r.gpu);
+        if (!gpu || gpu === 'N/D' || gpu === 'Unknown GPU') return;
+        if (!groups[gpu]) groups[gpu] = [];
+        groups[gpu].push(temp);
+    });
+    const entries = Object.entries(groups)
+        .filter(([, temps]) => temps.length >= minSamples)
+        .map(([gpu, temps]) => ({ gpu, avg: temps.reduce((s, t) => s + t, 0) / temps.length }))
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, limit);
+    return { labels: entries.map(e => e.gpu), data: entries.map(e => Math.round(e.avg * 10) / 10) };
+}
+
+function getBestCooling(data, limit = 10, minSamples = 2) {
+    const groups = {};
+    data.forEach(r => {
+        const delta = r.gpuTempDelta;
+        if (delta === null || delta === undefined || isNaN(delta)) return;
+        const gpu = normalizeGPU(r.gpu);
+        if (!gpu || gpu === 'N/D' || gpu === 'Unknown GPU') return;
+        if (!groups[gpu]) groups[gpu] = [];
+        groups[gpu].push(delta);
+    });
+    const entries = Object.entries(groups)
+        .filter(([, deltas]) => deltas.length >= minSamples)
+        .map(([gpu, deltas]) => ({ gpu, avg: deltas.reduce((s, d) => s + d, 0) / deltas.length }))
+        .sort((a, b) => a.avg - b.avg)
+        .slice(0, limit);
+    return { labels: entries.map(e => e.gpu), data: entries.map(e => Math.round(e.avg * 10) / 10) };
+}
+
+function getVendorHottestRuns(data, vendor, limit = 10) {
+    const vendorTest = {
+        amd: gpu => /^(RX|Radeon|AMD)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
+        nvidia: gpu => /^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu),
+        intel: gpu => /^(Arc|Intel)\b/i.test(gpu) || /\bIntel\b/i.test(gpu)
+    };
+    const test = vendorTest[vendor];
+    if (!test) return { labels: [], data: [], clientIds: [] };
+    // Deduplicate by clientId + GPU, keep max temp per contributor per GPU model
+    const bestPerUser = {};
+    data.forEach(r => {
+        const gpu = normalizeGPU(r.gpu);
+        if (!test(gpu) || r.gpuMaxTemp === null || isNaN(r.gpuMaxTemp)) return;
+        const id = r.clientId || 'N/D';
+        const key = id + '|' + gpu;
+        if (!bestPerUser[key] || r.gpuMaxTemp > bestPerUser[key].temp) {
+            bestPerUser[key] = { gpu, temp: r.gpuMaxTemp, gpuFreq: r.gpuMaxFreq, display: getDisplayName(r) };
+        }
+    });
+    const sorted = Object.values(bestPerUser)
+        .sort((a, b) => b.temp - a.temp)
+        .slice(0, limit);
+    return {
+        labels: sorted.map(r => r.gpu),
+        data: sorted.map(r => r.temp),
+        clientIds: sorted.map(r => r.display),
+        gpuFreqs: sorted.map(r => r.gpuFreq || null)
+    };
+}
+
+function renderSystemCharts() {
+    const hasChart = id => document.getElementById(id);
+
+    // ── Stats Grid ──
+    const bm = benchmarkData || [];
+    const displayDist = getDisplayServerDistribution(bm);
+    if (displayDist.labels.length > 0) {
+        document.getElementById('sys-top-display').textContent = displayDist.labels[0];
+        const pct = (displayDist.counts[0] / displayDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
+        document.getElementById('sys-top-display-pct').textContent = `${pct}% of submissions`;
+    }
+    const desktopDist = getDesktopDistribution(bm);
+    if (desktopDist.labels.length > 0) {
+        document.getElementById('sys-top-desktop').textContent = desktopDist.labels[0];
+        const pct = (desktopDist.counts[0] / desktopDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
+        document.getElementById('sys-top-desktop-pct').textContent = `${pct}% of submissions`;
+    }
+    const storageDist = getStorageDistribution(bm);
+    if (storageDist.labels.length > 0) {
+        document.getElementById('sys-top-storage').textContent = storageDist.labels[0];
+        const pct = (storageDist.counts[0] / storageDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
+        document.getElementById('sys-top-storage-pct').textContent = `${pct}% of submissions`;
+    }
+    const hottest = getVendorHottestRuns(bm, 'amd', 1);
+    const hottestNv = getVendorHottestRuns(bm, 'nvidia', 1);
+    const hottestIn = getVendorHottestRuns(bm, 'intel', 1);
+    const allHottest = [
+        ...(hottest.labels.length ? [{ label: hottest.labels[0], temp: hottest.data[0] }] : []),
+        ...(hottestNv.labels.length ? [{ label: hottestNv.labels[0], temp: hottestNv.data[0] }] : []),
+        ...(hottestIn.labels.length ? [{ label: hottestIn.labels[0], temp: hottestIn.data[0] }] : [])
+    ].sort((a, b) => b.temp - a.temp);
+    if (allHottest.length > 0) {
+        document.getElementById('sys-hottest-gpu').textContent = allHottest[0].label.split(' — ')[0];
+        document.getElementById('sys-hottest-gpu-temp').textContent = `${allHottest[0].temp}°C max temp`;
+    }
+
+    // ── System Environment Donuts ──
+    const donutColors = [
+        { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },
+        { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },
+        { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },
+        { bg: 'rgba(239, 68, 68, 0.8)', border: '#ef4444' },
+        { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' }
+    ];
+
+    if (hasChart('displayServerChart')) {
+        const d = displayDist;
+        if (d.labels.length > 0) {
+            renderDoughnutChart('displayServerChart', d.labels, d.counts,
+                d.labels.map((_, i) => donutColors[i % donutColors.length].bg),
+                d.labels.map((_, i) => donutColors[i % donutColors.length].border));
+        }
+    }
+    if (hasChart('desktopChart')) {
+        const d = desktopDist;
+        if (d.labels.length > 0) {
+            renderDoughnutChart('desktopChart', d.labels, d.counts,
+                d.labels.map((_, i) => donutColors[i % donutColors.length].bg),
+                d.labels.map((_, i) => donutColors[i % donutColors.length].border));
+        }
+    }
+
+    // ── Thermal Performance Bars ──
+
+    function renderVendorChart(canvasId, vendor, bgColor, borderColor) {
+        if (!hasChart(canvasId)) return;
+        const d = getVendorHottestRuns(bm, vendor, 10);
+        if (d.labels.length === 0) return;
+        renderHorizontalBarChart(canvasId, d.labels, d.data, 'Max Temp °C',
+            bgColor, borderColor, null, 0, d.clientIds, null, null, null, null, d.gpuFreqs, null, null, true);
+        if (chartInstances[canvasId]) chartInstances[canvasId].data.datasets[0].dataLabelUnit = '°C';
+    }
+
+    renderVendorChart('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444');
+    renderVendorChart('hottestNvidiaChart', 'nvidia', 'rgba(16, 185, 129, 0.8)', '#34d399');
+    renderVendorChart('hottestIntelChart', 'intel', 'rgba(99, 102, 241, 0.8)', '#818cf8');
+    if (hasChart('bestCoolingChart')) {
+        const c = getBestCooling(bm, 10);
+        if (c.labels.length > 0) {
+            renderHorizontalBarChart('bestCoolingChart', c.labels, c.data, 'Avg Delta °C',
+                'rgba(16, 185, 129, 0.8)', '#34d399', null, 0, c.labels, null, null, null, null, null, null, null, true);
+            if (chartInstances['bestCoolingChart']) chartInstances['bestCoolingChart'].data.datasets[0].dataLabelUnit = '°C';
+        }
+    }
+}
+
 // Helper to get top contributors by number of benchmark submissions
 function getTopContributors(data, limit = 10) {
     const counts = {};
@@ -3401,7 +3603,7 @@ function renderCharts() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
+            plugins: {
                         legend: { display: false },
                         tooltip: {
                             backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -3474,7 +3676,13 @@ function renderCharts() {
                 0,
                 contributors.clientIds,
                 null,
-                null
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                true
             );
         }
 
@@ -3677,6 +3885,9 @@ function renderCharts() {
     } catch(e) {
         console.error('Software comparison charts error:', e);
     }
+
+    // System Tab charts
+    renderSystemCharts();
 
     // Remove skeleton loaders after charts are rendered
     removeSkeletonLoading();
@@ -4173,7 +4384,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, percentages, normalize) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, percentages, normalize, showDataLabels) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -4211,16 +4422,18 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 freqLabel: freqLabel,
                 gpuFreqs: gpuFreqs,
                 percentages: percentages,
-                normalize: normalize
+                normalize: normalize,
+                showDataLabels: showDataLabels
             }]
         },
         options: {
-            indexAxis: 'y', // Makes it a horizontal bar chart
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: showDataLabels ? { right: 40 } : { right: 4 } },
             plugins: {
                 legend: {
-                    display: false // Hide legend to keep it clean
+                    display: false
                 },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -4244,6 +4457,10 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             const lines = context.dataset.normalize
                                 ? [`${val.toFixed(1)}%`]
                                 : [`${context.dataset.label}: ${val.toLocaleString()}`];
+                            const label = context.chart.data.labels[context.dataIndex];
+                            if (context.dataset.showDataLabels && label) {
+                                lines.unshift(label);
+                            }
                             const freq = context.dataset.freqs && context.dataset.freqs[context.dataIndex];
                             if (freq) {
                                 const fl = context.dataset.freqLabel || 'CPU Max Freq';
@@ -4273,13 +4490,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     min: xMin !== undefined ? xMin : 0,
                     display: true,
                     grid: {
-                        display: !percentages,
-                        drawBorder: !percentages,
+                        display: !percentages && !showDataLabels,
+                        drawBorder: !percentages && !showDataLabels,
                         color: 'rgba(255, 255, 255, 0.05)',
                         tickBorderDash: [3, 3]
                     },
                     ticks: {
-                        display: !percentages,
+                        display: !percentages && !showDataLabels,
                         color: '#9ca3af',
                         font: {
                             family: "'Inter', sans-serif",
@@ -4333,6 +4550,28 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         c.font = isMax ? 'bold 14px Inter, sans-serif' : '600 12px Inter, sans-serif';
                         c.fillStyle = '#ffffff';
                         c.fillText(`${pct.toFixed(1)}%`, rightX, bar.y);
+                    });
+                } else if (chart.data.datasets[0].showDataLabels) {
+                    c.textAlign = 'right';
+                    c.textBaseline = 'middle';
+                    c.fillStyle = '#ffffff';
+                    const labelUnit = chart.data.datasets[0].dataLabelUnit || '';
+                    const gpuFreqs = chart.data.datasets[0].gpuFreqs;
+                    const xScale = chart.scales.x;
+                    const baseX = xScale.getPixelForValue(xScale.min || 0);
+                    meta.data.forEach((bar, i) => {
+                        if (bar.x < 1 || bar.height < 1) return;
+                        c.font = '12px Inter, sans-serif';
+                        c.textAlign = 'right';
+                        c.fillText(`${vals[i].toLocaleString()}${labelUnit}`, bar.x - 8, bar.y);
+                        const gpuFreq = gpuFreqs && gpuFreqs[i];
+                        if (gpuFreq) {
+                            const centerX = (baseX + bar.x) / 2;
+                            c.font = '10px Inter, sans-serif';
+                            c.textAlign = 'center';
+                            c.fillStyle = '#ffffff';
+                            c.fillText(`${gpuFreq.toLocaleString()} MHz`, centerX, bar.y);
+                        }
                     });
                 } else {
                     const freqs = chart.data.datasets[0].freqs;

@@ -556,6 +556,12 @@ h1, h2, h3, h4 {
     margin-top: 1rem;
 }
 
+.demographics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
 .section-header {
     margin-bottom: 0.5rem;
 }
@@ -797,6 +803,12 @@ h1, h2, h3, h4 {
 .advanced-averages-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.advanced-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
