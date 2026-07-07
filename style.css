@@ -396,7 +396,12 @@ h1, h2, h3, h4 {
     flex-direction: column;
     gap: 1.25rem;
     transition: var(--transition-normal);
+    position: relative;
+}
 
+.chart-toggle-corner {
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .chart-container-wrapper:hover {
@@ -407,15 +412,27 @@ h1, h2, h3, h4 {
     grid-column: span 2;
 }
 
+.chart-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.15rem 1rem;
+}
+
 .chart-header h3 {
     font-size: 1.2rem;
     color: var(--text-primary);
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .chart-header p {
     font-size: 0.8rem;
     color: var(--text-secondary);
-    margin-top: 0.2rem;
+    margin-top: 0.15rem;
+    width: 100%;
+    order: 3;
 }
 
 .baseline-row {

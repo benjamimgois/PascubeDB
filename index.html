@@ -119,6 +119,12 @@
                 <div class="chart-header">
                     <h3>Top 10 Benchmark Runs - Main Score</h3>
                     <p>Highest overall recorded benchmark scores (higher is better)</p>
+                    <label class="chart-toggle-wrap chart-toggle-corner" data-chart="mainOverallChart">
+                        <input type="checkbox" class="chart-toggle-cb">
+                        <span class="chart-toggle-slider"></span>
+                        <span class="chart-toggle-label">Normalize</span>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                    </label>
                 </div>
                 <div class="chart-canvas-area">
                     <canvas id="mainOverallChart"></canvas>
@@ -129,6 +135,12 @@
                 <div class="chart-header">
                     <h3>Top 10 CPU Model - Single Thread</h3>
                     <p>Highest single-thread score per CPU model (higher is better)</p>
+                    <label class="chart-toggle-wrap chart-toggle-corner" data-chart="cpuSingleChart">
+                        <input type="checkbox" class="chart-toggle-cb">
+                        <span class="chart-toggle-slider"></span>
+                        <span class="chart-toggle-label">Normalize</span>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                    </label>
                 </div>
                 <div class="chart-canvas-area">
                     <canvas id="cpuSingleChart"></canvas>
@@ -139,6 +151,12 @@
                 <div class="chart-header">
                     <h3>Top 10 CPU Model - Multi Thread</h3>
                     <p>Highest multi-thread score per CPU model (higher is better)</p>
+                    <label class="chart-toggle-wrap chart-toggle-corner" data-chart="cpuMultiChart">
+                        <input type="checkbox" class="chart-toggle-cb">
+                        <span class="chart-toggle-slider"></span>
+                        <span class="chart-toggle-label">Normalize</span>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                    </label>
                 </div>
                 <div class="chart-canvas-area">
                     <canvas id="cpuMultiChart"></canvas>
@@ -149,6 +167,12 @@
                 <div class="chart-header">
                     <h3>Top 10 GPU Model - Performance</h3>
                     <p>Highest GPU score per GPU model (higher is better)</p>
+                    <label class="chart-toggle-wrap chart-toggle-corner" data-chart="gpuChart">
+                        <input type="checkbox" class="chart-toggle-cb">
+                        <span class="chart-toggle-slider"></span>
+                        <span class="chart-toggle-label">Normalize</span>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                    </label>
                 </div>
                 <div class="chart-canvas-area">
                     <canvas id="gpuChart"></canvas>
@@ -253,6 +277,12 @@
                     <div class="chart-header">
                         <h3>Average CPU Score by Model</h3>
                         <p>Average CPU Single score (higher is better)</p>
+                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="cpuAverageChart">
+                            <input type="checkbox" class="chart-toggle-cb">
+                            <span class="chart-toggle-slider"></span>
+                            <span class="chart-toggle-label">Normalize</span>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                        </label>
                     </div>
                     <div class="chart-canvas-area">
                         <canvas id="cpuAverageChart"></canvas>
@@ -263,6 +293,12 @@
                     <div class="chart-header">
                         <h3>Average GPU Score by Model</h3>
                         <p>Average GPU score (higher is better)</p>
+                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="gpuAverageChart">
+                            <input type="checkbox" class="chart-toggle-cb">
+                            <span class="chart-toggle-slider"></span>
+                            <span class="chart-toggle-label">Normalize</span>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                        </label>
                     </div>
                     <div class="chart-canvas-area">
                         <canvas id="gpuAverageChart"></canvas>
@@ -558,6 +594,12 @@
                         <div class="chart-header">
                             <h3>Top 10 Notebook Benchmark Runs</h3>
                             <p>Highest individual Main Scores (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookRunsChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="notebookRunsChart"></canvas>
@@ -576,6 +618,12 @@
                         <div class="chart-header">
                             <h3>Top 10 Notebook CPU Model - Performance</h3>
                             <p>Highest CPU Single score per notebook CPU model (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookCpuChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="notebookCpuChart"></canvas>
@@ -585,6 +633,12 @@
                         <div class="chart-header">
                             <h3>Top 10 Notebook GPU Model - Performance</h3>
                             <p>Highest GPU score per notebook GPU model (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookGpuChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="notebookGpuChart"></canvas>
@@ -598,6 +652,12 @@
                         <div class="chart-header">
                             <h3>Top 10 Handheld Benchmark Runs</h3>
                             <p>Highest individual Main Scores (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldRunsChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="handheldRunsChart"></canvas>
@@ -616,6 +676,12 @@
                         <div class="chart-header">
                             <h3>Top 10 Handheld CPU Model - Performance</h3>
                             <p>Highest CPU Single score per handheld CPU model (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldCpuChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="handheldCpuChart"></canvas>
@@ -625,6 +691,12 @@
                         <div class="chart-header">
                             <h3>Top 10 Handheld GPU Model - Performance</h3>
                             <p>Highest GPU score per handheld GPU model (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldGpuChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="handheldGpuChart"></canvas>
@@ -638,6 +710,12 @@
                         <div class="chart-header">
                             <h3>Top 10 SBC Benchmark Runs</h3>
                             <p>Highest individual Main Scores (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcRunsChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="sbcRunsChart"></canvas>
@@ -656,6 +734,12 @@
                         <div class="chart-header">
                             <h3>Top 10 SBC CPU Model - Performance</h3>
                             <p>Highest CPU Single score per SBC CPU model (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcCpuChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="sbcCpuChart"></canvas>
@@ -665,6 +749,12 @@
                         <div class="chart-header">
                             <h3>Top 10 SBC GPU Model - Performance</h3>
                             <p>Highest GPU score per SBC GPU model (higher is better)</p>
+                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcGpuChart">
+                                <input type="checkbox" class="chart-toggle-cb">
+                                <span class="chart-toggle-slider"></span>
+                                <span class="chart-toggle-label">Normalize</span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                            </label>
                         </div>
                         <div class="chart-canvas-area">
                             <canvas id="sbcGpuChart"></canvas>

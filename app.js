@@ -127,6 +127,7 @@ const SCORE_COLORS = {
 let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
+let chartNorm = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
 let chartVizState = { mesa: { mode: 'absolute', normalize: true }, nvidia: { mode: 'absolute', normalize: true }, kernel: { mode: 'delta', normalize: true }, os: { mode: 'delta', normalize: true }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
 let baselineState = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
@@ -720,6 +721,15 @@ function setupEventListeners() {
             }
         });
     }
+
+    document.addEventListener('change', (e) => {
+        const cb = e.target.closest('.chart-toggle-cb');
+        if (!cb) return;
+        const wrap = cb.closest('.chart-toggle-wrap');
+        if (!wrap || !wrap.dataset.chart) return;
+        chartNorm[wrap.dataset.chart] = cb.checked;
+        renderCharts();
+    });
 }
 
 // Fetch Google Sheets Data using JSONP to bypass CORS restrictions
@@ -2737,7 +2747,9 @@ function renderCharts() {
         mainRuns.map(r => r.gpu),
         mainRuns.map(r => r.cpuMaxFreq),
         'CPU Max Freq',
-        mainRuns.map(r => r.gpuMaxFreq)
+        mainRuns.map(r => r.gpuMaxFreq),
+        undefined,
+        chartNorm['mainOverallChart']
     );
 
     // 1. CPU Single Thread Top 10 Chart (best per CPU model)
@@ -2770,7 +2782,10 @@ function renderCharts() {
         null,
         null,
         cpuSingleRuns.map(r => r.cpuMaxFreq),
-        'CPU Max Freq'
+        'CPU Max Freq',
+        undefined,
+        undefined,
+        chartNorm['cpuSingleChart']
     );
     
     // 2. CPU Multi Thread Top 10 Chart (best per CPU model)
@@ -2803,7 +2818,10 @@ function renderCharts() {
         null,
         null,
         cpuMultiRuns.map(r => r.cpuMaxFreq),
-        'CPU Max Freq'
+        'CPU Max Freq',
+        undefined,
+        undefined,
+        chartNorm['cpuMultiChart']
     );
     
     // 3. GPU Performance Top 10 Chart (best per GPU model)
@@ -2832,29 +2850,54 @@ function renderCharts() {
         null,
         null,
         gpuRuns.map(r => r.gpuMaxFreq),
-        'GPU Max Freq'
+        'GPU Max Freq',
+        undefined,
+        undefined,
+        chartNorm['gpuChart']
     );
 
     // 4. Top 10 CPU - Most Used Chart
     const popularCPUs = getTopHardware(benchmarkData, 'cpu', 10);
+    const cpuPopTotal = popularCPUs.reduce((s, c) => s + c.count, 0);
+    const cpuPopPct = popularCPUs.map(c => (c.count / cpuPopTotal) * 100);
     renderHorizontalBarChart(
         'cpuPopularChart',
         popularCPUs.map(c => c.name),
         popularCPUs.map(c => c.count),
         'Count',
         'rgba(245, 158, 11, 0.85)',
-        '#f59e0b'
+        '#f59e0b',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        cpuPopPct
     );
 
     // 5. Top 10 GPU - Most Used Chart
     const popularGPUs = getTopHardware(benchmarkData, 'gpu', 10);
+    const gpuPopTotal = popularGPUs.reduce((s, g) => s + g.count, 0);
+    const gpuPopPct = popularGPUs.map(g => (g.count / gpuPopTotal) * 100);
     renderHorizontalBarChart(
         'gpuPopularChart',
         popularGPUs.map(g => g.name),
         popularGPUs.map(g => g.count),
         'Count',
         SCORE_COLORS.popularGpu.bg,
-        SCORE_COLORS.popularGpu.border
+        SCORE_COLORS.popularGpu.border,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        gpuPopPct
     );
 
     // 6. Pie/Doughnut OS Distribution Chart
@@ -3008,7 +3051,7 @@ function renderCharts() {
     lastSoftwareData.cpuAverage = cpuAverages;
     {
         const cfg = AVERAGE_CHART_CONFIG.cpuAverage;
-        makeChartScrollable(cfg.chartId, cpuAverages.map(c => c.name), cpuAverages.map(c => c.average), cfg.label, cfg.color, cfg.border, cfg.maxItems);
+        makeChartScrollable(cfg.chartId, cpuAverages.map(c => c.name), cpuAverages.map(c => c.average), cfg.label, cfg.color, cfg.border, cfg.maxItems, chartNorm[cfg.chartId]);
     }
 
     // 11. Average GPU score by model
@@ -3016,7 +3059,7 @@ function renderCharts() {
     lastSoftwareData.gpuAverage = gpuAverages;
     {
         const cfg = AVERAGE_CHART_CONFIG.gpuAverage;
-        makeChartScrollable(cfg.chartId, gpuAverages.map(g => g.name), gpuAverages.map(g => g.average), cfg.label, cfg.color, cfg.border, cfg.maxItems);
+        makeChartScrollable(cfg.chartId, gpuAverages.map(g => g.name), gpuAverages.map(g => g.average), cfg.label, cfg.color, cfg.border, cfg.maxItems, chartNorm[cfg.chartId]);
     }
 
     /*
@@ -3161,7 +3204,10 @@ function renderCharts() {
             runsData.map(h => h.cpuMaxFreq ? normalizeCPU(h.label) : null),
             null,
             runsData.map(h => h.cpuMaxFreq),
-            'CPU Max Freq'
+            'CPU Max Freq',
+            undefined,
+            undefined,
+            chartNorm[runsChartId]
         );
 
         // OS distribution
@@ -3198,7 +3244,10 @@ function renderCharts() {
             null,
             null,
             cpuData.map(c => c.cpuMaxFreq),
-            'CPU Max Freq'
+            'CPU Max Freq',
+            undefined,
+            undefined,
+            chartNorm[cpuChartId]
         );
 
         const gpuData = getTopCategoryGPUs(benchmarkData, category, 10);
@@ -3219,7 +3268,10 @@ function renderCharts() {
             null,
             null,
             gpuData.map(g => g.gpuMaxFreq),
-            'GPU Max Freq'
+            'GPU Max Freq',
+            undefined,
+            undefined,
+            chartNorm[gpuChartId]
         );
     }
 
@@ -4099,9 +4151,19 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, percentages, normalize) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
+    }
+    
+    if (normalize && data && data.length > 0) {
+        const maxVal = Math.max(...data);
+        if (maxVal > 0) {
+            data = data.map(v => (v / maxVal) * 100);
+            percentages = data;
+        }
+        xMin = undefined;
+        xMax = undefined;
     }
     
     const ctx = document.getElementById(canvasId).getContext('2d');
@@ -4125,7 +4187,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 gpus: gpus,
                 freqs: freqs,
                 freqLabel: freqLabel,
-                gpuFreqs: gpuFreqs
+                gpuFreqs: gpuFreqs,
+                percentages: percentages,
+                normalize: normalize
             }]
         },
         options: {
@@ -4154,7 +4218,10 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     displayColors: false,
                     callbacks: {
                         label: function(context) {
-                            const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`];
+                            const val = context.parsed.x;
+                            const lines = context.dataset.normalize
+                                ? [`${val.toFixed(1)}%`]
+                                : [`${context.dataset.label}: ${val.toLocaleString()}`];
                             const freq = context.dataset.freqs && context.dataset.freqs[context.dataIndex];
                             if (freq) {
                                 const fl = context.dataset.freqLabel || 'CPU Max Freq';
@@ -4182,6 +4249,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 x: {
                     max: xMax,
                     min: xMin !== undefined ? xMin : 0,
+                    display: !percentages,
                     grid: {
                         color: 'rgba(255, 255, 255, 0.05)',
                         tickBorderDash: [3, 3]
@@ -4219,38 +4287,55 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
             }
         },
         plugins: [{
-            id: 'freqLabels',
+            id: 'barLabels',
             afterDraw(chart) {
-                const freqs = chart.data.datasets[0].freqs;
-                if (!freqs) return;
                 const meta = chart.getDatasetMeta(0);
                 if (!meta || !meta.data) return;
                 const c = chart.ctx;
                 c.save();
-                c.font = 'bold 10px Inter, sans-serif';
-                c.textAlign = 'center';
-                c.textBaseline = 'middle';
-                const xScale = chart.scales.x;
-                const baseVal = xScale.min || 0;
                 const vals = chart.data.datasets[0].data;
-                const gpuFreqs = chart.data.datasets[0].gpuFreqs;
-                meta.data.forEach((bar, i) => {
-                    const freq = freqs[i];
-                    if (bar.x < 1 || bar.height < 1) return;
-                    const midVal = (vals[i] + baseVal) / 2;
-                    const midX = xScale.getPixelForValue(midVal);
-                    const gpuFreq = gpuFreqs ? gpuFreqs[i] : null;
-                    if (gpuFreq) {
-                        c.fillStyle = 'rgba(100,200,255,0.9)';
-                        const cpuLabel = freq ? `${freq}` : '';
-                        const gpuLabel = `GPU: ${gpuFreq} MHz`;
-                        const full = cpuLabel ? `${cpuLabel} / ${gpuLabel}` : gpuLabel;
-                        c.fillText(full, midX, bar.y);
-                    } else if (freq) {
-                        c.fillStyle = 'rgba(255,255,255,0.85)';
-                        c.fillText(`${freq} MHz`, midX, bar.y);
-                    }
-                });
+                const percentages = chart.data.datasets[0].percentages;
+
+                if (percentages) {
+                    c.textAlign = 'right';
+                    c.textBaseline = 'middle';
+                    const maxPct = Math.max(...percentages);
+                    meta.data.forEach((bar, i) => {
+                        if (bar.x < 1 || bar.height < 1) return;
+                        const pct = percentages[i];
+                        const isMax = pct === maxPct;
+                        const rightX = bar.x - 6;
+                        c.font = isMax ? 'bold 14px Inter, sans-serif' : '600 12px Inter, sans-serif';
+                        c.fillStyle = '#ffffff';
+                        c.fillText(`${pct.toFixed(1)}%`, rightX, bar.y);
+                    });
+                } else {
+                    const freqs = chart.data.datasets[0].freqs;
+                    if (!freqs) { c.restore(); return; }
+                    c.font = 'bold 10px Inter, sans-serif';
+                    c.textAlign = 'center';
+                    c.textBaseline = 'middle';
+                    const xScale = chart.scales.x;
+                    const baseVal = xScale.min || 0;
+                    const gpuFreqs = chart.data.datasets[0].gpuFreqs;
+                    meta.data.forEach((bar, i) => {
+                        const freq = freqs[i];
+                        if (bar.x < 1 || bar.height < 1) return;
+                        const midVal = (vals[i] + baseVal) / 2;
+                        const midX = xScale.getPixelForValue(midVal);
+                        const gpuFreq = gpuFreqs ? gpuFreqs[i] : null;
+                        if (gpuFreq) {
+                            c.fillStyle = 'rgba(100,200,255,0.9)';
+                            const cpuLabel = freq ? `${freq}` : '';
+                            const gpuLabel = `GPU: ${gpuFreq} MHz`;
+                            const full = cpuLabel ? `${cpuLabel} / ${gpuLabel}` : gpuLabel;
+                            c.fillText(full, midX, bar.y);
+                        } else if (freq) {
+                            c.fillStyle = 'rgba(255,255,255,0.85)';
+                            c.fillText(`${freq} MHz`, midX, bar.y);
+                        }
+                    });
+                }
                 c.restore();
             }
         }]
@@ -4258,7 +4343,15 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
 }
 
 // Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
-function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10) {
+function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize) {
+    // Pre-normalize data upfront so scroll updates use same scaled values
+    if (normalize && allData.length > 0) {
+        const maxVal = Math.max(...allData);
+        if (maxVal > 0) {
+            allData = allData.map(v => (v / maxVal) * 100);
+        }
+    }
+    
     // Initial slice to render the first few bars
     const initialLabels = allLabels.slice(0, visibleCount);
     const initialData = allData.slice(0, visibleCount);
@@ -4266,14 +4359,12 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     // Find the maximum value in the entire dataset to lock the X-axis scale
     const xMax = allData.length > 0 ? Math.max(...allData) : undefined;
     
-    // Check if initial visible items all have score < 1000
-    const initialMax = initialData.length > 0 ? Math.max(...initialData) : 0;
     let initialXMax = xMax;
-    if (xMax !== undefined && initialMax < 1000) {
+    if (xMax !== undefined && initialData.length > 0 && Math.max(...initialData) < 1000 && !normalize) {
         initialXMax = xMax / 2;
     }
     
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax, undefined, undefined, undefined, undefined, undefined, undefined, normalize ? initialData : undefined, undefined);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
@@ -4324,7 +4415,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             
             // Adjust X-axis scale: if all currently visible items are < 1000, reduce max by half
             const currentMax = newData.length > 0 ? Math.max(...newData) : 0;
-            if (xMax !== undefined) {
+            if (xMax !== undefined && !normalize) {
                 if (currentMax < 1000) {
                     chart.options.scales.x.max = xMax / 2;
                 } else {
@@ -4334,6 +4425,9 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             
             chart.data.labels = newLabels;
             chart.data.datasets[0].data = newData;
+            if (normalize) {
+                chart.data.datasets[0].percentages = newData;
+            }
             chart.update('none'); // Update without animation for buttery smooth scrolling
         }
     };
