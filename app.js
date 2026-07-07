@@ -4370,7 +4370,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
         initialXMax = xMax / 2;
     }
     
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax, undefined, undefined, undefined, undefined, undefined, undefined, normalize ? initialData : undefined, undefined);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax, undefined, undefined, undefined, undefined, undefined, undefined, normalize ? initialData : undefined, normalize);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
