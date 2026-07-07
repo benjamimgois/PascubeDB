@@ -5086,6 +5086,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
     // ── Blog Modal (tasks 5.1-5.7) ──
 
     function openBlogModal() {
+        dismissBadge();
         listView.style.display = 'block';
         detailView.style.display = 'none';
         currentPostId = null;
@@ -5367,6 +5368,37 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
         return div.innerHTML;
     }
 
+    // ── New post badge ──
+
+    function dismissBadge() {
+        const badge = document.getElementById('blog-badge');
+        if (!badge) return;
+        badge.style.display = 'none';
+        localStorage.setItem('blogNewSeen', Date.now());
+    }
+
+    async function checkNewPosts() {
+        const badge = document.getElementById('blog-badge');
+        if (!badge || !supa) return;
+        const lastSeen = parseInt(localStorage.getItem('blogNewSeen') || '0', 10);
+        try {
+            const { data, error } = await supa
+                .from('posts')
+                .select('created_at')
+                .eq('published', true)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (error || !data || data.length === 0) return;
+            const latest = new Date(data[0].created_at).getTime();
+            if (!lastSeen || latest > lastSeen) {
+                badge.textContent = '+1';
+                badge.style.display = 'flex';
+            }
+        } catch (e) {
+            // silently fail — badge is cosmetic
+        }
+    }
+
     // ── Event Listeners ──
 
     if (blogBtn && blogModal) {
@@ -5398,6 +5430,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
     }
 
     getSession();
+    checkNewPosts();
 })();
 
 // Baseline zero line plugin — draws colored line at x=0 with baseline name
