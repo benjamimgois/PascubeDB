@@ -2408,17 +2408,18 @@ function getBestCooling(data, limit = 10, minSamples = 2) {
 
 function getVendorHottestRuns(data, vendor, limit = 10) {
     const vendorTest = {
-        amd: gpu => /^(RX|Radeon|AMD)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
+        amd: gpu => /^(AMD|Radeon|RX)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
         nvidia: gpu => /^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu),
-        intel: gpu => /^(Arc|Intel)\b/i.test(gpu) || /\bIntel\b/i.test(gpu)
+        intel: gpu => /^(Intel|Arc)\b/i.test(gpu) || /^UHD\b/i.test(gpu) || /^Iris\b/i.test(gpu) || /\b(Intel|Arc)\b/i.test(gpu)
     };
     const test = vendorTest[vendor];
     if (!test) return { labels: [], data: [], clientIds: [] };
     // Deduplicate by clientId + GPU, keep max temp per contributor per GPU model
     const bestPerUser = {};
     data.forEach(r => {
-        const gpu = normalizeGPU(r.gpu);
-        if (!test(gpu) || r.gpuMaxTemp === null || isNaN(r.gpuMaxTemp)) return;
+        const rawGpu = r.gpu || '';
+        if (!test(rawGpu) || r.gpuMaxTemp === null || isNaN(r.gpuMaxTemp)) return;
+        const gpu = normalizeGPU(rawGpu);
         const id = r.clientId || 'N/D';
         const key = id + '|' + gpu;
         if (!bestPerUser[key] || r.gpuMaxTemp > bestPerUser[key].temp) {
