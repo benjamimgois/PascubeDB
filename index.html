@@ -902,7 +902,7 @@
         <section class="demographics-section">
             <div class="section-header">
                 <h2>System Environment</h2>
-                <p>Display server and desktop environment distribution</p>
+                <p>Display server, desktop environment, and package distribution</p>
             </div>
             <div class="demographics-grid">
                 <div class="chart-container-wrapper">
@@ -923,17 +923,15 @@
                         <canvas id="desktopChart"></canvas>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- Package Distribution -->
-        <section class="demographics-section">
-            <div class="section-header">
-                <h2>Package Distribution</h2>
-                <p>Native vs. Flatpak vs. AppImage benchmark submissions</p>
-            </div>
-            <div class="chart-canvas-area donut-chart-canvas" style="max-width:400px;">
-                <canvas id="packageDistChart"></canvas>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Package Distribution</h3>
+                        <p>Native vs. Flatpak vs. AppImage</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="packageDistChart"></canvas>
+                    </div>
+                </div>
             </div>
         </section>
 
