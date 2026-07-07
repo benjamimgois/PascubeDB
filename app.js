@@ -2503,11 +2503,39 @@ function renderSystemCharts() {
 
     function renderVendorChart(canvasId, vendor, bgColor, borderColor) {
         if (!hasChart(canvasId)) return;
-        const d = getVendorHottestRuns(bm, vendor, 10);
+        const d = getVendorHottestRuns(bm, vendor, 999);
         if (d.labels.length === 0) return;
-        renderHorizontalBarChart(canvasId, d.labels, d.data, 'Max Temp °C',
-            bgColor, borderColor, null, 0, d.clientIds, null, null, null, null, d.gpuFreqs, null, null, true);
-        if (chartInstances[canvasId]) chartInstances[canvasId].data.datasets[0].dataLabelUnit = '°C';
+        const VIS = 10;
+        const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
+        renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
+            bgColor, borderColor, null, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+        const chart = chartInstances[canvasId];
+        if (!chart) return;
+        chart.data.datasets[0].dataLabelUnit = '°C';
+        if (allL.length <= VIS) return;
+        const parent = chart.canvas.parentElement;
+        parent.style.position = 'relative';
+        const overlay = document.createElement('div');
+        overlay.className = 'chart-scroll-overlay';
+        const spacer = document.createElement('div');
+        spacer.style.height = `${320 + (allL.length - VIS) * 18}px`;
+        overlay.appendChild(spacer);
+        parent.appendChild(overlay);
+        let lastIdx = 0;
+        overlay.onscroll = () => {
+            const pct = overlay.scrollHeight > overlay.clientHeight ? overlay.scrollTop / (overlay.scrollHeight - overlay.clientHeight) : 0;
+            const maxStart = allL.length - VIS;
+            const idx = Math.min(maxStart, Math.round(pct * maxStart));
+            if (idx === lastIdx) return;
+            lastIdx = idx;
+            chart.data.labels = allL.slice(idx, idx + VIS);
+            chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
+            chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
+            chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
+            chart.update('none');
+        };
+        chart.canvas.onwheel = e => { e.preventDefault(); overlay.scrollTop += e.deltaY; };
+        chart.update('none');
     }
 
     renderVendorChart('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444');
@@ -4611,7 +4639,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
 }
 
 // Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
-function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize) {
+function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels) {
     // Pre-normalize data upfront so scroll updates use same scaled values
     if (normalize && allData.length > 0) {
         const maxVal = Math.max(...allData);
@@ -4632,7 +4660,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
         initialXMax = xMax / 2;
     }
     
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax, undefined, undefined, undefined, undefined, undefined, undefined, normalize ? initialData : undefined, undefined);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax, undefined, clientIds, undefined, undefined, undefined, undefined, gpuFreqs, normalize ? initialData : undefined, undefined, showDataLabels);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
@@ -4680,7 +4708,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             
             const newLabels = allLabels.slice(startIndex, startIndex + visibleCount);
             const newData = allData.slice(startIndex, startIndex + visibleCount);
-            
+
             // Adjust X-axis scale: if all currently visible items are < 1000, reduce max by half
             const currentMax = newData.length > 0 ? Math.max(...newData) : 0;
             if (xMax !== undefined && !normalize) {
@@ -4690,9 +4718,11 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
                     chart.options.scales.x.max = xMax;
                 }
             }
-            
+
             chart.data.labels = newLabels;
             chart.data.datasets[0].data = newData;
+            if (clientIds) chart.data.datasets[0].clientIds = clientIds.slice(startIndex, startIndex + visibleCount);
+            if (gpuFreqs) chart.data.datasets[0].gpuFreqs = gpuFreqs.slice(startIndex, startIndex + visibleCount);
             if (normalize) {
                 chart.data.datasets[0].percentages = newData;
                 chart._pctLabels = newData;
