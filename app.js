@@ -4446,6 +4446,10 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
         e.preventDefault();
         overlay.scrollTop += e.deltaY;
     };
+
+    // Force re-render: ensures Chart.js scale layout is finalized so
+    // afterDraw plugin gets valid bar.x positions for percentage labels
+    chart.update('none');
 }
 
 // Render Grouped Vertical Bar Chart
