@@ -4297,7 +4297,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 const c = chart.ctx;
                 c.save();
                 const vals = chart.data.datasets[0].data;
-                const percentages = chart.data.datasets[0].percentages;
+                const percentages = chart.data.datasets[0].percentages || chart._pctLabels;
 
                 if (percentages) {
                     c.textAlign = 'right';
@@ -4343,6 +4343,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
             }
         }]
     });
+    if (percentages) {
+        chartInstances[canvasId]._pctLabels = percentages;
+    }
 }
 
 // Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
@@ -4430,6 +4433,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             chart.data.datasets[0].data = newData;
             if (normalize) {
                 chart.data.datasets[0].percentages = newData;
+                chart._pctLabels = newData;
             }
             chart.update('none'); // Update without animation for buttery smooth scrolling
         }
