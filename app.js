@@ -3619,7 +3619,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const PER_PAGE = 5;
+    const PER_PAGE = canvasId === 'osHardwareScatterChart' || canvasId === 'nvidiaDriverScatterChart' ? 4 : 5;
     const key = CHART_PAGE_MAP[canvasId];
     const totalHw = scatterData.hwLabels.length;
     const page = Math.min(chartPageState[key] || 0, Math.max(0, Math.ceil(totalHw / PER_PAGE) - 1));
@@ -3638,7 +3638,21 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
         '#fb7185', '#a78bfa', '#22d3ee', '#f472b6'
     ];
 
-    const datasets = [...verSet].slice(0, 8).map((ver, idx) => {
+    const maxVersions = canvasId === 'nvidiaDriverScatterChart' ? 4 : 8;
+    let versions = [...verSet];
+    if (canvasId === 'nvidiaDriverScatterChart') {
+        versions = versions.map(v => {
+            const coverage = labels.filter(hw =>
+                scatterData.points.some(p => p.hardwareLabel === hw && (p.label || p.os || '') === v)
+            ).length;
+            return { v, coverage };
+        })
+            .filter(x => x.coverage > 0)
+            .sort((a, b) => b.coverage - a.coverage || (b.v.localeCompare(a.v, undefined, { numeric: true })))
+            .slice(0, maxVersions)
+            .map(x => x.v);
+    }
+    const datasets = versions.map((ver, idx) => {
         const data = labels.map(hw => {
             const pts = scatterData.points.filter(p => p.hardwareLabel === hw && (p.label || p.os || '') === ver);
             if (pts.length === 0) return 0;
@@ -3661,6 +3675,40 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
         };
     });
 
+    const barLabelsPlugin = {
+        id: 'barLabels',
+        afterDraw(chart) {
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.font = 'bold 10px Inter, sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+                meta.data.forEach((element, index) => {
+                    const val = dataset.data[index];
+                    if (!val || val === 0) return;
+                    const width = Math.abs(element.x - element.base);
+                    const count = dataset.sampleCounts ? dataset.sampleCounts[index] : 0;
+                    if (!count) return;
+                    const isHigh = count >= 10;
+                    const arrow = isHigh ? '\u2191' : '\u2193';
+                    const prefix = `${dataset.label} / Samples=${count} `;
+                    const full = `${prefix}${arrow}`;
+                    const leftX = width >= 70
+                        ? element.base + width / 2 - ctx.measureText(full).width / 2
+                        : element.x + 6;
+                    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                    ctx.fillText(prefix, leftX, element.y);
+                    ctx.fillStyle = isHigh ? '#22c55e' : '#ef4444';
+                    ctx.fillText(arrow, leftX + ctx.measureText(prefix).width, element.y);
+                });
+            });
+            ctx.restore();
+        }
+    };
+
     chartInstances[canvasId] = new Chart(ctx, {
         type: 'bar',
         data: { labels, datasets },
@@ -3675,7 +3723,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
                 }}
             },
             plugins: {
-                legend: { display: true, position: 'bottom', labels: { color: '#f3f4f6', font: { family: "'Inter', sans-serif", size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true } },
+                legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
                     padding: 10, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1, cornerRadius: 8, displayColors: true,
@@ -3687,7 +3735,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
                     }
                 }
             }
-        }
+        },
+        plugins: [barLabelsPlugin]
     });
 
     chartInstances[canvasId].__scatterData = scatterData;
@@ -3740,7 +3789,11 @@ function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
             const osSet = new Set(runs.map(r => r.os));
             return osSet.size >= 2;
         })
-        .sort((a, b) => b[1].length - a[1].length)
+        .sort((a, b) => {
+            const avgA = a[1].reduce((s, r) => s + (cleanNumber(r.mainScore) || 0), 0) / (a[1].length || 1);
+            const avgB = b[1].reduce((s, r) => s + (cleanNumber(r.mainScore) || 0), 0) / (b[1].length || 1);
+            return avgB - avgA;
+        })
         .slice(0, maxHardware);
 
     const points = [];
@@ -3795,7 +3848,11 @@ function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
             const verSet = new Set(runs.map(r => r._kernelVer));
             return verSet.size >= 2;
         })
-        .sort((a, b) => b[1].length - a[1].length)
+        .sort((a, b) => {
+            const avgA = a[1].reduce((s, r) => s + (cleanNumber(r.cpuSingle) || 0), 0) / (a[1].length || 1);
+            const avgB = b[1].reduce((s, r) => s + (cleanNumber(r.cpuSingle) || 0), 0) / (b[1].length || 1);
+            return avgB - avgA;
+        })
         .slice(0, maxHardware);
 
     const points = [];
@@ -3855,7 +3912,11 @@ function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2
             const verSet = new Set(runs.map(r => r._driverVer));
             return verSet.size >= 2;
         })
-        .sort((a, b) => b[1].length - a[1].length)
+        .sort((a, b) => {
+            const avgA = a[1].reduce((s, r) => s + (cleanNumber(r.gpuScore) || 0), 0) / (a[1].length || 1);
+            const avgB = b[1].reduce((s, r) => s + (cleanNumber(r.gpuScore) || 0), 0) / (b[1].length || 1);
+            return avgB - avgA;
+        })
         .slice(0, maxHardware);
 
     const points = [];
