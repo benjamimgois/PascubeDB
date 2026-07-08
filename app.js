@@ -2536,11 +2536,14 @@ function renderSystemCharts() {
         if (d.labels.length === 0) return;
         const VIS = 10;
         const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
+        const fixedMax = Math.max(...allD) + 5;
         renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-            bgColor, borderColor, null, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
         const chart = chartInstances[canvasId];
         if (!chart) return;
         chart.data.datasets[0].dataLabelUnit = '°C';
+        chart.data.datasets[0].rankOneLocalIdx = 0;
+        chart.options.scales.x.max = fixedMax;
         if (allL.length <= VIS) return;
         const parent = chart.canvas.parentElement;
         parent.style.position = 'relative';
@@ -2561,6 +2564,8 @@ function renderSystemCharts() {
             chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
             chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
             chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
+            chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
+            chart.options.scales.x.max = fixedMax;
             chart.update('none');
         };
         parent.addEventListener('wheel', e => {
@@ -2576,6 +2581,8 @@ function renderSystemCharts() {
             chart.data.datasets[0].data = allD.slice(lastIdx, lastIdx + VIS);
             chart.data.datasets[0].clientIds = allC.slice(lastIdx, lastIdx + VIS);
             chart.data.datasets[0].gpuFreqs = allF.slice(lastIdx, lastIdx + VIS);
+            chart.data.datasets[0].rankOneLocalIdx = lastIdx === 0 ? 0 : -1;
+            chart.options.scales.x.max = fixedMax;
             chart.update('none');
         }, { passive: false });
         chart.update('none');
@@ -4627,7 +4634,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         if (bar.x < 1 || bar.height < 1) return;
                         c.font = '12px Inter, sans-serif';
                         c.textAlign = 'right';
-                        c.fillText(`${vals[i].toLocaleString()}${labelUnit}`, bar.x - 8, bar.y);
+                        const label = `${vals[i].toLocaleString()}${labelUnit}`;
+                        const isWinner = i === chart.data.datasets[0].rankOneLocalIdx;
+                        c.fillText(isWinner ? label + '  🔥' : label, bar.x - 8, bar.y);
                         const gpuFreq = gpuFreqs && gpuFreqs[i];
                         if (gpuFreq) {
                             const centerX = (baseX + bar.x) / 2;
