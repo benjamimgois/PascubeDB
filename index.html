@@ -838,9 +838,11 @@
                     <i data-lucide="monitor"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Top Display Server</span>
-                    <h3 class="stat-value" id="sys-top-display">-</h3>
-                    <p class="stat-sub" id="sys-top-display-pct">-</p>
+                    <span class="stat-label">Top Operating System</span>
+                    <h3 class="stat-value" id="sys-os-name">-</h3>
+                    <p class="stat-sub" id="sys-os-stat">-</p>
+                    <p class="stat-sub podium-sub" id="sys-os-second">2º -</p>
+                    <p class="stat-sub podium-sub" id="sys-os-third">3º -</p>
                 </div>
             </div>
             <div class="stat-card">
@@ -849,28 +851,34 @@
                 </div>
                 <div class="stat-info">
                     <span class="stat-label">Top Desktop</span>
-                    <h3 class="stat-value" id="sys-top-desktop">-</h3>
-                    <p class="stat-sub" id="sys-top-desktop-pct">-</p>
+                    <h3 class="stat-value" id="sys-desktop-name">-</h3>
+                    <p class="stat-sub" id="sys-desktop-stat">-</p>
+                    <p class="stat-sub podium-sub" id="sys-desktop-second">2º -</p>
+                    <p class="stat-sub podium-sub" id="sys-desktop-third">3º -</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon-box" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
-                    <i data-lucide="snowflake"></i>
+                <div class="stat-icon-box" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24;">
+                    <i data-lucide="eye"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Cooler GPU</span>
-                    <h3 class="stat-value" id="sys-cooler-gpu">-</h3>
-                    <p class="stat-sub" id="sys-cooler-gpu-delta">-</p>
+                    <span class="stat-label">Top Display Server</span>
+                    <h3 class="stat-value" id="sys-display-name">-</h3>
+                    <p class="stat-sub" id="sys-display-stat">-</p>
+                    <p class="stat-sub podium-sub" id="sys-display-second">2º -</p>
+                    <p class="stat-sub podium-sub" id="sys-display-third">3º -</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon-box" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
-                    <i data-lucide="thermometer"></i>
+                <div class="stat-icon-box" style="background: rgba(236, 72, 153, 0.1); color: #ec4899;">
+                    <i data-lucide="package"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Hottest GPU</span>
-                    <h3 class="stat-value" id="sys-hottest-gpu">-</h3>
-                    <p class="stat-sub" id="sys-hottest-gpu-temp">-</p>
+                    <span class="stat-label">Top Package Type</span>
+                    <h3 class="stat-value" id="sys-package-name">-</h3>
+                    <p class="stat-sub" id="sys-package-stat">-</p>
+                    <p class="stat-sub podium-sub" id="sys-package-second">2º -</p>
+                    <p class="stat-sub podium-sub" id="sys-package-third">3º -</p>
                 </div>
             </div>
         </section>
@@ -881,7 +889,7 @@
                 <h2>Software Versions</h2>
                 <p>Distribution of operating systems and driver/kernel versions</p>
             </div>
-            <div class="distribution-charts-grid">
+            <div class="distribution-charts-grid" style="grid-template-columns:repeat(2,1fr);">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>Operating Systems</h3>
@@ -893,20 +901,20 @@
                 </div>
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Mesa Versions</h3>
-                        <p>Open source graphics driver version distribution</p>
-                    </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="mesaVersionChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
                         <h3>Kernel Versions</h3>
                         <p>Linux kernel major version distribution</p>
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="kernelVersionChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Mesa Versions</h3>
+                        <p>Open source graphics driver version distribution</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="mesaVersionChart"></canvas>
                     </div>
                 </div>
                 <div class="chart-container-wrapper">

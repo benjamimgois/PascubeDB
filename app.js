@@ -2320,10 +2320,10 @@ function getPackageDistribution(data) {
     const counts = {};
     data.forEach(r => {
         let pkg = (r.packageType || '').trim().toLowerCase();
-        if (!pkg || pkg === 'n/d' || pkg === '') pkg = 'Unknown';
+        if (!pkg || pkg === 'n/d' || pkg === '' || pkg === 'unknown') return;
         counts[pkg] = (counts[pkg] || 0) + 1;
     });
-    const order = ['native', 'flatpak', 'appimage', 'Unknown'];
+    const order = ['native', 'flatpak', 'appimage'];
     const sorted = {};
     order.forEach(k => { if (counts[k]) sorted[k] = counts[k]; });
     Object.keys(counts).sort().forEach(k => { if (!order.includes(k)) sorted[k] = counts[k]; });
@@ -2470,46 +2470,41 @@ function getVendorBestCooling(data, vendor, limit) {
 function renderSystemCharts() {
     const hasChart = id => document.getElementById(id);
 
-    // ── Stats Grid ──
+    // ── Stats Grid (podium format) ──
     const bm = benchmarkData || [];
-    const displayDist = getDisplayServerDistribution(bm);
-    if (displayDist.labels.length > 0) {
-        document.getElementById('sys-top-display').textContent = displayDist.labels[0];
-        const pct = (displayDist.counts[0] / displayDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
-        document.getElementById('sys-top-display-pct').textContent = `${pct}% of submissions`;
-    }
-    const desktopDist = getDesktopDistribution(bm);
-    if (desktopDist.labels.length > 0) {
-        document.getElementById('sys-top-desktop').textContent = desktopDist.labels[0];
-        const pct = (desktopDist.counts[0] / desktopDist.counts.reduce((s, c) => s + c, 0) * 100).toFixed(1);
-        document.getElementById('sys-top-desktop-pct').textContent = `${pct}% of submissions`;
-    }
-    const coolAmd = getVendorHottestRuns(bm, 'amd', 999);
-    const coolNv = getVendorHottestRuns(bm, 'nvidia', 999);
-    const coolIn = getVendorHottestRuns(bm, 'intel', 999);
-    const allCooler = [
-        ...(coolAmd.labels.length ? [{ label: coolAmd.labels[coolAmd.labels.length - 1], temp: coolAmd.data[coolAmd.data.length - 1] }] : []),
-        ...(coolNv.labels.length ? [{ label: coolNv.labels[coolNv.labels.length - 1], temp: coolNv.data[coolNv.data.length - 1] }] : []),
-        ...(coolIn.labels.length ? [{ label: coolIn.labels[coolIn.labels.length - 1], temp: coolIn.data[coolIn.data.length - 1] }] : [])
-    ].sort((a, b) => a.temp - b.temp);
-    if (allCooler.length > 0) {
-        document.getElementById('sys-cooler-gpu').textContent = allCooler[0].label;
-        document.getElementById('sys-cooler-gpu-delta').textContent = `${allCooler[0].temp}°C max temp`;
-    }
-    const hottest = getVendorHottestRuns(bm, 'amd', 1);
-    const hottestNv = getVendorHottestRuns(bm, 'nvidia', 1);
-    const hottestIn = getVendorHottestRuns(bm, 'intel', 1);
-    const allHottest = [
-        ...(hottest.labels.length ? [{ label: hottest.labels[0], temp: hottest.data[0] }] : []),
-        ...(hottestNv.labels.length ? [{ label: hottestNv.labels[0], temp: hottestNv.data[0] }] : []),
-        ...(hottestIn.labels.length ? [{ label: hottestIn.labels[0], temp: hottestIn.data[0] }] : [])
-    ].sort((a, b) => b.temp - a.temp);
-    if (allHottest.length > 0) {
-        document.getElementById('sys-hottest-gpu').textContent = allHottest[0].label.split(' — ')[0];
-        document.getElementById('sys-hottest-gpu-temp').textContent = `${allHottest[0].temp}°C max temp`;
+
+    function setPodiumCard(prefix, dist) {
+        const entries = Array.isArray(dist)
+            ? dist
+            : Object.entries(dist).map(([name, count]) => ({ name, count }));
+        const total = entries.reduce((s, e) => s + e.count, 0);
+        const get = i => entries[i] || null;
+        const pct = (item) => item ? ((item.count / total) * 100).toFixed(1) + '%' : '-';
+
+        const el = id => document.getElementById(prefix + '-' + id);
+        if (el('name')) el('name').textContent = get(0) ? get(0).name : '-';
+        if (el('stat')) el('stat').textContent = get(0) ? pct(get(0)) + ' of submissions' : '-';
+        if (el('second')) el('second').textContent = get(1) ? `2º ${get(1).name} — ${pct(get(1))}` : '2º -';
+        if (el('third')) el('third').textContent = get(2) ? `3º ${get(2).name} — ${pct(get(2))}` : '3º -';
     }
 
+    const osRaw = getOSDistribution(bm);
+    setPodiumCard('sys-os', Object.entries(osRaw).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
+
+    const desktopRaw = getDesktopDistribution(bm);
+    const desktopSorted = desktopRaw.labels.map((name, i) => ({ name, count: desktopRaw.counts[i] })).sort((a, b) => b.count - a.count);
+    setPodiumCard('sys-desktop', desktopSorted);
+
+    const displayRaw = getDisplayServerDistribution(bm);
+    const displaySorted = displayRaw.labels.map((name, i) => ({ name, count: displayRaw.counts[i] })).sort((a, b) => b.count - a.count);
+    setPodiumCard('sys-display', displaySorted);
+
+    const pkgRaw = getPackageDistribution(bm);
+    setPodiumCard('sys-package', Object.entries(pkgRaw).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
+
     // ── System Environment Donuts ──
+    const displayDist = getDisplayServerDistribution(bm);
+    const desktopDist = getDesktopDistribution(bm);
     const donutColors = [
         { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },
         { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },
