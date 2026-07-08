@@ -528,24 +528,27 @@ h1, h2, h3, h4 {
     position: absolute;
     top: 0;
     right: 0;
-    width: 6px;
+    width: 14px;
     height: 100%;
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     z-index: 10;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.3) transparent;
 }
 .chart-scroll-overlay::-webkit-scrollbar {
-    width: 6px;
+    width: 10px;
 }
 .chart-scroll-overlay::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
 }
 .chart-scroll-overlay::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
 }
 .chart-scroll-overlay::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.45);
 }
 
 /* Demographics Section */

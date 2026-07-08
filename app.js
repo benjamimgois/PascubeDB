@@ -2414,26 +2414,24 @@ function getVendorHottestRuns(data, vendor, limit = 10) {
     };
     const test = vendorTest[vendor];
     if (!test) return { labels: [], data: [], clientIds: [] };
-    // Deduplicate by clientId + GPU, keep max temp per contributor per GPU model
-    const bestPerUser = {};
-    data.forEach(r => {
-        const rawGpu = r.gpu || '';
-        if (!test(rawGpu) || r.gpuMaxTemp === null || isNaN(r.gpuMaxTemp)) return;
-        const gpu = normalizeGPU(rawGpu);
-        const id = r.clientId || 'N/D';
-        const key = id + '|' + gpu;
-        if (!bestPerUser[key] || r.gpuMaxTemp > bestPerUser[key].temp) {
-            bestPerUser[key] = { gpu, temp: r.gpuMaxTemp, gpuFreq: r.gpuMaxFreq, display: getDisplayName(r) };
-        }
-    });
-    const sorted = Object.values(bestPerUser)
+    const runs = data
+        .filter(r => {
+            const rawGpu = r.gpu || '';
+            return test(rawGpu) && r.gpuMaxTemp !== null && !isNaN(r.gpuMaxTemp);
+        })
+        .map(r => ({
+            gpu: normalizeGPU(r.gpu || ''),
+            temp: r.gpuMaxTemp,
+            gpuFreq: r.gpuMaxFreq,
+            display: getDisplayName(r)
+        }))
         .sort((a, b) => b.temp - a.temp)
         .slice(0, limit);
     return {
-        labels: sorted.map(r => r.gpu),
-        data: sorted.map(r => r.temp),
-        clientIds: sorted.map(r => r.display),
-        gpuFreqs: sorted.map(r => r.gpuFreq || null)
+        labels: runs.map(r => r.gpu),
+        data: runs.map(r => r.temp),
+        clientIds: runs.map(r => r.display),
+        gpuFreqs: runs.map(r => r.gpuFreq || null)
     };
 }
 
@@ -2565,7 +2563,21 @@ function renderSystemCharts() {
             chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
             chart.update('none');
         };
-        chart.canvas.onwheel = e => { e.preventDefault(); overlay.scrollTop += e.deltaY; };
+        parent.addEventListener('wheel', e => {
+            e.preventDefault();
+            const dir = e.deltaY > 0 ? 1 : -1;
+            const maxStart = allL.length - VIS;
+            const newIdx = Math.min(maxStart, Math.max(0, lastIdx + dir));
+            if (newIdx === lastIdx) return;
+            lastIdx = newIdx;
+            const pct = maxStart > 0 ? lastIdx / maxStart : 0;
+            overlay.scrollTop = pct * (overlay.scrollHeight - overlay.clientHeight);
+            chart.data.labels = allL.slice(lastIdx, lastIdx + VIS);
+            chart.data.datasets[0].data = allD.slice(lastIdx, lastIdx + VIS);
+            chart.data.datasets[0].clientIds = allC.slice(lastIdx, lastIdx + VIS);
+            chart.data.datasets[0].gpuFreqs = allF.slice(lastIdx, lastIdx + VIS);
+            chart.update('none');
+        }, { passive: false });
         chart.update('none');
     }
 
