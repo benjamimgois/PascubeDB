@@ -220,56 +220,40 @@
                 </div>
             </div>
 
-            <div class="distribution-charts-grid">
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Operating Systems</h3>
-                        <p>OS distribution</p>
-                    </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="osDistChart"></canvas>
-                    </div>
-                </div>
-
+            <div class="demographics-grid-4">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>CPU Brands</h3>
                         <p>AMD vs Intel vs ARM distribution</p>
                     </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
+                    <div class="chart-canvas-area">
                         <canvas id="cpuBrandDistChart"></canvas>
                     </div>
                 </div>
-
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>GPU Brands</h3>
                         <p>NVIDIA vs AMD vs Intel vs ARM distribution</p>
                     </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
+                    <div class="chart-canvas-area">
                         <canvas id="gpuBrandDistChart"></canvas>
                     </div>
                 </div>
-
-            </div>
-
-            <div class="memory-charts-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>RAM Capacity</h3>
                         <p>Distribution of system RAM</p>
                     </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
+                    <div class="chart-canvas-area">
                         <canvas id="ramDistChart"></canvas>
                     </div>
                 </div>
-
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>VRAM Capacity</h3>
                         <p>Distribution of GPU VRAM</p>
                     </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
+                    <div class="chart-canvas-area">
                         <canvas id="vramDistChart"></canvas>
                     </div>
                 </div>
@@ -317,47 +301,40 @@
                 </div>
 
             </div>
+        </section>
 
-            <div class="advanced-density-grid">
-                <!--
-                <div class="chart-container-wrapper histogram-chart">
-                    <div class="chart-header">
-                        <h3>Score Distribution Histogram</h3>
-                        <p>Density of runs by score ranges</p>
-                    </div>
-                    <div class="chart-canvas-area">
-                        <canvas id="scoreHistogramChart"></canvas>
-                    </div>
-                </div>
-                -->
-
+        <!-- Thermal Performance -->
+        <section class="advanced-charts-section">
+            <div class="section-header">
+                <h2>Thermal Performance</h2>
+                <p>GPU max temperatures per contributor</p>
+            </div>
+            <div class="advanced-charts-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Mesa Versions</h3>
-                        <p>Open source graphics driver version distribution</p>
+                        <h3>AMD — GPU Temps</h3>
+                        <p>Per-contributor max temperatures</p>
                     </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="mesaVersionChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Kernel Versions</h3>
-                        <p>Linux kernel major version distribution</p>
-                    </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="kernelVersionChart"></canvas>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="hottestAmdChart"></canvas>
                     </div>
                 </div>
-
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>NVIDIA Driver Versions</h3>
-                        <p>NVIDIA proprietary graphics driver version distribution</p>
+                        <h3>NVIDIA — GPU Temps</h3>
+                        <p>Per-contributor max temperatures</p>
                     </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="nvidiaVersionChart"></canvas>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="hottestNvidiaChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Intel — GPU Temps</h3>
+                        <p>Per-contributor max temperatures</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="hottestIntelChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -898,6 +875,52 @@
             </div>
         </section>
 
+        <!-- Software Versions -->
+        <section class="demographics-section">
+            <div class="section-header">
+                <h2>Software Versions</h2>
+                <p>Distribution of operating systems and driver/kernel versions</p>
+            </div>
+            <div class="distribution-charts-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Operating Systems</h3>
+                        <p>OS distribution</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="osDistChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Mesa Versions</h3>
+                        <p>Open source graphics driver version distribution</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="mesaVersionChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Kernel Versions</h3>
+                        <p>Linux kernel major version distribution</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="kernelVersionChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>NVIDIA Driver Versions</h3>
+                        <p>NVIDIA proprietary graphics driver version distribution</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="nvidiaVersionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- System Environment -->
         <section class="demographics-section">
             <div class="section-header">
@@ -930,43 +953,6 @@
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="packageDistChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Thermal Performance -->
-        <section class="advanced-charts-section">
-            <div class="section-header">
-                <h2>Thermal Performance</h2>
-                <p>GPU max temperatures per contributor</p>
-            </div>
-            <div class="advanced-charts-grid">
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>AMD — GPU Temps</h3>
-                        <p>Per-contributor max temperatures</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="hottestAmdChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>NVIDIA — GPU Temps</h3>
-                        <p>Per-contributor max temperatures</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="hottestNvidiaChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Intel — GPU Temps</h3>
-                        <p>Per-contributor max temperatures</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="hottestIntelChart"></canvas>
                     </div>
                 </div>
             </div>
