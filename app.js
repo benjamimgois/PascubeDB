@@ -8,6 +8,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supa = window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let blogSession = null;
 
+// ─── Analytics Tracking ───
+
+function trackPage(page) {
+    if (!supa) return;
+    supa.from('pageviews').insert({ page, referrer: document.referrer || null, user_agent: navigator.userAgent || null }).then(() => {});
+}
+
+function trackPostView(postId) {
+    if (!supa) return;
+    supa.rpc('increment_post_views', { post_id: postId }).then(() => {}).catch(() => {});
+}
+
 // Fallback CSV Data to ensure the dashboard works even offline or in case of CORS/network issues
 const FALLBACK_CSV = `Origem / Usuário,CPU,RAM,GPU,VRAM,Driver,Kernel,Operating System,Main Score,CPU Single,CPU Multi,GPU Score,Date/Time,client-id,architecture,package,,product name,CPU Max Freq (MHz),GPU Max Freq (MHz),CPU Max Freq (MHz),GPU Max Freq (MHz)
 Anonymous,Ryzen 7 9800X3D,31GB,RTX 4090,24GB,NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  610.43.02  Release Build  (daniel@Cafetera)  dom 31 may 2026 19:42:58 CEST,7.0.10-2-cachyos-custom,CachyOS,5174,2780,3655,7306,16/06/2026 13:11:07,2648f98e2306731777b45289ec0a46e6d5466beb43cecb72104b6ea3449aa10a,,,,,,,,,,,,,,5700,2520
@@ -153,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initScrollObservers();
     initBackToTop();
     fetchData();
+    trackPage('tab:hardware');
 });
 
 // Tab Navigation — Hardware / Software
@@ -166,6 +179,7 @@ function setupTabNavigation() {
         const activeContents = document.querySelectorAll(`.tab-content[data-tab="${target}"]`);
         if (activeTab) activeTab.classList.add('active');
         activeContents.forEach(c => c.style.display = 'block');
+        trackPage('tab:' + target);
         setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     };
     tabs.forEach(tab => {
@@ -5512,6 +5526,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
 
     async function openPost(postId) {
         currentPostId = postId;
+        trackPostView(postId);
         listView.style.display = 'none';
         detailView.style.display = 'block';
         postBody.innerHTML = renderSkeletonPost();
