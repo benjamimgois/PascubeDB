@@ -268,28 +268,28 @@ h1, h2, h3, h4 {
 }
 
 .cpu-icon { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); }
-.cpu-icon i { color: #818cf8; }
+.cpu-icon svg { stroke: #818cf8; }
 
-.cpu-multi-icon { background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); }
-.cpu-multi-icon i { color: #c084fc; }
+.cpu-multi-icon { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+.cpu-multi-icon svg { stroke: #10b981; }
 
-.gpu-icon { background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); }
-.gpu-icon i { color: #38bdf8; }
+.gpu-icon { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+.gpu-icon svg { stroke: #fbbf24; }
 
 .os-icon { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.os-icon i { color: #818cf8; }
-.mesa-icon { background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.mesa-icon i { color: #38bdf8; }
-.nvidia-icon { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.nvidia-icon i { color: #34d399; }
-.kernel-icon { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.kernel-icon i { color: #fbbf24; }
+.os-icon svg { stroke: #818cf8; }
+.mesa-icon { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
+.mesa-icon svg { stroke: #10b981; }
+.nvidia-icon { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
+.nvidia-icon svg { stroke: #fbbf24; }
+.kernel-icon { background: rgba(236, 72, 153, 0.15); border: 1px solid rgba(236, 72, 153, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
+.kernel-icon svg { stroke: #ec4899; }
 
 .runs-icon { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
-.runs-icon i { color: #34d399; }
+.runs-icon svg { stroke: #34d399; }
 
 .humble-icon { background: rgba(236, 72, 153, 0.15); border: 1px solid rgba(236, 72, 153, 0.3); width: 52px; height: 52px; flex-shrink: 0; }
-.humble-icon i { color: #f472b6; }
+.humble-icon svg { stroke: #ec4899; }
 
 .stat-info {
     display: flex;
