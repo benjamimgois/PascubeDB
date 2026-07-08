@@ -4495,7 +4495,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 borderWidth: 1.5,
                 borderRadius: 6,
                 borderSkipped: false,
-                barPercentage: 0.65,
+                barPercentage: 0.85,
                 clientIds: clientIds,
                 cpus: cpus,
                 gpus: gpus,
