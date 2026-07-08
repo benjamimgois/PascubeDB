@@ -856,22 +856,50 @@
             </div>
         </section>
 
-        <!-- Software Versions -->
+        <!-- Platform OS -->
         <section class="demographics-section">
             <div class="section-header">
-                <h2>Software Versions</h2>
-                <p>Distribution of operating systems and driver/kernel versions</p>
+                <h2>Platform Operating Systems</h2>
+                <p>OS distribution across all platform categories</p>
             </div>
-            <div class="distribution-charts-grid" style="grid-template-columns:repeat(2,1fr);">
+            <div class="demographics-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Operating Systems</h3>
-                        <p>OS distribution</p>
+                        <h3>General Operating Systems</h3>
+                        <p>Overall OS distribution</p>
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="osDistChart"></canvas>
                     </div>
                 </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Handheld Operating Systems</h3>
+                        <p>OS distribution for handheld gaming PCs</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="handheldOsDistChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>SBC Operating Systems</h3>
+                        <p>OS distribution for SBC devices</p>
+                    </div>
+                    <div class="chart-canvas-area donut-chart-canvas">
+                        <canvas id="sbcOsDistChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Software Versions -->
+        <section class="demographics-section">
+            <div class="section-header">
+                <h2>Software Versions</h2>
+                <p>Distribution of kernel and driver versions</p>
+            </div>
+            <div class="distribution-charts-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
                         <h3>Kernel Versions</h3>
@@ -897,34 +925,6 @@
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="nvidiaVersionChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Platform OS -->
-        <section class="demographics-section">
-            <div class="section-header">
-                <h2>Platform Operating Systems</h2>
-                <p>OS distribution for handheld gaming PCs and SBCs</p>
-            </div>
-            <div class="demographics-grid" style="grid-template-columns:repeat(2,1fr);max-width:600px;margin:0 auto;">
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Handheld Operating Systems</h3>
-                        <p>OS distribution for handheld gaming PCs</p>
-                    </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="handheldOsDistChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>SBC Operating Systems</h3>
-                        <p>OS distribution for SBC devices</p>
-                    </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="sbcOsDistChart"></canvas>
                     </div>
                 </div>
             </div>
