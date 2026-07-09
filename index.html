@@ -981,9 +981,15 @@
                 <h2 id="blog-modal-title">Blog</h2>
                 <p>Updates, changelog, and community notes</p>
             </div>
-            <button id="close-blog-modal" class="btn-close-modal" aria-label="Close blog modal">
-                <i data-lucide="x"></i>
-            </button>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <button id="blog-stats-btn" class="btn btn-secondary btn-sm" title="Page Analytics">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Stats</span>
+                </button>
+                <button id="close-blog-modal" class="btn-close-modal" aria-label="Close blog modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
         </div>
         <div class="modal-body-wrapper">
             <div id="blog-list-view">
@@ -1000,6 +1006,13 @@
                     <div id="blog-comments-list"></div>
                     <div id="blog-comment-form-area"></div>
                 </div>
+            </div>
+            <div id="blog-stats-view" style="display:none;">
+                <button id="blog-stats-back-btn" class="btn btn-secondary btn-sm">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Back to blog</span>
+                </button>
+                <div id="blog-stats-content"></div>
             </div>
         </div>
     </dialog>

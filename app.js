@@ -5371,6 +5371,10 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
     const commentsList = document.getElementById('blog-comments-list');
     const commentFormArea = document.getElementById('blog-comment-form-area');
     const commentsTitle = document.getElementById('blog-comments-title');
+    const statsBtn = document.getElementById('blog-stats-btn');
+    const statsBackBtn = document.getElementById('blog-stats-back-btn');
+    const statsView = document.getElementById('blog-stats-view');
+    const statsContent = document.getElementById('blog-stats-content');
 
     let currentPostId = null;
 
@@ -5443,6 +5447,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
         document.body.classList.remove('modal-open');
         listView.style.display = 'block';
         detailView.style.display = 'none';
+        statsView.style.display = 'none';
         currentPostId = null;
     }
 
@@ -5744,16 +5749,94 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
 
     // ── Event Listeners ──
 
+    function openBlogStats() {
+        listView.style.display = 'none';
+        detailView.style.display = 'none';
+        statsView.style.display = 'block';
+        renderBlogStats();
+    }
+
+    function backToBlog() {
+        statsView.style.display = 'none';
+        listView.style.display = 'block';
+    }
+
+    async function renderBlogStats() {
+        statsContent.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary);">Loading...</p>';
+        if (!supa) { statsContent.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary);">Supabase not connected.</p>'; return; }
+        try {
+            const [tabRes, postRes] = await Promise.all([
+                supa.from('pageviews').select('page, created_at'),
+                supa.from('posts').select('title, views').eq('published', true).order('views', { ascending: false }).limit(10)
+            ]);
+            let html = '<div style="display:flex;flex-direction:column;gap:1.5rem;">';
+
+            // Tab views
+            const tabCounts = {};
+            (tabRes.data || []).forEach(p => {
+                const tab = p.page || 'unknown';
+                tabCounts[tab] = (tabCounts[tab] || 0) + 1;
+            });
+            const tabSorted = Object.entries(tabCounts).sort((a, b) => b[1] - a[1]);
+            const maxTab = tabSorted.length > 0 ? tabSorted[0][1] : 1;
+
+            html += '<div class="blog-post-body"><h3>Views per Tab</h3>';
+            tabSorted.forEach(([tab, count]) => {
+                const pct = (count / maxTab) * 100;
+                const tabName = tab.replace('tab:', '');
+                html += `<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+                    <span style="width:100px;font-size:0.85rem;color:var(--text-secondary);">${escapeHtml(tabName)}</span>
+                    <div style="flex:1;height:22px;background:rgba(255,255,255,0.05);border-radius:6px;overflow:hidden;">
+                        <div style="height:100%;width:${pct}%;background:var(--primary-gradient);border-radius:6px;display:flex;align-items:center;padding-left:8px;">
+                            <span style="font-size:0.75rem;color:white;font-weight:600;">${count}</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+
+            // Post views
+            html += '<div class="blog-post-body"><h3>Most Viewed Posts</h3>';
+            const postData = postRes.data || [];
+            const maxPost = postData.length > 0 ? Math.max(...postData.map(p => p.views || 0)) : 1;
+            if (postData.length === 0) {
+                html += '<p style="color:var(--text-secondary);">No posts yet.</p>';
+            } else {
+                postData.forEach(p => {
+                    const pct = ((p.views || 0) / maxPost) * 100;
+                    html += `<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+                        <span style="width:200px;font-size:0.85rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.title)}</span>
+                        <div style="flex:1;height:22px;background:rgba(255,255,255,0.05);border-radius:6px;overflow:hidden;">
+                            <div style="height:100%;width:${pct}%;background:rgba(16,185,129,0.8);border-radius:6px;display:flex;align-items:center;padding-left:8px;">
+                                <span style="font-size:0.75rem;color:white;font-weight:600;">${p.views || 0}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            }
+            html += '</div>';
+
+            html += '</div>';
+            statsContent.innerHTML = html;
+        } catch (e) {
+            statsContent.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary);">Failed to load stats.</p>';
+            console.error('Stats error:', e);
+        }
+    }
+
     if (blogBtn && blogModal) {
         blogBtn.addEventListener('click', openBlogModal);
 
         if (blogCloseBtn) blogCloseBtn.addEventListener('click', closeBlogModal);
         if (backBtn) backBtn.addEventListener('click', backToList);
+        if (statsBtn) statsBtn.addEventListener('click', openBlogStats);
+        if (statsBackBtn) statsBackBtn.addEventListener('click', backToBlog);
 
         blogModal.addEventListener('close', () => {
             document.body.classList.remove('modal-open');
             listView.style.display = 'block';
             detailView.style.display = 'none';
+            statsView.style.display = 'none';
             currentPostId = null;
         });
 
