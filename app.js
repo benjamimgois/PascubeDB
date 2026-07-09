@@ -1281,49 +1281,54 @@ function handleFilterChange() {
 // Render Overview Statistics
 function renderOverviewStats() {
     
-    // Find absolute highest scores
-    let topSingle = { score: 0, hardware: '-' };
-    let topMulti = { score: 0, hardware: '-' };
-    let topGpu = { score: 0, hardware: '-' };
-    
-    benchmarkData.forEach(row => {
-        if (row.cpuSingle && row.cpuSingle > topSingle.score) {
-            topSingle.score = row.cpuSingle;
-            topSingle.hardware = row.cpu;
-        }
-        if (row.cpuMulti && row.cpuMulti > topMulti.score) {
-            topMulti.score = row.cpuMulti;
-            topMulti.hardware = row.cpu;
-        }
-        if (row.gpuScore && row.gpuScore > topGpu.score) {
-            topGpu.score = row.gpuScore;
-            topGpu.hardware = row.gpu;
-        }
-    });
-    
-    document.getElementById('stat-top-cpu-single').textContent = animateCounter('stat-top-cpu-single', topSingle.score || 0);
-    document.getElementById('stat-top-cpu-single-sub').textContent = topSingle.hardware;
-    
-    document.getElementById('stat-top-cpu-multi').textContent = animateCounter('stat-top-cpu-multi', topMulti.score || 0, true);
-    document.getElementById('stat-top-cpu-multi-sub').textContent = topMulti.hardware;
-    
-    document.getElementById('stat-top-gpu').textContent = animateCounter('stat-top-gpu', topGpu.score || 0, true);
-    document.getElementById('stat-top-gpu-sub').textContent = topGpu.hardware;
+    function bestPerModel(data, scoreField, normalizeFn, unknownStr) {
+        const best = {};
+        data.filter(r => r[scoreField] !== null).forEach(r => {
+            const key = normalizeFn(r);
+            if (!key || key === unknownStr) return;
+            if (!best[key] || r[scoreField] > best[key][scoreField]) best[key] = r;
+        });
+        return Object.values(best).sort((a, b) => b[scoreField] - a[scoreField]).slice(0, 3);
+    }
 
-    // Most Humble: lowest valid mainScore
-    let humbleScore = Infinity;
-    let humbleHardware = '-';
-    benchmarkData.forEach(row => {
-        if (humbleScore > 1 && row.mainScore && row.mainScore > 0 && row.mainScore < humbleScore) {
-            humbleScore = row.mainScore;
-            humbleHardware = normalizeCPU(row.cpu) + ' + ' + normalizeGPU(row.gpu);
-        }
-    });
-    document.getElementById('stat-most-humble-score').textContent = animateCounter('stat-most-humble-score', humbleScore < Infinity ? humbleScore : 0);
-    document.getElementById('stat-most-humble-hardware').textContent = humbleScore < Infinity ? humbleHardware : 'No data';
+    const singleTop = bestPerModel(benchmarkData, 'cpuSingle', r => normalizeCPU(r.cpu), 'Unknown CPU');
+    if (singleTop[0]) {
+        document.getElementById('stat-top-cpu-single').textContent = animateCounter('stat-top-cpu-single', singleTop[0].cpuSingle || 0);
+        document.getElementById('stat-top-cpu-single-sub').textContent = trunc(normalizeCPU(singleTop[0].cpu));
+        document.getElementById('stat-cpu-single-second').textContent = singleTop[1] ? `2º ${trunc(normalizeCPU(singleTop[1].cpu))} — ${singleTop[1].cpuSingle.toLocaleString()}` : '2º -';
+        document.getElementById('stat-cpu-single-third').textContent = singleTop[2] ? `3º ${trunc(normalizeCPU(singleTop[2].cpu))} — ${singleTop[2].cpuSingle.toLocaleString()}` : '3º -';
+    }
+
+    const multiTop = bestPerModel(benchmarkData, 'cpuMulti', r => normalizeCPU(r.cpu), 'Unknown CPU');
+    if (multiTop[0]) {
+        document.getElementById('stat-top-cpu-multi').textContent = animateCounter('stat-top-cpu-multi', multiTop[0].cpuMulti || 0, true);
+        document.getElementById('stat-top-cpu-multi-sub').textContent = trunc(normalizeCPU(multiTop[0].cpu));
+        document.getElementById('stat-cpu-multi-second').textContent = multiTop[1] ? `2º ${trunc(normalizeCPU(multiTop[1].cpu))} — ${multiTop[1].cpuMulti.toLocaleString()}` : '2º -';
+        document.getElementById('stat-cpu-multi-third').textContent = multiTop[2] ? `3º ${trunc(normalizeCPU(multiTop[2].cpu))} — ${multiTop[2].cpuMulti.toLocaleString()}` : '3º -';
+    }
+
+    const gpuTop = bestPerModel(benchmarkData, 'gpuScore', r => normalizeGPU(r.gpu), 'Unknown GPU');
+    if (gpuTop[0]) {
+        document.getElementById('stat-top-gpu').textContent = animateCounter('stat-top-gpu', gpuTop[0].gpuScore || 0, true);
+        document.getElementById('stat-top-gpu-sub').textContent = trunc(normalizeGPU(gpuTop[0].gpu));
+        document.getElementById('stat-gpu-second').textContent = gpuTop[1] ? `2º ${trunc(normalizeGPU(gpuTop[1].gpu))} — ${gpuTop[1].gpuScore.toLocaleString()}` : '2º -';
+        document.getElementById('stat-gpu-third').textContent = gpuTop[2] ? `3º ${trunc(normalizeGPU(gpuTop[2].gpu))} — ${gpuTop[2].gpuScore.toLocaleString()}` : '3º -';
+    }
+
+    const humbles = [...benchmarkData]
+        .filter(r => r.mainScore !== null && r.mainScore > 0)
+        .sort((a, b) => a.mainScore - b.mainScore)
+        .slice(0, 3);
+    if (humbles[0]) {
+        document.getElementById('stat-most-humble-score').textContent = animateCounter('stat-most-humble-score', humbles[0].mainScore);
+        document.getElementById('stat-most-humble-hardware').textContent = trunc(normalizeCPU(humbles[0].cpu) + ' + ' + normalizeGPU(humbles[0].gpu));
+        document.getElementById('stat-humble-second').textContent = humbles[1] ? `2º ${trunc(normalizeCPU(humbles[1].cpu) + ' + ' + normalizeGPU(humbles[1].gpu))} — ${humbles[1].mainScore.toLocaleString()}` : '2º -';
+        document.getElementById('stat-humble-third').textContent = humbles[2] ? `3º ${trunc(normalizeCPU(humbles[2].cpu) + ' + ' + normalizeGPU(humbles[2].gpu))} — ${humbles[2].mainScore.toLocaleString()}` : '3º -';
+    }
 }
 
-// Sort data table columns
+const TRUNC = 30;
+function trunc(s) { return s && s.length > TRUNC ? s.substring(0, TRUNC - 3) + '...' : s || '-'; }
 function handleSort(column) {
     let direction = 'asc';
     if (currentSort.column === column && currentSort.direction === 'asc') {
