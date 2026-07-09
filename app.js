@@ -2420,7 +2420,7 @@ function getBestCooling(data, limit = 10, minSamples = 2) {
     return { labels: entries.map(e => e.gpu), data: entries.map(e => Math.round(e.avg * 10) / 10) };
 }
 
-function getVendorHottestRuns(data, vendor, limit = 10) {
+function getVendorHottestRuns(data, vendor, limit = 10, excludeMobile) {
     const vendorTest = {
         amd: gpu => /^(AMD|Radeon|RX)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
         nvidia: gpu => /^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu),
@@ -2431,8 +2431,40 @@ function getVendorHottestRuns(data, vendor, limit = 10) {
     const runs = data
         .filter(r => {
             const rawGpu = r.gpu || '';
-            return test(rawGpu) && r.gpuMaxTemp !== null && !isNaN(r.gpuMaxTemp);
+            if (!test(rawGpu) || r.gpuMaxTemp === null || isNaN(r.gpuMaxTemp)) return false;
+            if (!excludeMobile) return true;
+            const lower = rawGpu.toLowerCase();
+            if (lower.includes('laptop') || lower.includes('mobile') || lower.includes('max-q')) return false;
+            const cat = classifyDevice(r);
+            if (cat === 'Handheld' || cat === 'SBC' || cat === 'Notebook') return false;
+            return true;
         })
+        .map(r => ({
+            gpu: normalizeGPU(r.gpu || ''),
+            temp: r.gpuMaxTemp,
+            gpuFreq: r.gpuMaxFreq,
+            display: getDisplayName(r)
+        }))
+        .sort((a, b) => b.temp - a.temp)
+        .slice(0, limit);
+    return {
+        labels: runs.map(r => r.gpu),
+        data: runs.map(r => r.temp),
+        clientIds: runs.map(r => r.display),
+        gpuFreqs: runs.map(r => r.gpuFreq || null)
+    };
+}
+
+function getCategoryHottestRuns(data, category, limit) {
+    const isDesktopGpu = (name) => {
+        const lower = name.toLowerCase();
+        const desktopModels = ['9070','9060','4090','5070','7900','7800xt','7800 xt','6900','6800','6700','6750','7700','7600','4060','4080','3090','3080','3070','3060','arc a7','arc a5','arc a3'];
+        return desktopModels.some(m => lower.includes(m)) && !lower.includes('laptop') && !lower.includes('mobile');
+    };
+    const portableData = data.filter(r => classifyDevice(r) === category);
+    const runs = portableData
+        .filter(r => r.gpuMaxTemp !== null && !isNaN(r.gpuMaxTemp))
+        .filter(r => !isDesktopGpu(r.gpu || ''))
         .map(r => ({
             gpu: normalizeGPU(r.gpu || ''),
             temp: r.gpuMaxTemp,
@@ -2546,7 +2578,7 @@ function renderSystemCharts() {
 
     function renderVendorChart(canvasId, vendor, bgColor, borderColor) {
         if (!hasChart(canvasId)) return;
-        const d = getVendorHottestRuns(bm, vendor, 999);
+        const d = getVendorHottestRuns(bm, vendor, 999, true);
         if (d.labels.length === 0) return;
         const VIS = 10;
         const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
@@ -2606,6 +2638,61 @@ function renderSystemCharts() {
     renderVendorChart('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444');
     renderVendorChart('hottestNvidiaChart', 'nvidia', 'rgba(16, 185, 129, 0.8)', '#34d399');
     renderVendorChart('hottestIntelChart', 'intel', 'rgba(99, 102, 241, 0.8)', '#818cf8');
+
+    function renderCatChart(canvasId, category, bgColor, borderColor) {
+        if (!hasChart(canvasId)) return;
+        const d = getCategoryHottestRuns(bm, category, 999);
+        if (d.labels.length === 0) return;
+        const VIS = 10;
+        const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
+        const fixedMax = Math.max(...allD) + 5;
+        renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
+            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+        const chart = chartInstances[canvasId];
+        if (!chart) return;
+        chart.data.datasets[0].dataLabelUnit = '°C';
+        chart.data.datasets[0].rankOneIcon = '🔥';
+        chart.data.datasets[0].rankOneLocalIdx = 0;
+        if (allL.length <= VIS) return;
+        const parent = chart.canvas.parentElement;
+        parent.style.position = 'relative';
+        const overlay = document.createElement('div');
+        overlay.className = 'chart-scroll-overlay';
+        const spacer = document.createElement('div');
+        spacer.style.height = `${320 + (allL.length - VIS) * 18}px`;
+        overlay.appendChild(spacer);
+        parent.appendChild(overlay);
+        let lastIdx = 0;
+        function updateCatChart(idx) {
+            lastIdx = idx;
+            chart.data.labels = allL.slice(idx, idx + VIS);
+            chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
+            chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
+            chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
+            chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
+            chart.options.scales.x.max = fixedMax;
+            chart.update('none');
+        }
+        overlay.onscroll = () => {
+            const pct = overlay.scrollHeight > overlay.clientHeight ? overlay.scrollTop / (overlay.scrollHeight - overlay.clientHeight) : 0;
+            const maxStart = allL.length - VIS;
+            updateCatChart(Math.min(maxStart, Math.round(pct * maxStart)));
+        };
+        parent.addEventListener('wheel', e => {
+            e.preventDefault();
+            const dir = e.deltaY > 0 ? 1 : -1;
+            const maxStart = allL.length - VIS;
+            const newIdx = Math.min(maxStart, Math.max(0, lastIdx + dir));
+            if (newIdx === lastIdx) return;
+            overlay.scrollTop = maxStart > 0 ? (newIdx / maxStart) * (overlay.scrollHeight - overlay.clientHeight) : 0;
+            updateCatChart(newIdx);
+        }, { passive: false });
+        chart.update('none');
+    }
+
+    renderCatChart('portableNoteChart', 'Notebook', 'rgba(245, 158, 11, 0.8)', '#fbbf24');
+    renderCatChart('portableHandChart', 'Handheld', 'rgba(249, 115, 22, 0.8)', '#f97316');
+    renderCatChart('portableSbcChart', 'SBC', 'rgba(239, 68, 68, 0.8)', '#ef4444');
 }
 
 // Helper to get top contributors by number of benchmark submissions
