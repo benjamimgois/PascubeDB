@@ -695,7 +695,8 @@ function setupChartVizControls() {
 
 // Setup Events (search, filter, sort, sync)
 function setupEventListeners() {
-    document.getElementById('refresh-btn').addEventListener('click', fetchData);
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) refreshBtn.addEventListener('click', fetchData);
     document.getElementById('search-input').addEventListener('input', handleFilterChange);
     document.getElementById('os-filter').addEventListener('change', handleFilterChange);
     document.getElementById('cpu-filter').addEventListener('change', handleFilterChange);
@@ -936,6 +937,7 @@ async function fetchData() {
 // Helper to update sync/refresh button visual state
 function setSyncStatus(type, message) {
     const btn = document.getElementById('refresh-btn');
+    if (!btn) return;
     const oldIcon = btn.querySelector('i, svg');
     const text = btn.querySelector('span');
     
@@ -1660,7 +1662,7 @@ function renderTable() {
             <td title="${row.gpu}">${highlightText(row.gpu, searchQuery)}</td>
             <td>${row.gpuMaxFreq ? `${row.gpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
             <td>${row.vram}</td>
-            <td title="${row.os}">${highlightText(row.os, searchQuery)}</td>
+            <td title="${row.os}">${highlightText(row.os && row.os.length > 21 ? row.os.substring(0, 21) + '…' : row.os, searchQuery)}</td>
             <td title="${row.kernel}">${highlightText(row.kernel, searchQuery)}</td>
             <td class="score-cell main">${row.mainScore ? row.mainScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
             <td class="score-cell secondary">${row.cpuSingle ? row.cpuSingle.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>

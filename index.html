@@ -45,10 +45,6 @@
                             <i data-lucide="trophy"></i>
                             <span>Leaderboard</span>
                         </button>
-                        <button id="refresh-btn" class="btn btn-primary">
-                            <i data-lucide="refresh-cw"></i>
-                            <span>Sync Data</span>
-                        </button>
                     </div>
                 </div>
             </header>
@@ -1130,23 +1126,40 @@
             <div class="table-card modal-table-card">
                 <div class="table-responsive">
                     <table id="leaderboard-table">
+                        <colgroup>
+                            <col style="width:42px">
+                            <col style="width:80px">
+                            <col style="width:140px">
+                            <col style="width:65px">
+                            <col style="width:40px">
+                            <col style="width:140px">
+                            <col style="width:65px">
+                            <col style="width:45px">
+                            <col style="width:140px">
+                            <col style="width:130px">
+                            <col style="width:72px">
+                            <col style="width:72px">
+                            <col style="width:72px">
+                            <col style="width:72px">
+                            <col style="width:120px">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th data-sort="rank" class="sortable sorted-asc"># <i data-lucide="chevron-up"></i></th>
                                 <th data-sort="clientId" class="sortable">Contributor <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="cpu" class="sortable">CPU <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpuMaxFreq" class="sortable">CPUMAXFREQ <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="cpuMaxFreq" class="sortable">CPU Freq <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="ram" class="sortable">RAM <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="gpu" class="sortable">GPU <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="gpuMaxFreq" class="sortable">GPUMAXFREQ <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="gpuMaxFreq" class="sortable">GPU Freq <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="vram" class="sortable">VRAM <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="os" class="sortable">OS <i data-lucide="chevrons-up-down"></i></th>
                                 <th data-sort="kernel" class="sortable">Kernel <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="mainScore" class="sortable">Main Score <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpuSingle" class="sortable">CPU Single <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpuMulti" class="sortable">CPU Multi <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="gpuScore" class="sortable">GPU Score <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="date" class="sortable">Date/Time <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="mainScore" class="sortable">Main <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="cpuSingle" class="sortable">CPU 1T <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="cpuMulti" class="sortable">CPU MT <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="gpuScore" class="sortable">GPU <i data-lucide="chevrons-up-down"></i></th>
+                                <th data-sort="date" class="sortable">Date <i data-lucide="chevrons-up-down"></i></th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
