@@ -4785,7 +4785,15 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: showDataLabels ? { right: 80 } : { right: 4 } },
+            layout: { 
+                padding: showDataLabels 
+                    ? { 
+                        right: (clientIds && clientIds.some(cid => cid)) 
+                            ? ((canvasId.toLowerCase().includes('notebook') || canvasId.toLowerCase().includes('handheld') || canvasId.toLowerCase().includes('sbc')) ? 48 : 64)
+                            : 10
+                      } 
+                    : { right: 4 } 
+            },
             plugins: {
                 legend: {
                     display: false
@@ -4932,7 +4940,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             displayIcon = icon;
                         }
                         
-                        c.fillText(displayIcon ? label + '  ' + displayIcon : label, bar.x - 8, bar.y);
+                        c.fillText(displayIcon ? displayIcon + '  ' + label : label, bar.x - 8, bar.y);
                         const barW = bar.x - baseX;
                         const gpuFreq = gpuFreqs && gpuFreqs[i];
                         if (gpuFreq) {
@@ -4946,7 +4954,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             c.font = '10px Inter, sans-serif';
                             c.textAlign = 'left';
                             c.fillStyle = 'rgba(255,255,255,0.7)';
-                            c.fillText((chart.data.datasets[0].clientIds[i] || '').substring(0, 22), bar.x + 4, bar.y);
+                            const isMobileChart = canvasId.toLowerCase().includes('notebook') || canvasId.toLowerCase().includes('handheld') || canvasId.toLowerCase().includes('sbc');
+                            const maxLen = isMobileChart ? 10 : 16;
+                            c.fillText((chart.data.datasets[0].clientIds[i] || '').substring(0, maxLen), bar.x + 4, bar.y);
                         }
                     });
                 } else {
