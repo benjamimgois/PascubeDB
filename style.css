@@ -1667,6 +1667,14 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     flex-wrap: nowrap;
 }
 
+.search-highlight {
+    background: rgba(99, 102, 241, 0.35);
+    color: white;
+    border-radius: 3px;
+    padding: 0.05rem 0.2rem;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+
 .modal-table-card {
     border-radius: 12px;
     border: 1px solid var(--card-border);
@@ -1677,13 +1685,88 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
 
 .modal-table-card .table-responsive {
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     height: 100%;
 }
 
 .modal-dialog table {
     width: 100%;
     table-layout: auto;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Sticky Headers */
+.modal-dialog thead th {
+    position: sticky;
+    top: 0;
+    background: #0b0f19;
+    z-index: 10;
+    border-bottom: 1px solid var(--card-border);
+}
+
+/* Sticky first two columns (Rank and Contributor) */
+.modal-dialog table th:nth-child(1),
+.modal-dialog table td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    background: #0b0f19;
+    z-index: 5;
+}
+.modal-dialog table th:nth-child(2),
+.modal-dialog table td:nth-child(2) {
+    position: sticky;
+    left: 45px;
+    background: #0b0f19;
+    z-index: 5;
+}
+
+/* Ensure column headers have higher z-index when both header and column are sticky */
+.modal-dialog table thead th:nth-child(1) {
+    z-index: 15;
+}
+.modal-dialog table thead th:nth-child(2) {
+    z-index: 15;
+}
+
+/* Visual border shadow for sticky column boundaries */
+.modal-dialog table td:nth-child(2) {
+    box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.5);
+}
+.modal-dialog table th:nth-child(2) {
+    box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* Toggle Filters button desktop state */
+.toggle-filters-btn {
+    display: none;
+    margin-bottom: 0.75rem;
+    width: 100%;
+    justify-content: center;
+}
+
+/* Table Skeleton Row styling */
+.table-skeleton-row td {
+    padding: 0.8rem 0.5rem;
+}
+.table-skeleton-cell {
+    height: 14px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+    background-size: 200% 100%;
+    animation: table-skeleton-pulse 1.5s infinite linear;
+    border-radius: 4px;
+    width: 80%;
+}
+.table-skeleton-cell.short {
+    width: 40%;
+}
+.table-skeleton-cell.medium {
+    width: 60%;
+}
+
+@keyframes table-skeleton-pulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 .modal-dialog th,
@@ -1816,9 +1899,16 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
         padding: 1rem 1.25rem 1.5rem;
         gap: 1rem;
     }
+    .toggle-filters-btn {
+        display: inline-flex;
+    }
     .leaderboard-filters {
+        display: none; /* Collapsed by default on mobile */
         flex-direction: column;
         gap: 0.75rem;
+    }
+    .leaderboard-filters.filters-expanded {
+        display: flex;
     }
     .leaderboard-filters .search-wrapper,
     .leaderboard-filters .select-wrapper,
@@ -1828,7 +1918,11 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
         width: 100%;
     }
     .modal-table-card {
-        height: calc(90vh - 230px);
+        height: calc(90vh - 160px);
+        transition: height 0.2s ease;
+    }
+    .modal-body-wrapper:has(.leaderboard-filters.filters-expanded) .modal-table-card {
+        height: calc(90vh - 430px);
     }
 
     .winner-info-tooltip {
@@ -1836,6 +1930,32 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
         right: auto;
         left: 0;
         top: 32px;
+    }
+
+    /* Tab nav layout on mobile */
+    .tab-nav {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+    .tab-btn {
+        flex: 1 1 calc(50% - 0.35rem);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        justify-content: center;
+    }
+
+    /* Force other desktop grids to collapse to 1 column on mobile */
+    .demographics-grid,
+    .demographics-grid-4,
+    .advanced-charts-grid,
+    .usage-charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    /* Adjust charts height on mobile to prevent stretched/toothpick canvas */
+    .chart-canvas-area {
+        height: 250px;
     }
 }
 

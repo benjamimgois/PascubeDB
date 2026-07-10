@@ -732,6 +732,26 @@ function setupEventListeners() {
     if (modal) {
         modal.addEventListener('close', () => {
             document.body.classList.remove('modal-open');
+            // Collapse filters on close so they reset on next open
+            if (filtersWrapper) {
+                filtersWrapper.classList.remove('filters-expanded');
+                if (toggleFiltersBtn) {
+                    toggleFiltersBtn.classList.remove('btn-primary');
+                    toggleFiltersBtn.classList.add('btn-secondary');
+                }
+            }
+        });
+    }
+    
+    // Toggle filters button on mobile
+    const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
+    const filtersWrapper = document.querySelector('.leaderboard-filters');
+    if (toggleFiltersBtn && filtersWrapper) {
+        toggleFiltersBtn.addEventListener('click', () => {
+            filtersWrapper.classList.toggle('filters-expanded');
+            const isExpanded = filtersWrapper.classList.contains('filters-expanded');
+            toggleFiltersBtn.classList.toggle('btn-primary', isExpanded);
+            toggleFiltersBtn.classList.toggle('btn-secondary', !isExpanded);
         });
     }
     
@@ -961,17 +981,31 @@ function setSyncStatus(type, message) {
     lucide.createIcons();
 }
 
-// Show loader in table
+// Show loader in table using animated skeletons
 function showLoading() {
     const tbody = document.getElementById('leaderboard-body');
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="12" class="loading-state">
-                <div class="spinner"></div>
-                <p>Loading benchmark data...</p>
-            </td>
-        </tr>
-    `;
+    let skeletonHtml = '';
+    
+    for (let i = 0; i < 5; i++) {
+        skeletonHtml += `
+            <tr class="table-skeleton-row">
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell"></div></td>
+                <td><div class="table-skeleton-cell"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell medium"></div></td>
+                <td><div class="table-skeleton-cell medium"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell"></div></td>
+            </tr>
+        `;
+    }
+    tbody.innerHTML = skeletonHtml;
 }
 
 // Safe numeric cleaner
@@ -1244,10 +1278,95 @@ function populateFilters() {
     if (kernelList.has(kernelSelected)) {
         kernelFilter.value = kernelSelected;
     }
+    
+    // Initialize filters from URL query parameters
+    initUrlFilters();
+}
+
+// Update URL query parameters based on active filters
+function updateUrlFilters() {
+    const searchVal = document.getElementById('search-input').value.trim();
+    const osVal = document.getElementById('os-filter').value;
+    const cpuVal = document.getElementById('cpu-filter').value;
+    const gpuVal = document.getElementById('gpu-filter').value;
+    const ramVal = document.getElementById('ram-filter').value;
+    const vramVal = document.getElementById('vram-filter').value;
+    const kernelVal = document.getElementById('kernel-filter').value;
+
+    const params = new URLSearchParams();
+    if (searchVal) params.set('search', searchVal);
+    if (osVal) params.set('os', osVal);
+    if (cpuVal) params.set('cpu', cpuVal);
+    if (gpuVal) params.set('gpu', gpuVal);
+    if (ramVal) params.set('ram', ramVal);
+    if (vramVal) params.set('vram', vramVal);
+    if (kernelVal) params.set('kernel', kernelVal);
+
+    const newQueryString = params.toString();
+    const newUrl = window.location.pathname + (newQueryString ? '?' + newQueryString : '');
+    window.history.replaceState(null, '', newUrl);
+}
+
+// Parse URL query parameters to pre-populate filters
+let urlFiltersInitialized = false;
+function initUrlFilters() {
+    if (urlFiltersInitialized) return;
+    const params = new URLSearchParams(window.location.search);
+    
+    const searchVal = params.get('search');
+    const osVal = params.get('os');
+    const cpuVal = params.get('cpu');
+    const gpuVal = params.get('gpu');
+    const ramVal = params.get('ram');
+    const vramVal = params.get('vram');
+    const kernelVal = params.get('kernel');
+
+    let applied = false;
+    if (searchVal) {
+        document.getElementById('search-input').value = searchVal;
+        applied = true;
+    }
+    
+    const osFilter = document.getElementById('os-filter');
+    if (osVal && [...osFilter.options].some(opt => opt.value === osVal)) {
+        osFilter.value = osVal;
+        applied = true;
+    }
+    const cpuFilter = document.getElementById('cpu-filter');
+    if (cpuVal && [...cpuFilter.options].some(opt => opt.value === cpuVal)) {
+        cpuFilter.value = cpuVal;
+        applied = true;
+    }
+    const gpuFilter = document.getElementById('gpu-filter');
+    if (gpuVal && [...gpuFilter.options].some(opt => opt.value === gpuVal)) {
+        gpuFilter.value = gpuVal;
+        applied = true;
+    }
+    const ramFilter = document.getElementById('ram-filter');
+    if (ramVal && [...ramFilter.options].some(opt => opt.value === ramVal)) {
+        ramFilter.value = ramVal;
+        applied = true;
+    }
+    const vramFilter = document.getElementById('vram-filter');
+    if (vramVal && [...vramFilter.options].some(opt => opt.value === vramVal)) {
+        vramFilter.value = vramVal;
+        applied = true;
+    }
+    const kernelFilter = document.getElementById('kernel-filter');
+    if (kernelVal && [...kernelFilter.options].some(opt => opt.value === kernelVal)) {
+        kernelFilter.value = kernelVal;
+        applied = true;
+    }
+
+    urlFiltersInitialized = true;
+
+    if (applied) {
+        handleFilterChange(false);
+    }
 }
 
 // Handle Filters
-function handleFilterChange() {
+function handleFilterChange(updateUrl = true) {
     const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
     const osSelection = document.getElementById('os-filter').value;
     const cpuSelection = document.getElementById('cpu-filter').value;
@@ -1280,12 +1399,18 @@ function handleFilterChange() {
         
         return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel;
     });
-    
+
+
     // Keep current sort
     sortData(currentSort.column, currentSort.direction);
     
     // Re-render
     renderTable();
+
+    // Sync with URL if needed
+    if (updateUrl) {
+        updateUrlFilters();
+    }
 }
 
 // Render Overview Statistics
@@ -1451,9 +1576,22 @@ function sortData(column, direction) {
     });
 }
 
+// Helper to highlight search matches safely
+function highlightText(text, query) {
+    if (!text) return '';
+    if (!query) return text;
+    const cleanQuery = query.toLowerCase().trim();
+    if (!cleanQuery) return text;
+    
+    const escapedQuery = cleanQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return text.toString().replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
 // Render Table Rows
 function renderTable() {
     const tbody = document.getElementById('leaderboard-body');
+    const searchQuery = document.getElementById('search-input')?.value?.trim() || '';
     
     if (filteredData.length === 0) {
         tbody.innerHTML = `
@@ -1495,7 +1633,7 @@ function renderTable() {
         } else {
             clientIdHtml = `
                 <div class="client-id-badge" title="${title}" onclick="copyToClipboard('${copyValue}', this)">
-                    <span class="client-id-text">${displayName}</span>
+                    <span class="client-id-text">${highlightText(displayName, searchQuery)}</span>
                     <i data-lucide="copy" class="copy-icon"></i>
                 </div>
             `;
@@ -1506,12 +1644,12 @@ function renderTable() {
         tr.innerHTML = `
             <td class="rank-cell">${rankContent}</td>
             <td>${clientIdHtml}</td>
-            <td title="${row.cpu}">${row.cpu}</td>
+            <td title="${row.cpu}">${highlightText(row.cpu, searchQuery)}</td>
             <td>${row.ram}</td>
-            <td title="${row.gpu}">${row.gpu}</td>
+            <td title="${row.gpu}">${highlightText(row.gpu, searchQuery)}</td>
             <td>${row.vram}</td>
-            <td title="${row.os}">${row.os}</td>
-            <td title="${row.kernel}">${row.kernel}</td>
+            <td title="${row.os}">${highlightText(row.os, searchQuery)}</td>
+            <td title="${row.kernel}">${highlightText(row.kernel, searchQuery)}</td>
             <td class="score-cell main">${row.mainScore ? row.mainScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
             <td class="score-cell secondary">${row.cpuSingle ? row.cpuSingle.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
             <td class="score-cell secondary">${row.cpuMulti ? row.cpuMulti.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
