@@ -993,7 +993,9 @@ function showLoading() {
                 <td><div class="table-skeleton-cell"></div></td>
                 <td><div class="table-skeleton-cell"></div></td>
                 <td><div class="table-skeleton-cell short"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
                 <td><div class="table-skeleton-cell"></div></td>
+                <td><div class="table-skeleton-cell short"></div></td>
                 <td><div class="table-skeleton-cell short"></div></td>
                 <td><div class="table-skeleton-cell medium"></div></td>
                 <td><div class="table-skeleton-cell medium"></div></td>
@@ -1519,6 +1521,10 @@ function sortData(column, direction) {
                 valA = a.cpu.toLowerCase();
                 valB = b.cpu.toLowerCase();
                 break;
+            case 'cpuMaxFreq':
+                valA = a.cpuMaxFreq || 0;
+                valB = b.cpuMaxFreq || 0;
+                break;
             case 'ram':
                 valA = a.ram.toLowerCase();
                 valB = b.ram.toLowerCase();
@@ -1526,6 +1532,10 @@ function sortData(column, direction) {
             case 'gpu':
                 valA = a.gpu.toLowerCase();
                 valB = b.gpu.toLowerCase();
+                break;
+            case 'gpuMaxFreq':
+                valA = a.gpuMaxFreq || 0;
+                valB = b.gpuMaxFreq || 0;
                 break;
             case 'vram':
                 valA = a.vram.toLowerCase();
@@ -1596,7 +1606,7 @@ function renderTable() {
     if (filteredData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="13" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                <td colspan="15" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     No benchmark results match your search or filters.
                 </td>
             </tr>
@@ -1645,8 +1655,10 @@ function renderTable() {
             <td class="rank-cell">${rankContent}</td>
             <td>${clientIdHtml}</td>
             <td title="${row.cpu}">${highlightText(row.cpu, searchQuery)}</td>
+            <td>${row.cpuMaxFreq ? `${row.cpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
             <td>${row.ram}</td>
             <td title="${row.gpu}">${highlightText(row.gpu, searchQuery)}</td>
+            <td>${row.gpuMaxFreq ? `${row.gpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
             <td>${row.vram}</td>
             <td title="${row.os}">${highlightText(row.os, searchQuery)}</td>
             <td title="${row.kernel}">${highlightText(row.kernel, searchQuery)}</td>
@@ -2743,6 +2755,7 @@ function renderSystemCharts() {
         chart.data.datasets[0].dataLabelUnit = '°C';
         chart.data.datasets[0].rankOneIcon = '🔥';
         chart.data.datasets[0].rankOneLocalIdx = 0;
+        chart.data.datasets[0].startIndex = 0;
         chart.options.scales.x.max = fixedMax;
         if (allL.length <= VIS) return;
         const parent = chart.canvas.parentElement;
@@ -2765,6 +2778,7 @@ function renderSystemCharts() {
             chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
             chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
             chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
+            chart.data.datasets[0].startIndex = idx;
             chart.options.scales.x.max = fixedMax;
             chart.update('none');
         };
@@ -2782,6 +2796,7 @@ function renderSystemCharts() {
             chart.data.datasets[0].clientIds = allC.slice(lastIdx, lastIdx + VIS);
             chart.data.datasets[0].gpuFreqs = allF.slice(lastIdx, lastIdx + VIS);
             chart.data.datasets[0].rankOneLocalIdx = lastIdx === 0 ? 0 : -1;
+            chart.data.datasets[0].startIndex = lastIdx;
             chart.options.scales.x.max = fixedMax;
             chart.update('none');
         }, { passive: false });
@@ -2806,6 +2821,7 @@ function renderSystemCharts() {
         chart.data.datasets[0].dataLabelUnit = '°C';
         chart.data.datasets[0].rankOneIcon = '🔥';
         chart.data.datasets[0].rankOneLocalIdx = 0;
+        chart.data.datasets[0].startIndex = 0;
         if (allL.length <= VIS) return;
         const parent = chart.canvas.parentElement;
         parent.style.position = 'relative';
@@ -2823,6 +2839,7 @@ function renderSystemCharts() {
             chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
             chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
             chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
+            chart.data.datasets[0].startIndex = idx;
             chart.options.scales.x.max = fixedMax;
             chart.update('none');
         }
@@ -4760,7 +4777,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 normalize: normalize,
                 showDataLabels: showDataLabels,
                 rankOneLocalIdx: showDataLabels ? 0 : -1,
-                rankOneIcon: showDataLabels ? '🏆' : ''
+                rankOneIcon: showDataLabels ? '🏆' : '',
+                startIndex: 0
             }]
         },
         options: {
@@ -4901,9 +4919,20 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         c.font = '12px Inter, sans-serif';
                         c.textAlign = 'right';
                         const label = `${vals[i].toLocaleString()}${labelUnit}`;
-                        const ri = chart.data.datasets[0].rankOneLocalIdx;
                         const icon = chart.data.datasets[0].rankOneIcon || '';
-                        c.fillText(icon && i === ri ? label + '  ' + icon : label, bar.x - 8, bar.y);
+                        const startIndex = chart.data.datasets[0].startIndex || 0;
+                        const absoluteRank = startIndex + i + 1;
+                        
+                        let displayIcon = '';
+                        if (icon === '🏆') {
+                            if (absoluteRank === 1) displayIcon = '🏆';
+                            else if (absoluteRank === 2) displayIcon = '🥈';
+                            else if (absoluteRank === 3) displayIcon = '🥉';
+                        } else if (absoluteRank === 1) {
+                            displayIcon = icon;
+                        }
+                        
+                        c.fillText(displayIcon ? label + '  ' + displayIcon : label, bar.x - 8, bar.y);
                         const barW = bar.x - baseX;
                         const gpuFreq = gpuFreqs && gpuFreqs[i];
                         if (gpuFreq) {
@@ -4912,7 +4941,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             c.textAlign = 'center';
                             c.fillStyle = '#ffffff';
                             if (barW > 60) c.fillText(`${gpuFreq.toLocaleString()} MHz`, centerX, bar.y);
-                        } else if (chart.data.datasets[0].clientIds) {
+                        }
+                        if (chart.data.datasets[0].clientIds) {
                             c.font = '10px Inter, sans-serif';
                             c.textAlign = 'left';
                             c.fillStyle = 'rgba(255,255,255,0.7)';
@@ -5041,6 +5071,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             if (clientIds) chart.data.datasets[0].clientIds = clientIds.slice(startIndex, startIndex + visibleCount);
             if (gpuFreqs) chart.data.datasets[0].gpuFreqs = gpuFreqs.slice(startIndex, startIndex + visibleCount);
             if (showDataLabels) chart.data.datasets[0].rankOneLocalIdx = startIndex === 0 ? 0 : -1;
+            chart.data.datasets[0].startIndex = startIndex;
             if (normalize) {
                 chart.data.datasets[0].percentages = newData;
                 chart._pctLabels = newData;

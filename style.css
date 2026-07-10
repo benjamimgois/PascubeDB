@@ -1786,25 +1786,43 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
 .modal-dialog td:nth-child(1),
 .modal-dialog td:nth-child(2),
 .modal-dialog td:nth-child(4),
-.modal-dialog td:nth-child(6),
+.modal-dialog td:nth-child(5),
+.modal-dialog td:nth-child(7),
+.modal-dialog td:nth-child(8),
 .modal-dialog td:nth-child(9),
-.modal-dialog td:nth-child(10),
 .modal-dialog td:nth-child(11),
 .modal-dialog td:nth-child(12),
+.modal-dialog td:nth-child(13),
+.modal-dialog td:nth-child(14),
+.modal-dialog td:nth-child(15),
 .modal-dialog th:nth-child(1),
 .modal-dialog th:hover:nth-child(1),
 .modal-dialog th:nth-child(2),
 .modal-dialog th:nth-child(4),
-.modal-dialog th:nth-child(6),
+.modal-dialog th:nth-child(5),
+.modal-dialog th:nth-child(7),
+.modal-dialog th:nth-child(8),
 .modal-dialog th:nth-child(9),
-.modal-dialog th:nth-child(10),
 .modal-dialog th:nth-child(11),
-.modal-dialog th:nth-child(12) {
+.modal-dialog th:nth-child(12),
+.modal-dialog th:nth-child(13),
+.modal-dialog th:nth-child(14),
+.modal-dialog th:nth-child(15) {
     white-space: nowrap;
 }
 
-.modal-dialog td:nth-child(8),
-.modal-dialog th:nth-child(8) {
+.modal-dialog td:nth-child(3),
+.modal-dialog th:nth-child(3),
+.modal-dialog td:nth-child(6),
+.modal-dialog th:nth-child(6) {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modal-dialog td:nth-child(10),
+.modal-dialog th:nth-child(10) {
     white-space: nowrap;
     max-width: 110px;
     overflow: hidden;
