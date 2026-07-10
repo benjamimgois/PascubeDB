@@ -1773,6 +1773,7 @@ function normalizeGPU(name) {
     clean = clean.replace(/(?:^\s*|\s+)Graphics.*/i, ''); // strip " Graphics"
     clean = clean.replace(/\(tm\)/gi, '');
     clean = clean.replace(/\(R\)/gi, '');
+    clean = clean.replace(/Laptop\s+GPU/gi, 'Mobile');
     clean = clean.trim();
     if (/^AMD\s*Vega|^Vega\s*\d|^Vega$|^Radeon.*Vega|^RX\s*Vega/i.test(clean)) return 'AMD Vega';
     return clean;
@@ -4905,6 +4906,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     c.textAlign = 'right';
                     c.textBaseline = 'middle';
                     const maxPct = Math.max(...percentages);
+                    const icon = chart.data.datasets[0].rankOneIcon || '';
+                    const startIndex = chart.data.datasets[0].startIndex || 0;
+                    
                     meta.data.forEach((bar, i) => {
                         if (bar.x < 1 || bar.height < 1) return;
                         const pct = percentages[i];
@@ -4912,7 +4916,19 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         const rightX = bar.x - 6;
                         c.font = isMax ? 'bold 14px Inter, sans-serif' : '600 12px Inter, sans-serif';
                         c.fillStyle = '#ffffff';
-                        c.fillText(`${pct.toFixed(1)}%`, rightX, bar.y);
+                        
+                        const absoluteRank = startIndex + i + 1;
+                        let displayIcon = '';
+                        if (icon === '🏆') {
+                            if (absoluteRank === 1) displayIcon = '🏆';
+                            else if (absoluteRank === 2) displayIcon = '🥈';
+                            else if (absoluteRank === 3) displayIcon = '🥉';
+                        } else if (absoluteRank === 1) {
+                            displayIcon = icon;
+                        }
+                        
+                        const label = `${pct.toFixed(1)}%`;
+                        c.fillText(displayIcon ? displayIcon + '  ' + label : label, rightX, bar.y);
                     });
                 } else if (chart.data.datasets[0].showDataLabels) {
                     c.textAlign = 'right';
