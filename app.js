@@ -6078,20 +6078,62 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
 
     async function checkNewPosts() {
         const badge = document.getElementById('blog-badge');
-        if (!badge || !supa) return;
+        const banner = document.getElementById('blog-highlight-banner');
+        const bannerTitle = document.getElementById('blog-highlight-title');
+        const bannerClose = document.getElementById('blog-highlight-close-btn');
+        const bannerRead = document.getElementById('blog-highlight-read-btn');
+        
+        if (!supa) return;
         const lastSeen = parseInt(localStorage.getItem('blogNewSeen') || '0', 10);
+        
         try {
             const { data, error } = await supa
                 .from('posts')
-                .select('created_at')
+                .select('id, title, created_at')
                 .eq('published', true)
                 .order('created_at', { ascending: false })
                 .limit(1);
             if (error || !data || data.length === 0) return;
-            const latest = new Date(data[0].created_at).getTime();
-            if (!lastSeen || latest > lastSeen) {
+            
+            const latestPost = data[0];
+            const latest = new Date(latestPost.created_at).getTime();
+            
+            if (badge && (!lastSeen || latest > lastSeen)) {
                 badge.textContent = '+1';
                 badge.style.display = 'flex';
+            }
+            
+            if (banner && bannerTitle) {
+                const isDismissed = localStorage.getItem('blogBannerDismissed_' + latestPost.id);
+                if (!isDismissed) {
+                    bannerTitle.textContent = latestPost.title;
+                    banner.style.display = 'flex';
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                    
+                    if (bannerRead) {
+                        bannerRead.onclick = () => {
+                            dismissBadge();
+                            listView.style.display = 'none';
+                            detailView.style.display = 'block';
+                            currentPostId = latestPost.id;
+                            blogModal.showModal();
+                            document.body.classList.add('modal-open');
+                            openPost(latestPost.id);
+                            
+                            localStorage.setItem('blogBannerDismissed_' + latestPost.id, 'true');
+                            banner.style.display = 'none';
+                        };
+                    }
+                    
+                    if (bannerClose) {
+                        bannerClose.onclick = () => {
+                            localStorage.setItem('blogBannerDismissed_' + latestPost.id, 'true');
+                            banner.style.display = 'none';
+                        };
+                    }
+                }
             }
         } catch (e) {
             // silently fail — badge is cosmetic
