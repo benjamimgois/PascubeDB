@@ -88,14 +88,21 @@
         <!-- Hardware Benchmark Content -->
         <div id="tab-hardware" class="tab-content active" data-tab="hardware">
 
-        <!-- Stats Grid -->
-        <section class="stats-grid">
+        <!-- Pill Navigation -->
+        <nav class="pill-nav" id="pill-nav">
+            <button class="pill-btn active" data-pill="performance"><i data-lucide="cpu"></i> Performance</button>
+            <button class="pill-btn" data-pill="efficiency"><i data-lucide="bar-chart-3"></i> Efficiency</button>
+            <button class="pill-btn" data-pill="thermals"><i data-lucide="thermometer"></i> Thermals</button>
+        </nav>
+
+        <!-- Stats Grid (context-switched by JS) -->
+        <section class="stats-grid" id="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon cpu-icon">
                     <i data-lucide="cpu"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Top CPU Single-Thread</span>
+                    <span class="stat-label" id="stat-label-1">Top CPU Single-Thread</span>
                     <h3 id="stat-top-cpu-single" class="stat-value">-</h3>
                     <p id="stat-top-cpu-single-sub" class="stat-sub">-</p>
                     <p class="stat-sub podium-sub" id="stat-cpu-single-second">2º -</p>
@@ -107,7 +114,7 @@
                     <i data-lucide="binary"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Top CPU Multi-Thread</span>
+                    <span class="stat-label" id="stat-label-2">Top CPU Multi-Thread</span>
                     <h3 id="stat-top-cpu-multi" class="stat-value">-</h3>
                     <p id="stat-top-cpu-multi-sub" class="stat-sub">-</p>
                     <p class="stat-sub podium-sub" id="stat-cpu-multi-second">2º -</p>
@@ -119,7 +126,7 @@
                     <i data-lucide="zap"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Top GPU Score</span>
+                    <span class="stat-label" id="stat-label-3">Top GPU Score</span>
                     <h3 id="stat-top-gpu" class="stat-value">-</h3>
                     <p id="stat-top-gpu-sub" class="stat-sub">-</p>
                     <p class="stat-sub podium-sub" id="stat-gpu-second">2º -</p>
@@ -131,7 +138,7 @@
                     <i data-lucide="sprout"></i>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Most Humble</span>
+                    <span class="stat-label" id="stat-label-4">Most Humble</span>
                     <h3 id="stat-most-humble-score" class="stat-value">-</h3>
                     <p id="stat-most-humble-hardware" class="stat-sub">-</p>
                     <p class="stat-sub podium-sub" id="stat-humble-second">2º -</p>
@@ -139,6 +146,9 @@
                 </div>
             </div>
         </section>
+
+        <!-- Performance Pill -->
+        <div class="pill-content active" data-pill="performance">
 
         <section id="section-highest" class="charts-section">
             <div class="section-header">
@@ -279,19 +289,27 @@
             </div>
         </section>
 
-        <!-- Advanced Metrics Section -->
-        <section id="section-advanced" class="advanced-charts-section">
+        <!-- Portable Devices -->
+        <section class="charts-section">
             <div class="section-header">
-                <h2>Advanced Performance & Versions</h2>
-                <p>Average performance scores, run distribution density, and system software versions</p>
+                <h2>Portable Devices</h2>
+                <p>Top benchmark runs by device category</p>
             </div>
-            
-            <div class="advanced-averages-grid">
+            <div class="chart-container-wrapper full-width-chart">
+                <div class="chart-header">
+                    <h3>Portable Device Type</h3>
+                    <p>Handheld vs. SBC vs. Notebook distribution</p>
+                </div>
+                <div class="chart-canvas-area donut-chart-canvas">
+                    <canvas id="mobileDistChart"></canvas>
+                </div>
+            </div>
+            <div class="portable-runs-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Average CPU Score by Model</h3>
-                        <p>Average CPU Single score (higher is better)</p>
-                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="cpuAverageChart">
+                        <h3>Top 10 Notebook Benchmark Runs</h3>
+                        <p>Highest individual Main Scores (higher is better)</p>
+                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookRunsChart">
                             <input type="checkbox" class="chart-toggle-cb">
                             <span class="chart-toggle-slider"></span>
                             <span class="chart-toggle-label">Normalize</span>
@@ -299,33 +317,166 @@
                         </label>
                     </div>
                     <div class="chart-canvas-area">
-                        <canvas id="cpuAverageChart"></canvas>
+                        <canvas id="notebookRunsChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Top 10 Handheld Benchmark Runs</h3>
+                        <p>Highest individual Main Scores (higher is better)</p>
+                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldRunsChart">
+                            <input type="checkbox" class="chart-toggle-cb">
+                            <span class="chart-toggle-slider"></span>
+                            <span class="chart-toggle-label">Normalize</span>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                        </label>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="handheldRunsChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Top 10 SBC Benchmark Runs</h3>
+                        <p>Highest individual Main Scores (higher is better)</p>
+                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcRunsChart">
+                            <input type="checkbox" class="chart-toggle-cb">
+                            <span class="chart-toggle-slider"></span>
+                            <span class="chart-toggle-label">Normalize</span>
+                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                        </label>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="sbcRunsChart"></canvas>
                     </div>
                 </div>
 
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Average GPU Score by Model</h3>
-                        <p>Average GPU score (higher is better)</p>
-                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="gpuAverageChart">
-                            <input type="checkbox" class="chart-toggle-cb">
-                            <span class="chart-toggle-slider"></span>
-                            <span class="chart-toggle-label">Normalize</span>
-                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                        </label>
+                <!-- Average Performance -->
+                <div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div class="section-header">
+                        <h2>Average Performance</h2>
+                        <p>Average scores by hardware model</p>
                     </div>
-                    <div class="chart-canvas-area">
-                        <canvas id="gpuAverageChart"></canvas>
+                    <div class="average-charts-flex">
+                        <div class="chart-container-wrapper">
+                            <div class="chart-header">
+                                <h3>Average CPU Score by Model</h3>
+                                <p>Average CPU Single score (higher is better)</p>
+                                <label class="chart-toggle-wrap chart-toggle-corner" data-chart="cpuAverageChart">
+                                    <input type="checkbox" class="chart-toggle-cb">
+                                    <span class="chart-toggle-slider"></span>
+                                    <span class="chart-toggle-label">Normalize</span>
+                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                                </label>
+                            </div>
+                            <div class="chart-canvas-area">
+                                <canvas id="cpuAverageChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-container-wrapper">
+                            <div class="chart-header">
+                                <h3>Average GPU Score by Model</h3>
+                                <p>Average GPU score (higher is better)</p>
+                                <label class="chart-toggle-wrap chart-toggle-corner" data-chart="gpuAverageChart">
+                                    <input type="checkbox" class="chart-toggle-cb">
+                                    <span class="chart-toggle-slider"></span>
+                                    <span class="chart-toggle-label">Normalize</span>
+                                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                                </label>
+                            </div>
+                            <div class="chart-canvas-area">
+                                <canvas id="gpuAverageChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
             </div>
         </section>
 
-        <!-- Thermal Performance -->
-        <section class="advanced-charts-section">
+        </div><!-- /pill-content performance -->
+
+        <!-- Efficiency Pill -->
+        <div class="pill-content" data-pill="efficiency">
+
+        <section class="charts-section">
             <div class="section-header">
-                <h2>Thermal Performance</h2>
+                <h2>Efficiency by Clock</h2>
+                <p>Score per MHz — best performance per clock cycle</p>
+            </div>
+            <div class="efficiency-charts-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>CPU Efficiency by MHz</h3>
+                        <p>CPU Single score per MHz (higher = more efficient)</p>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">CPU Single-core score divided by maximum CPU frequency. Higher values mean the CPU delivers more performance per clock cycle. Formula: CPU Single ÷ CPU Max MHz.</div></span>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="cpuEfficiencyChart"></canvas>
+                    </div>
+                    <div class="top-contributor" id="cpuEffTop">—</div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>GPU Efficiency by MHz</h3>
+                        <p>GPU score per MHz (higher = more efficient)</p>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">GPU score divided by maximum GPU frequency. Higher values mean the GPU delivers more performance per clock cycle. Formula: GPU Score ÷ GPU Max MHz.</div></span>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="gpuEfficiencyChart"></canvas>
+                    </div>
+                    <div class="top-contributor" id="gpuEffTop">—</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="charts-section">
+            <div class="section-header">
+                <h2>Performance Relationships</h2>
+                <p>Correlation and bottleneck analysis</p>
+            </div>
+            <div class="efficiency-scatter-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Bottleneck Ratio</h3>
+                        <p>CPU Multi vs GPU Score — colored by device class</p>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">CPU Multi-core score divided by GPU Score. A balanced system has values near the diagonal. Higher CPU/GPU ratio may indicate GPU bottleneck; lower ratio may indicate CPU bottleneck.</div></span>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 360px;">
+                        <canvas id="bottleneckRatioChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>CPU Single × GPU Score</h3>
+                        <p>Scatter colored by GPU brand</p>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">CPU Single-core score plotted against GPU score. Each point represents a benchmark run. Color indicates GPU brand (AMD, NVIDIA, Intel). Helps visualize CPU-GPU pairing trends.</div></span>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 360px;">
+                        <canvas id="cpuGpuScatterChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>VRAM × GPU Score</h3>
+                        <p>Scatter colored by GPU brand</p>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">VRAM capacity plotted against GPU score. Each point represents a benchmark run. Color indicates GPU brand. Helps visualize how VRAM relates to GPU performance.</div></span>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 360px;">
+                        <canvas id="vramGpuScatterChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        </div><!-- /pill-content efficiency -->
+
+        <!-- Thermals Pill -->
+        <div class="pill-content" data-pill="thermals">
+
+        <section class="charts-section">
+            <div class="section-header">
+                <h2>Temperature by Brand</h2>
                 <p>GPU max temperatures per contributor</p>
             </div>
             <div class="advanced-charts-grid">
@@ -358,6 +509,60 @@
                 </div>
             </div>
         </section>
+
+        <section class="charts-section">
+            <div class="section-header">
+                <h2>Thermal Efficiency</h2>
+                <p>Score per degree — who delivers most performance per °C</p>
+            </div>
+            <div class="chart-container-wrapper full-width-chart">
+                <div class="chart-header">
+                    <h3>Top 10 Thermal Efficiency</h3>
+                    <p>Main Score per GPU temperature delta (higher = more efficient)</p>
+                </div>
+                <div class="chart-canvas-area">
+                    <canvas id="thermalEfficiencyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="charts-section">
+            <div class="section-header">
+                <h2>Portable Device Temperatures</h2>
+                <p>Per-contributor max temps on mobile form factors</p>
+            </div>
+            <div class="portable-thermals-grid">
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Notebook Thermal Load</h3>
+                        <p>Per-contributor max temps on notebooks</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="portableNoteChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Handheld Thermal Load</h3>
+                        <p>Per-contributor max temps on handhelds</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="portableHandChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>SBC Thermal Load</h3>
+                        <p>Per-contributor max temps on SBCs</p>
+                    </div>
+                    <div class="chart-canvas-area" style="height: 320px;">
+                        <canvas id="portableSbcChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        </div><!-- /pill-content thermals -->
 
         </div><!-- /tab-hardware -->
 
@@ -562,207 +767,6 @@
         </section>
 
         </div><!-- /tab-software -->
-
-        <!-- Hardware Benchmark Content (continued) -->
-        <div class="tab-content" data-tab="hardware">
-
-        <!-- Portable Devices Section -->
-        <section id="section-portable" class="mobile-charts-section">
-            <div class="section-header">
-                <h2>Portable Devices</h2>
-                <p>Performance and distribution metrics for notebooks, handheld gaming PCs, and SBCs</p>
-            </div>
-
-            <div class="chart-container-wrapper">
-                <div class="chart-header">
-                    <h3>Portable Device Type</h3>
-                    <p>Handheld vs. SBC vs. Notebook distribution</p>
-                </div>
-                <div class="chart-canvas-area donut-chart-canvas">
-                    <canvas id="mobileDistChart"></canvas>
-                </div>
-            </div>
-
-            <div class="portable-category-grid">
-
-                <!-- Notebook -->
-                <div class="category-column">
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 Notebook Benchmark Runs</h3>
-                            <p>Highest individual Main Scores (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookRunsChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="notebookRunsChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 Notebook CPU Model - Performance</h3>
-                            <p>Highest CPU Single score per notebook CPU model (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookCpuChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="notebookCpuChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 Notebook GPU Model - Performance</h3>
-                            <p>Highest GPU score per notebook GPU model (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookGpuChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="notebookGpuChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Notebook Thermal Load</h3>
-                            <p>Per-contributor max temps on notebooks</p>
-                        </div>
-                        <div class="chart-canvas-area" style="height: 320px;">
-                            <canvas id="portableNoteChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Handheld -->
-                <div class="category-column">
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 Handheld Benchmark Runs</h3>
-                            <p>Highest individual Main Scores (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldRunsChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="handheldRunsChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 Handheld CPU Model - Performance</h3>
-                            <p>Highest CPU Single score per handheld CPU model (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldCpuChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="handheldCpuChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 Handheld GPU Model - Performance</h3>
-                            <p>Highest GPU score per handheld GPU model (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="handheldGpuChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="handheldGpuChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Handheld Thermal Load</h3>
-                            <p>Per-contributor max temps on handhelds</p>
-                        </div>
-                        <div class="chart-canvas-area" style="height: 320px;">
-                            <canvas id="portableHandChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SBC -->
-                <div class="category-column">
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 SBC Benchmark Runs</h3>
-                            <p>Highest individual Main Scores (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcRunsChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="sbcRunsChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 SBC CPU Model - Performance</h3>
-                            <p>Highest CPU Single score per SBC CPU model (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcCpuChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="sbcCpuChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>Top 10 SBC GPU Model - Performance</h3>
-                            <p>Highest GPU score per SBC GPU model (higher is better)</p>
-                            <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcGpuChart">
-                                <input type="checkbox" class="chart-toggle-cb">
-                                <span class="chart-toggle-slider"></span>
-                                <span class="chart-toggle-label">Normalize</span>
-                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                            </label>
-                        </div>
-                        <div class="chart-canvas-area">
-                            <canvas id="sbcGpuChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
-                        <div class="chart-header">
-                            <h3>SBC Thermal Load</h3>
-                            <p>Per-contributor max temps on SBCs</p>
-                        </div>
-                        <div class="chart-canvas-area" style="height: 320px;">
-                            <canvas id="portableSbcChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        </div><!-- /tab-hardware -->
 
         <!-- Community Insights Content -->
         <div id="tab-community" class="tab-content" data-tab="community">

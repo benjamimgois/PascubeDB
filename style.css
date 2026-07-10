@@ -483,6 +483,15 @@ h1, h2, h3, h4 {
     color: var(--primary);
 }
 
+.top-contributor {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: right;
+    margin-top: 0.25rem;
+    font-family: monospace;
+    opacity: 0.8;
+}
+
 .viz-info-tooltip {
     position: absolute;
     top: 100%;
@@ -596,6 +605,12 @@ h1, h2, h3, h4 {
     margin-bottom: 0.5rem;
 }
 
+.charts-section > .section-header,
+.charts-section > [class*="-grid"],
+.charts-section > [class*="-grid-"] {
+    grid-column: 1 / -1;
+}
+
 .section-header h2 {
     font-size: 1.5rem;
     color: var(--text-primary);
@@ -657,6 +672,87 @@ h1, h2, h3, h4 {
 
 .tab-content.active {
     display: block;
+}
+
+/* Pill Navigation (sub-tabs within Hardware tab) */
+.pill-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    backdrop-filter: blur(12px);
+}
+
+.pill-btn i {
+    width: 14px;
+    height: 14px;
+}
+
+.pill-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pill-btn.active {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: transparent;
+    box-shadow: var(--shadow-glow);
+}
+
+.pill-content {
+    display: none;
+}
+
+.pill-content.active {
+    display: block;
+}
+
+/* Efficiency charts grid */
+.efficiency-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.efficiency-scatter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.efficiency-scatter-grid .chart-container-wrapper:last-child {
+    grid-column: 1 / -1;
+}
+
+/* Portable runs grid (3 cols) */
+.portable-runs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+/* Portable thermals grid (3 cols) */
+.portable-thermals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
 }
 
 .driver-comparison-grid {
@@ -840,6 +936,16 @@ h1, h2, h3, h4 {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
+}
+
+.average-charts-flex {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.average-chart-item {
+    flex: 1;
+    min-width: 0;
 }
 
 .advanced-charts-grid {
@@ -1485,6 +1591,9 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .advanced-averages-grid {
         grid-template-columns: 1fr;
     }
+    .average-charts-flex {
+        flex-direction: column;
+    }
     .advanced-density-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1498,6 +1607,14 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
         grid-template-columns: repeat(2, 1fr);
     }
     .software-comparison-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .efficiency-charts-grid,
+    .efficiency-scatter-grid {
+        grid-template-columns: 1fr;
+    }
+    .portable-runs-grid,
+    .portable-thermals-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
@@ -1539,6 +1656,9 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .advanced-averages-grid {
         grid-template-columns: 1fr;
     }
+    .average-charts-flex {
+        flex-direction: column;
+    }
     .advanced-density-grid {
         grid-template-columns: 1fr;
     }
@@ -1546,6 +1666,10 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
         grid-column: span 1;
     }
     .portable-category-grid {
+        grid-template-columns: 1fr;
+    }
+    .portable-runs-grid,
+    .portable-thermals-grid {
         grid-template-columns: 1fr;
     }
     .software-comparison-grid {
