@@ -2998,7 +2998,7 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -3094,7 +3094,7 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -3198,7 +3198,7 @@ function renderOSHardwareScatterChart(canvasId, data) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
@@ -3974,7 +3974,7 @@ function renderCharts() {
             plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                            backgroundColor: 'rgba(11, 15, 25, 1)',
                             titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                             bodyFont: { family: "'Inter', sans-serif", size: 13 },
                             padding: 12,
@@ -4340,7 +4340,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
 
     const barLabelsPlugin = {
         id: 'barLabels',
-        afterDraw(chart) {
+        afterDatasetsDraw(chart) {
             const ctx = chart.ctx;
             ctx.save();
             ctx.font = 'bold 10px Inter, sans-serif';
@@ -4400,7 +4400,7 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                    backgroundColor: 'rgba(11, 15, 25, 1)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
                     padding: 10, borderColor: 'rgba(99, 102, 241, 0.45)', borderWidth: 1.5, cornerRadius: 10, displayColors: true,
                     callbacks: {
                         label: function(context) {
@@ -4674,7 +4674,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
@@ -4815,7 +4815,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -4909,7 +4909,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
         },
         plugins: [{
             id: 'barLabels',
-            afterDraw(chart) {
+            afterDatasetsDraw(chart) {
                 const meta = chart.getDatasetMeta(0);
                 if (!meta || !meta.data) return;
                 const c = chart.ctx;
@@ -5226,7 +5226,7 @@ function renderGroupedBarChart(canvasId, labels, datasets) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -5557,7 +5557,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     labels: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 }, padding: 10, boxWidth: 10, usePointStyle: true }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15,23,42,0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 1)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
@@ -5657,7 +5657,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
             }
         }, {
             id: 'deltaLabels',
-            afterDraw: function(chart) {
+            afterDatasetsDraw: function(chart) {
                 try {
                     if (!chart.data.datasets.length) return;
                     const xScale = chart.scales.x;
