@@ -37,6 +37,11 @@
     padding: 0;
 }
 
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     background-color: transparent;
     color: var(--text-primary);
@@ -1948,7 +1953,8 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .demographics-grid,
     .demographics-grid-4,
     .advanced-charts-grid,
-    .usage-charts-grid {
+    .usage-charts-grid,
+    .driver-comparison-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
