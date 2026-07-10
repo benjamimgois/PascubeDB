@@ -200,23 +200,27 @@ h1, h2, h3, h4 {
     background: var(--primary-gradient);
     color: white;
     box-shadow: var(--shadow-sm);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-glow);
-    opacity: 0.95;
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.5), 0 4px 12px rgba(168, 85, 247, 0.3);
+    filter: brightness(1.1);
 }
 
 .btn-secondary {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-primary);
     border-color: rgba(255, 255, 255, 0.1);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+    transform: translateY(-2px);
 }
 
 .btn i {
@@ -248,8 +252,26 @@ h1, h2, h3, h4 {
 
 .stat-card:hover {
     transform: translateY(-2px);
-    border-color: var(--card-hover-border);
-    box-shadow: var(--shadow-lg);
+}
+
+.stat-card:has(.cpu-icon):hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.25);
+}
+
+.stat-card:has(.cpu-multi-icon):hover {
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px rgba(16, 185, 129, 0.25);
+}
+
+.stat-card:has(.gpu-icon):hover {
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 158, 11, 0.25);
+}
+
+.stat-card:has(.humble-icon):hover {
+    border-color: rgba(236, 72, 153, 0.5);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px rgba(236, 72, 153, 0.25);
 }
 
 .stat-icon {
@@ -768,8 +790,8 @@ h1, h2, h3, h4 {
 
 .chart-container-wrapper:hover {
     transform: translateY(-2px);
-    border-color: rgba(99, 102, 241, 0.25);
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.15);
 }
 
 .usage-charts-grid {
@@ -2222,5 +2244,22 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .blog-post-body {
         padding: 1rem;
     }
+}
+
+/* View Transitions API Custom Animations */
+::view-transition-old(root) {
+    animation: 90ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+}
+::view-transition-new(root) {
+    animation: 210ms cubic-bezier(0, 0, 0.2, 1) both fade-in;
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 

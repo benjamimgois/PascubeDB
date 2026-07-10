@@ -173,12 +173,22 @@ function setupTabNavigation() {
     const tabs = document.querySelectorAll('.tab-btn');
     const contents = document.querySelectorAll('.tab-content');
     window.switchTab = (target) => {
-        tabs.forEach(t => t.classList.remove('active'));
-        contents.forEach(c => c.style.display = 'none');
         const activeTab = document.querySelector(`.tab-btn[data-tab="${target}"]`);
         const activeContents = document.querySelectorAll(`.tab-content[data-tab="${target}"]`);
-        if (activeTab) activeTab.classList.add('active');
-        activeContents.forEach(c => c.style.display = 'block');
+
+        const updateUI = () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.style.display = 'none');
+            if (activeTab) activeTab.classList.add('active');
+            activeContents.forEach(c => c.style.display = 'block');
+        };
+
+        if (document.startViewTransition) {
+            document.startViewTransition(() => updateUI());
+        } else {
+            updateUI();
+        }
+
         trackPage('tab:' + target);
         setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     };
@@ -2832,7 +2842,7 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -2843,9 +2853,9 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderWidth: 1.5,
+                    cornerRadius: 10,
                     displayColors: false,
                     callbacks: {
                         label: function(context) {
@@ -2928,7 +2938,7 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -2939,9 +2949,9 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderWidth: 1.5,
+                    cornerRadius: 10,
                     callbacks: {
                         label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -3032,13 +3042,13 @@ function renderOSHardwareScatterChart(canvasId, data) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderWidth: 1.5,
+                    cornerRadius: 10,
                     callbacks: {
                         title: function(items) {
                             const p = items[0];
@@ -3793,13 +3803,13 @@ function renderCharts() {
             plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            backgroundColor: 'rgba(11, 15, 25, 0.96)',
                             titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                             bodyFont: { family: "'Inter', sans-serif", size: 13 },
                             padding: 12,
-                            borderColor: 'rgba(255, 255, 255, 0.15)',
-                            borderWidth: 1,
-                            cornerRadius: 8,
+                            borderColor: 'rgba(99, 102, 241, 0.45)',
+                            borderWidth: 1.5,
+                            cornerRadius: 10,
                             displayColors: false,
                     callbacks: {
                         title: function(context) {
@@ -4219,8 +4229,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
-                    padding: 10, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1, cornerRadius: 8, displayColors: true,
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                    padding: 10, borderColor: 'rgba(99, 102, 241, 0.45)', borderWidth: 1.5, cornerRadius: 10, displayColors: true,
                     callbacks: {
                         label: function(context) {
                             const samples = context.dataset.sampleCounts ? context.dataset.sampleCounts[context.dataIndex] : 0;
@@ -4493,13 +4503,13 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderWidth: 1.5,
+                    cornerRadius: 10,
                     callbacks: {
                         title: function(items) {
                             const p = items[0];
@@ -4619,13 +4629,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: showDataLabels ? { right: 40 } : { right: 4 } },
+            layout: { padding: showDataLabels ? { right: 80 } : { right: 4 } },
             plugins: {
                 legend: {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -4636,9 +4646,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderWidth: 1.5,
+                    cornerRadius: 10,
                     displayColors: false,
                     callbacks: {
                         label: function(context) {
@@ -4756,13 +4766,19 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         const ri = chart.data.datasets[0].rankOneLocalIdx;
                         const icon = chart.data.datasets[0].rankOneIcon || '';
                         c.fillText(icon && i === ri ? label + '  ' + icon : label, bar.x - 8, bar.y);
+                        const barW = bar.x - baseX;
                         const gpuFreq = gpuFreqs && gpuFreqs[i];
                         if (gpuFreq) {
                             const centerX = (baseX + bar.x) / 2;
                             c.font = '10px Inter, sans-serif';
                             c.textAlign = 'center';
                             c.fillStyle = '#ffffff';
-                            c.fillText(`${gpuFreq.toLocaleString()} MHz`, centerX, bar.y);
+                            if (barW > 60) c.fillText(`${gpuFreq.toLocaleString()} MHz`, centerX, bar.y);
+                        } else if (chart.data.datasets[0].clientIds) {
+                            c.font = '10px Inter, sans-serif';
+                            c.textAlign = 'left';
+                            c.fillStyle = 'rgba(255,255,255,0.7)';
+                            c.fillText((chart.data.datasets[0].clientIds[i] || '').substring(0, 22), bar.x + 4, bar.y);
                         }
                     });
                 } else {
@@ -4967,7 +4983,7 @@ function renderGroupedBarChart(canvasId, labels, datasets) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backgroundColor: 'rgba(11, 15, 25, 0.96)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -4978,9 +4994,9 @@ function renderGroupedBarChart(canvasId, labels, datasets) {
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderWidth: 1.5,
+                    cornerRadius: 10
                 }
             }
         }
