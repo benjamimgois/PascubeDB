@@ -3419,9 +3419,9 @@ function renderCharts() {
         gpuRuns.map(r => getDisplayName(r)),
         null,
         null,
+        null,
+        null,
         gpuRuns.map(r => r.gpuMaxFreq),
-        'GPU Max Freq',
-        undefined,
         undefined,
         chartNorm['gpuChart'],
         true
@@ -3766,15 +3766,20 @@ function renderCharts() {
                      category === 'Handheld' ? getTopHandheldRuns :
                      getTopSbcRuns;
         const runsData = runs(benchmarkData, 10);
+        
+        const runsScores = runsData.map(h => h.score);
+        const runsMin = runsScores.length > 0 ? Math.min(...runsScores) : 0;
+        const runsXMin = Math.floor(runsMin * 0.9);
+
         renderHorizontalBarChart(
             runsChartId,
             runsData.map(h => h.label),
-            runsData.map(h => h.score),
+            runsScores,
             'Main Score',
             SCORE_COLORS.portableRuns.bg,
             SCORE_COLORS.portableRuns.border,
             undefined,
-            undefined,
+            runsXMin,
             runsData.map(h => h.userName),
             runsData.map(h => h.cpuMaxFreq ? normalizeCPU(h.label) : null),
             null,
@@ -3807,15 +3812,20 @@ function renderCharts() {
             const match = benchmarkData.find(r => classifyDevice(r) === 'SBC' && normalizeCPU(r.cpu) === c.name);
             return match && match.productName && match.productName !== 'N/D' ? `${c.name}\n${match.productName}` : c.name;
         }) : cpuData.map(c => c.name);
+
+        const cpuScores = cpuData.map(c => c.score);
+        const cpuMin = cpuScores.length > 0 ? Math.min(...cpuScores) : 0;
+        const cpuXMin = Math.floor(cpuMin * 0.9);
+
         renderHorizontalBarChart(
             cpuChartId,
             cpuLabels,
-            cpuData.map(c => c.score),
+            cpuScores,
             'CPU Single Score',
             'rgba(99, 102, 241, 0.85)',
             '#818cf8',
             undefined,
-            undefined,
+            cpuXMin,
             cpuData.map(c => c.displayName),
             null,
             null,
@@ -3832,21 +3842,26 @@ function renderCharts() {
             const match = benchmarkData.find(r => classifyDevice(r) === 'SBC' && normalizeGPU(r.gpu) === g.name);
             return match && match.productName && match.productName !== 'N/D' ? `${g.name}\n${match.productName}` : g.name;
         }) : gpuData.map(g => g.name);
+
+        const gpuScores = gpuData.map(g => g.score);
+        const gpuMin = gpuScores.length > 0 ? Math.min(...gpuScores) : 0;
+        const gpuXMin = Math.floor(gpuMin * 0.9);
+
         renderHorizontalBarChart(
             gpuChartId,
             gpuLabels,
-            gpuData.map(g => g.score),
+            gpuScores,
             'GPU Score',
             SCORE_COLORS.gpu.bg,
             SCORE_COLORS.gpu.border,
             undefined,
-            undefined,
+            gpuXMin,
             gpuData.map(g => g.displayName),
             null,
             null,
+            null,
+            null,
             gpuData.map(g => g.gpuMaxFreq),
-            'GPU Max Freq',
-            undefined,
             undefined,
             chartNorm[gpuChartId],
             true
@@ -4908,12 +4923,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     const maxPct = Math.max(...percentages);
                     const icon = chart.data.datasets[0].rankOneIcon || '';
                     const startIndex = chart.data.datasets[0].startIndex || 0;
+                    const xScale = chart.scales.x;
+                    const baseX = xScale.getPixelForValue(xScale.min || 0);
                     
                     meta.data.forEach((bar, i) => {
                         if (bar.x < 1 || bar.height < 1) return;
                         const pct = percentages[i];
                         const isMax = pct === maxPct;
-                        const rightX = bar.x - 6;
                         c.font = isMax ? 'bold 14px Inter, sans-serif' : '600 12px Inter, sans-serif';
                         c.fillStyle = '#ffffff';
                         
@@ -4928,10 +4944,20 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         }
                         
                         const label = `${pct.toFixed(1)}%`;
-                        c.fillText(displayIcon ? displayIcon + '  ' + label : label, rightX, bar.y);
+                        const scoreText = displayIcon ? displayIcon + '  ' + label : label;
+                        const scoreWidth = c.measureText(scoreText).width;
+                        const barW = bar.x - baseX;
+                        const drawScoreInside = barW >= (scoreWidth + 12);
+                        
+                        if (drawScoreInside) {
+                            c.textAlign = 'right';
+                            c.fillText(scoreText, bar.x - 6, bar.y);
+                        } else {
+                            c.textAlign = 'left';
+                            c.fillText(scoreText, bar.x + 6, bar.y);
+                        }
                     });
                 } else if (chart.data.datasets[0].showDataLabels) {
-                    c.textAlign = 'right';
                     c.textBaseline = 'middle';
                     c.fillStyle = '#ffffff';
                     const labelUnit = chart.data.datasets[0].dataLabelUnit || '';
@@ -4940,8 +4966,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     const baseX = xScale.getPixelForValue(xScale.min || 0);
                     meta.data.forEach((bar, i) => {
                         if (bar.x < 1 || bar.height < 1) return;
-                        c.font = '12px Inter, sans-serif';
-                        c.textAlign = 'right';
+                        
                         const label = `${vals[i].toLocaleString()}${labelUnit}`;
                         const icon = chart.data.datasets[0].rankOneIcon || '';
                         const startIndex = chart.data.datasets[0].startIndex || 0;
@@ -4956,10 +4981,27 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             displayIcon = icon;
                         }
                         
-                        c.fillText(displayIcon ? displayIcon + '  ' + label : label, bar.x - 8, bar.y);
+                        const scoreText = displayIcon ? displayIcon + '  ' + label : label;
+                        c.font = '12px Inter, sans-serif';
+                        const scoreWidth = c.measureText(scoreText).width;
                         const barW = bar.x - baseX;
+                        
+                        const drawScoreInside = barW >= (scoreWidth + 16);
+                        
+                        if (drawScoreInside) {
+                            c.font = '12px Inter, sans-serif';
+                            c.textAlign = 'right';
+                            c.fillStyle = '#ffffff';
+                            c.fillText(scoreText, bar.x - 8, bar.y);
+                        } else {
+                            c.font = '12px Inter, sans-serif';
+                            c.textAlign = 'left';
+                            c.fillStyle = '#ffffff';
+                            c.fillText(scoreText, bar.x + 6, bar.y);
+                        }
+                        
                         const gpuFreq = gpuFreqs && gpuFreqs[i];
-                        if (gpuFreq) {
+                        if (gpuFreq && drawScoreInside) {
                             const centerX = (baseX + bar.x) / 2;
                             c.font = '10px Inter, sans-serif';
                             c.textAlign = 'center';
@@ -4972,7 +5014,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             c.fillStyle = 'rgba(255,255,255,0.7)';
                             const isMobileChart = canvasId.toLowerCase().includes('notebook') || canvasId.toLowerCase().includes('handheld') || canvasId.toLowerCase().includes('sbc');
                             const maxLen = isMobileChart ? 10 : 16;
-                            c.fillText((chart.data.datasets[0].clientIds[i] || '').substring(0, maxLen), bar.x + 4, bar.y);
+                            const contributorText = (chart.data.datasets[0].clientIds[i] || '').substring(0, maxLen);
+                            
+                            if (drawScoreInside) {
+                                c.fillText(contributorText, bar.x + 4, bar.y);
+                            } else {
+                                c.fillText(contributorText, bar.x + 6 + scoreWidth + 8, bar.y);
+                            }
                         }
                     });
                 } else {
