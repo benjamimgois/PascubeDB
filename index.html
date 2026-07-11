@@ -93,8 +93,8 @@
         <!-- Tab Bar -->
         <div class="hw-tab-bar">
             <button class="hw-tab active" data-pill="performance"><i data-lucide="cpu"></i> Performance</button>
-            <button class="hw-tab" data-pill="efficiency"><i data-lucide="bar-chart-3"></i> Efficiency</button>
             <button class="hw-tab" data-pill="thermals"><i data-lucide="thermometer"></i> Thermals</button>
+            <button class="hw-tab" data-pill="efficiency"><i data-lucide="bar-chart-3"></i> Efficiency</button>
             <div class="hw-tab-underline"></div>
         </div>
 
@@ -480,6 +480,24 @@
             </div>
         </section>
 
+        </section>
+
+        <section class="charts-section">
+            <div class="section-header">
+                <h2>Thermal Efficiency</h2>
+                <p>Score per degree — who delivers most performance per °C</p>
+            </div>
+            <div class="chart-container-wrapper full-width-chart">
+                <div class="chart-header">
+                    <h3>Top 10 Thermal Efficiency</h3>
+                    <p>Main Score per GPU temperature delta (higher = more efficient)</p>
+                </div>
+                <div class="chart-canvas-area">
+                    <canvas id="thermalEfficiencyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
         </div><!-- /pill-content efficiency -->
 
         <!-- Thermals Pill -->
@@ -517,22 +535,6 @@
                     <div class="chart-canvas-area" style="height: 320px;">
                         <canvas id="hottestIntelChart"></canvas>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="charts-section">
-            <div class="section-header">
-                <h2>Thermal Efficiency</h2>
-                <p>Score per degree — who delivers most performance per °C</p>
-            </div>
-            <div class="chart-container-wrapper full-width-chart">
-                <div class="chart-header">
-                    <h3>Top 10 Thermal Efficiency</h3>
-                    <p>Main Score per GPU temperature delta (higher = more efficient)</p>
-                </div>
-                <div class="chart-canvas-area">
-                    <canvas id="thermalEfficiencyChart"></canvas>
                 </div>
             </div>
         </section>

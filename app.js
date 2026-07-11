@@ -199,20 +199,20 @@ function switchPill(name) {
         }
         if (newContent) {
             newContent.classList.add('active', 'enter');
+
             requestAnimationFrame(() => {
+                // Browser laid out content → canvas has real dimensions
+                if (!PILL_STATE.rendered[name]) {
+                    if (name === 'efficiency') renderEfficiencyCharts();
+                    if (name === 'thermals') renderThermalsCharts();
+                    PILL_STATE.rendered[name] = true;
+                }
                 requestAnimationFrame(() => {
                     newContent.classList.remove('enter');
                 });
             });
         }
     }, 150);
-
-    // Lazy render
-    if (!PILL_STATE.rendered[name]) {
-        if (name === 'efficiency') renderEfficiencyCharts();
-        if (name === 'thermals') renderThermalsCharts();
-        PILL_STATE.rendered[name] = true;
-    }
 
     renderStats(name);
     updateURLParam('subtab', name === 'performance' ? '' : name);
@@ -1556,7 +1556,7 @@ function renderOverviewStats() {
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Most Humble'],
     efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'Best Bottleneck', 'Avg Thermal Eff.'],
-    thermals: ['Best Thermal Eff.', 'Hottest Run', 'Coolest GPU', 'Avg Temp Delta']
+    thermals: ['Hottest GPU', 'Coolest GPU', 'Widest thermal delta', 'Shortest thermal delta']
 };
 
 const STATS_ICONS = { cpu: 'cpu', binary: 'binary', zap: 'zap', sprout: 'sprout' };
@@ -1575,10 +1575,10 @@ const STAT_TOOLTIPS = {
         'Average thermal efficiency across all benchmark runs. Formula: mainScore ÷ gpuTempDelta. Higher values mean more performance per degree of GPU temperature increase.'
     ],
     thermals: [
-        'Winner is the hardware+user combo with the highest benchmark score per degree of GPU temperature rise. Formula: mainScore ÷ gpuTempDelta. High thermal efficiency means the GPU stays cool while delivering strong performance.',
-        'Winner is the GPU model with the highest average peak temperature. Only GPUs with 2+ samples are considered to prevent single-run outliers from skewing the ranking.',
-        'Winner is the GPU model with the lowest average temperature delta (load minus idle). Only GPUs with 2+ samples are considered. Lower deltas indicate better cooling.',
-        'Average GPU temperature delta (load minus idle) across all benchmark runs. Lower values indicate generally better cooling across the community.'
+        'Winner is the GPU model with the highest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered to prevent single-run outliers from skewing the ranking.',
+        'Winner is the GPU model with the lowest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered. Lower temps indicate better thermal management.',
+        'Winner is the GPU model with the widest average temperature delta between idle and load (gpuTempDelta). Only GPUs with 2+ samples are considered.',
+        'Winner is the GPU model with the shortest average temperature delta between idle and load (gpuTempDelta). Only GPUs with 2+ samples are considered. Smaller deltas indicate more efficient cooling.'
     ]
 };
 
@@ -1630,31 +1630,40 @@ function renderStats(pill) {
         document.getElementById('stat-humble-third').textContent = '3º -';
     } else if (pill === 'thermals') {
         const thermalData = filteredData.length ? filteredData : benchmarkData;
-        const thermalEff = computeThermalEfficiency(thermalData);
-        const hotRuns = getHottestGPU(thermalData, 3);
 
-        document.getElementById('stat-top-cpu-single').textContent = thermalEff.length > 0 ? (Math.trunc(thermalEff[0].ratio * 10) / 10).toFixed(1) : '-';
-        document.getElementById('stat-top-cpu-single-sub').textContent = thermalEff.length > 0 ? thermalEff[0].name : '-';
-        document.getElementById('stat-cpu-single-second').textContent = thermalEff[1] ? `2º ${thermalEff[1].name} — ${thermalEff[1].ratio.toFixed(1)}` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = thermalEff[2] ? `3º ${thermalEff[2].name} — ${thermalEff[2].ratio.toFixed(1)}` : '3º -';
+        // Hottest / Coolest GPU by peak temp (gpuMaxTemp)
+        const hotRuns = getHottestGPU(thermalData, 999, 1);
+        const hl = hotRuns.labels, hd = hotRuns.data;
+        const hotLen = hl.length;
 
-        document.getElementById('stat-top-cpu-multi').textContent = hotRuns.length > 0 ? `${hotRuns[0].temp}°C` : '-';
-        document.getElementById('stat-top-cpu-multi-sub').textContent = hotRuns.length > 0 ? hotRuns[0].gpu : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = hotRuns[1] ? `2º ${hotRuns[1].gpu} — ${hotRuns[1].temp}°C` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = hotRuns[2] ? `3º ${hotRuns[2].gpu} — ${hotRuns[2].temp}°C` : '3º -';
+        // Card 1: Hottest GPU
+        document.getElementById('stat-top-cpu-single').textContent = hotLen > 0 ? `${hd[0]}°C` : '-';
+        document.getElementById('stat-top-cpu-single-sub').textContent = hotLen > 0 ? hl[0] : '-';
+        document.getElementById('stat-cpu-single-second').textContent = hotLen > 1 ? `2º ${hl[1]} — ${hd[1]}°C` : '2º -';
+        document.getElementById('stat-cpu-single-third').textContent = hotLen > 2 ? `3º ${hl[2]} — ${hd[2]}°C` : '3º -';
 
-        const coolRuns = getBestCooling(thermalData, 3);
-        document.getElementById('stat-top-gpu').textContent = coolRuns.length > 0 ? `${coolRuns[0].delta}°C` : '-';
-        document.getElementById('stat-top-gpu-sub').textContent = coolRuns.length > 0 ? coolRuns[0].gpu : '-';
-        document.getElementById('stat-gpu-second').textContent = coolRuns[1] ? `2º ${coolRuns[1].gpu} — ${coolRuns[1].delta}°C` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = coolRuns[2] ? `3º ${coolRuns[2].gpu} — ${coolRuns[2].delta}°C` : '3º -';
+        // Card 2: Coolest GPU (reverse of hottest)
+        document.getElementById('stat-top-cpu-multi').textContent = hotLen > 0 ? `${hd[hotLen - 1]}°C` : '-';
+        document.getElementById('stat-top-cpu-multi-sub').textContent = hotLen > 0 ? hl[hotLen - 1] : '-';
+        document.getElementById('stat-cpu-multi-second').textContent = hotLen > 1 ? `2º ${hl[hotLen - 2]} — ${hd[hotLen - 2]}°C` : '2º -';
+        document.getElementById('stat-cpu-multi-third').textContent = hotLen > 2 ? `3º ${hl[hotLen - 3]} — ${hd[hotLen - 3]}°C` : '3º -';
 
-        const allTemps = thermalData.filter(r => r.gpuTempDelta !== null && !isNaN(r.gpuTempDelta)).map(r => r.gpuTempDelta);
-        const avgTemp = allTemps.length > 0 ? (allTemps.reduce((s, v) => s + v, 0) / allTemps.length).toFixed(1) : '-';
-        document.getElementById('stat-most-humble-score').textContent = avgTemp;
-        document.getElementById('stat-most-humble-hardware').textContent = 'Avg Delta °C';
-        document.getElementById('stat-humble-second').textContent = '2º -';
-        document.getElementById('stat-humble-third').textContent = '3º -';
+        // Widest / Shortest thermal delta (gpuTempDelta)
+        const deltaRuns = getBestCooling(thermalData, 999);
+        const dl = deltaRuns.labels, dd = deltaRuns.data;
+        const dLen = dl.length;
+
+        // Card 3: Widest thermal delta (last entry = highest delta)
+        document.getElementById('stat-top-gpu').textContent = dLen > 0 ? `${dd[dLen - 1]}°C` : '-';
+        document.getElementById('stat-top-gpu-sub').textContent = dLen > 0 ? dl[dLen - 1] : '-';
+        document.getElementById('stat-gpu-second').textContent = dLen > 1 ? `2º ${dl[dLen - 2]} — ${dd[dLen - 2]}°C` : '2º -';
+        document.getElementById('stat-gpu-third').textContent = dLen > 2 ? `3º ${dl[dLen - 3]} — ${dd[dLen - 3]}°C` : '3º -';
+
+        // Card 4: Shortest thermal delta (first entry = lowest delta)
+        document.getElementById('stat-most-humble-score').textContent = dLen > 0 ? `${dd[0]}°C` : '-';
+        document.getElementById('stat-most-humble-hardware').textContent = dLen > 0 ? dl[0] : '-';
+        document.getElementById('stat-humble-second').textContent = dLen > 1 ? `2º ${dl[1]} — ${dd[1]}°C` : '2º -';
+        document.getElementById('stat-humble-third').textContent = dLen > 2 ? `3º ${dl[2]} — ${dd[2]}°C` : '3º -';
     }
 
     // Update help tooltips
@@ -4677,6 +4686,16 @@ function renderEfficiencyCharts() {
         }));
         renderBasicScatterChart('vramGpuScatterChart', datasets, 'VRAM (GB)', 'GPU Score');
     }
+
+    // Thermal Efficiency (moved from Thermals tab)
+    const thermalEff = computeThermalEfficiency(bm);
+    if (document.getElementById('thermalEfficiencyChart')) {
+        const labels = thermalEff.map(d => d.name);
+        const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
+        makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
+            'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
+            thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
+    }
 }
 
 function renderBasicScatterChart(canvasId, datasets, xLabel, yLabel) {
@@ -4707,16 +4726,6 @@ function renderBasicScatterChart(canvasId, datasets, xLabel, yLabel) {
 
 function renderThermalsCharts() {
     const bm = filteredData.length ? filteredData : benchmarkData;
-
-    // Thermal Efficiency
-    const thermalEff = computeThermalEfficiency(bm);
-    if (document.getElementById('thermalEfficiencyChart')) {
-        const labels = thermalEff.map(d => d.name);
-        const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
-        makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
-            'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
-            thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
-    }
 
     // Vendor temp charts (re-use existing helper functions)
     if (document.getElementById('hottestAmdChart')) renderVendorChartClosure('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444', bm);
