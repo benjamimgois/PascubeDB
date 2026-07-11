@@ -171,11 +171,43 @@ function updateURLParam(key, value) {
 
 function switchPill(name) {
     if (name === PILL_STATE.active) return;
+
+    const oldName = PILL_STATE.active;
     PILL_STATE.active = name;
 
-    document.querySelectorAll('.pill-btn').forEach(b => b.classList.toggle('active', b.dataset.pill === name));
-    document.querySelectorAll('.pill-content').forEach(c => c.classList.toggle('active', c.dataset.pill === name));
+    // Update tabs
+    document.querySelectorAll('.hw-tab').forEach(t => t.classList.toggle('active', t.dataset.pill === name));
 
+    // Update underline position
+    const activeTab = document.querySelector('.hw-tab.active');
+    const underline = document.querySelector('.hw-tab-underline');
+    if (activeTab && underline) {
+        underline.style.left = activeTab.offsetLeft + 'px';
+        underline.style.width = activeTab.offsetWidth + 'px';
+    }
+
+    // Exit animation on old content
+    const oldContent = document.querySelector(`.pill-content[data-pill="${oldName}"]`);
+    const newContent = document.querySelector(`.pill-content[data-pill="${name}"]`);
+    if (oldContent && oldContent !== newContent) {
+        oldContent.classList.add('exit');
+    }
+
+    setTimeout(() => {
+        if (oldContent && oldContent !== newContent) {
+            oldContent.classList.remove('active', 'exit');
+        }
+        if (newContent) {
+            newContent.classList.add('active', 'enter');
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    newContent.classList.remove('enter');
+                });
+            });
+        }
+    }, 150);
+
+    // Lazy render
     if (!PILL_STATE.rendered[name]) {
         if (name === 'efficiency') renderEfficiencyCharts();
         if (name === 'thermals') renderThermalsCharts();
@@ -193,12 +225,30 @@ function initPillNav() {
     const initialPill = (subtab === 'efficiency' || subtab === 'thermals') ? subtab : 'performance';
     PILL_STATE.active = initialPill;
 
-    document.querySelectorAll('.pill-btn').forEach(btn => {
+    document.querySelectorAll('.hw-tab').forEach(btn => {
         btn.addEventListener('click', () => switchPill(btn.dataset.pill));
     });
 
     document.querySelectorAll('.pill-content').forEach(c => c.classList.toggle('active', c.dataset.pill === initialPill));
-    document.querySelectorAll('.pill-btn').forEach(b => b.classList.toggle('active', b.dataset.pill === initialPill));
+    document.querySelectorAll('.hw-tab').forEach(t => t.classList.toggle('active', t.dataset.pill === initialPill));
+
+    // Position underline for initial tab
+    const activeTab = document.querySelector('.hw-tab.active');
+    const underline = document.querySelector('.hw-tab-underline');
+    if (activeTab && underline) {
+        underline.style.left = activeTab.offsetLeft + 'px';
+        underline.style.width = activeTab.offsetWidth + 'px';
+    }
+
+    // Reposition underline on resize
+    window.addEventListener('resize', () => {
+        const at = document.querySelector('.hw-tab.active');
+        const ul = document.querySelector('.hw-tab-underline');
+        if (at && ul) {
+            ul.style.left = at.offsetLeft + 'px';
+            ul.style.width = at.offsetWidth + 'px';
+        }
+    }, { passive: true });
 }
 
 function initVizTooltips() {

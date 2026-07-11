@@ -88,12 +88,15 @@
         <!-- Hardware Benchmark Content -->
         <div id="tab-hardware" class="tab-content active" data-tab="hardware">
 
-        <!-- Pill Navigation -->
-        <nav class="pill-nav" id="pill-nav">
-            <button class="pill-btn active" data-pill="performance"><i data-lucide="cpu"></i> Performance</button>
-            <button class="pill-btn" data-pill="efficiency"><i data-lucide="bar-chart-3"></i> Efficiency</button>
-            <button class="pill-btn" data-pill="thermals"><i data-lucide="thermometer"></i> Thermals</button>
-        </nav>
+        <div class="hw-benchmark-container">
+
+        <!-- Tab Bar -->
+        <div class="hw-tab-bar">
+            <button class="hw-tab active" data-pill="performance"><i data-lucide="cpu"></i> Performance</button>
+            <button class="hw-tab" data-pill="efficiency"><i data-lucide="bar-chart-3"></i> Efficiency</button>
+            <button class="hw-tab" data-pill="thermals"><i data-lucide="thermometer"></i> Thermals</button>
+            <div class="hw-tab-underline"></div>
+        </div>
 
         <!-- Stats Grid (context-switched by JS) -->
         <section class="stats-grid" id="stats-grid">
@@ -563,6 +566,8 @@
         </section>
 
         </div><!-- /pill-content thermals -->
+
+        </div><!-- /hw-benchmark-container -->
 
         </div><!-- /tab-hardware -->
 
