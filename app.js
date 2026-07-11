@@ -201,6 +201,30 @@ function initPillNav() {
     document.querySelectorAll('.pill-btn').forEach(b => b.classList.toggle('active', b.dataset.pill === initialPill));
 }
 
+function initVizTooltips() {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'viz-info-tooltip-global';
+    document.body.appendChild(tooltip);
+
+    document.addEventListener('mouseover', e => {
+        const icon = e.target.closest('.viz-info-icon');
+        if (!icon) { tooltip.classList.remove('visible'); return; }
+        const wrap = icon.closest('.viz-info-wrap');
+        if (!wrap) return;
+        const tip = wrap.querySelector('.viz-info-tooltip');
+        if (!tip) return;
+        tooltip.textContent = tip.textContent;
+        const rect = icon.getBoundingClientRect();
+        tooltip.style.left = rect.left + rect.width / 2 + 'px';
+        tooltip.style.top = rect.bottom + 8 + 'px';
+        tooltip.classList.add('visible');
+    });
+
+    document.addEventListener('mouseout', e => {
+        if (!e.target.closest('.viz-info-icon')) tooltip.classList.remove('visible');
+    });
+}
+
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
@@ -213,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initScrollObservers();
     initBackToTop();
     initPillNav();
+    initVizTooltips();
     fetchData();
     trackPage('tab:hardware');
 });
