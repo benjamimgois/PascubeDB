@@ -1511,15 +1511,15 @@ function renderStats(pill) {
         const effData = filteredData.length ? filteredData : benchmarkData;
         const cpuEff = computeCpuEfficiency(effData);
         const gpuEff = computeGpuEfficiency(effData);
-        document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? cpuEff[0].ratio.toFixed(2) : '-';
-        document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? cpuEff[0].name : '-';
-        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].name} — ${cpuEff[1].ratio.toFixed(2)}` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].name} — ${cpuEff[2].ratio.toFixed(2)}` : '3º -';
+        document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? (Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2) : '-';
+        document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? `${cpuEff[0].user} — ${cpuEff[0].name}` : '-';
+        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].user} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
+        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].user} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
 
-        document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? gpuEff[0].ratio.toFixed(2) : '-';
-        document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? gpuEff[0].name : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].name} — ${gpuEff[1].ratio.toFixed(2)}` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].name} — ${gpuEff[2].ratio.toFixed(2)}` : '3º -';
+        document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? (Math.trunc(gpuEff[0].ratio * 100) / 100).toFixed(2) : '-';
+        document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? `${gpuEff[0].user} — ${gpuEff[0].name}` : '-';
+        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].user} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
+        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].user} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
 
         document.getElementById('stat-top-gpu').textContent = '-';
         document.getElementById('stat-top-gpu-sub').textContent = 'Efficiency';
@@ -1535,7 +1535,7 @@ function renderStats(pill) {
         const thermalEff = computeThermalEfficiency(thermalData);
         const hotRuns = getHottestGPU(thermalData, 3);
 
-        document.getElementById('stat-top-cpu-single').textContent = thermalEff.length > 0 ? thermalEff[0].ratio.toFixed(1) : '-';
+        document.getElementById('stat-top-cpu-single').textContent = thermalEff.length > 0 ? (Math.trunc(thermalEff[0].ratio * 10) / 10).toFixed(1) : '-';
         document.getElementById('stat-top-cpu-single-sub').textContent = thermalEff.length > 0 ? thermalEff[0].name : '-';
         document.getElementById('stat-cpu-single-second').textContent = thermalEff[1] ? `2º ${thermalEff[1].name} — ${thermalEff[1].ratio.toFixed(1)}` : '2º -';
         document.getElementById('stat-cpu-single-third').textContent = thermalEff[2] ? `3º ${thermalEff[2].name} — ${thermalEff[2].ratio.toFixed(1)}` : '3º -';
@@ -4417,10 +4417,12 @@ function computeCpuEfficiency(data) {
     const map = {};
     data.forEach(r => {
         if (r.cpuSingle === null || r.cpuMaxFreq === null || r.cpuMaxFreq <= 0) return;
-        const key = normalizeCPU(r.cpu);
-        if (!key || key === 'Unknown CPU') return;
+        const hwKey = normalizeCPU(r.cpu);
+        if (!hwKey || hwKey === 'Unknown CPU') return;
+        const userKey = r.user || 'Anonymous';
+        const key = hwKey + '|' + userKey;
         const ratio = r.cpuSingle / r.cpuMaxFreq;
-        if (!map[key] || ratio > map[key].ratio) map[key] = { name: key, ratio, score: r.cpuSingle, freq: r.cpuMaxFreq, user: r.user || 'Anonymous', cid: r.clientId || '—' };
+        if (!map[key] || ratio > map[key].ratio) map[key] = { name: hwKey, ratio, score: r.cpuSingle, freq: r.cpuMaxFreq, user: userKey, cid: r.clientId || '—' };
     });
     return Object.values(map).sort((a, b) => b.ratio - a.ratio);
 }
@@ -4429,10 +4431,12 @@ function computeGpuEfficiency(data) {
     const map = {};
     data.forEach(r => {
         if (r.gpuScore === null || r.gpuMaxFreq === null || r.gpuMaxFreq <= 0) return;
-        const key = normalizeGPU(r.gpu);
-        if (!key || key === 'Unknown GPU') return;
+        const hwKey = normalizeGPU(r.gpu);
+        if (!hwKey || hwKey === 'Unknown GPU') return;
+        const userKey = r.user || 'Anonymous';
+        const key = hwKey + '|' + userKey;
         const ratio = r.gpuScore / r.gpuMaxFreq;
-        if (!map[key] || ratio > map[key].ratio) map[key] = { name: key, ratio, score: r.gpuScore, freq: r.gpuMaxFreq, user: r.user || 'Anonymous', cid: r.clientId || '—' };
+        if (!map[key] || ratio > map[key].ratio) map[key] = { name: hwKey, ratio, score: r.gpuScore, freq: r.gpuMaxFreq, user: userKey, cid: r.clientId || '—' };
     });
     return Object.values(map).sort((a, b) => b.ratio - a.ratio);
 }
@@ -4489,9 +4493,11 @@ function computeThermalEfficiency(data) {
     const map = {};
     data.forEach(r => {
         if (r.mainScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= 0) return;
-        const id = r.clientId || 'N/D';
+        const hwKey = normalizeGPU(r.gpu) || 'Unknown GPU';
+        const userKey = r.user || 'Anonymous';
+        const key = hwKey + '|' + userKey;
         const ratio = r.mainScore / r.gpuTempDelta;
-        if (!map[id] || ratio > map[id].ratio) map[id] = { name: getDisplayName(r), ratio, score: r.mainScore, temp: r.gpuTempDelta };
+        if (!map[key] || ratio > map[key].ratio) map[key] = { name: hwKey, ratio, score: r.mainScore, temp: r.gpuTempDelta, user: userKey };
     });
     return Object.values(map).sort((a, b) => b.ratio - a.ratio);
 }
@@ -4503,7 +4509,7 @@ function renderEfficiencyCharts() {
     const cpuEff = computeCpuEfficiency(bm);
     if (document.getElementById('cpuEfficiencyChart')) {
         const labels = cpuEff.map(d => d.name);
-        const values = cpuEff.map(d => +d.ratio.toFixed(4));
+        const values = cpuEff.map(d => Math.trunc(d.ratio * 100) / 100);
         makeChartScrollable('cpuEfficiencyChart', labels, values, 'Score / MHz',
             'rgba(99, 102, 241, 0.85)', '#818cf8', 10, undefined,
             cpuEff.map(d => d.user), null, true,
@@ -4516,7 +4522,7 @@ function renderEfficiencyCharts() {
     const gpuEff = computeGpuEfficiency(bm);
     if (document.getElementById('gpuEfficiencyChart')) {
         const labels = gpuEff.map(d => d.name);
-        const values = gpuEff.map(d => +d.ratio.toFixed(4));
+        const values = gpuEff.map(d => Math.trunc(d.ratio * 100) / 100);
         makeChartScrollable('gpuEfficiencyChart', labels, values, 'Score / MHz',
             'rgba(16, 185, 129, 0.85)', '#10b981', 10, undefined,
             gpuEff.map(d => d.user), gpuEff.map(d => d.freq), true,
@@ -4604,7 +4610,7 @@ function renderThermalsCharts() {
     const thermalEff = computeThermalEfficiency(bm);
     if (document.getElementById('thermalEfficiencyChart')) {
         const labels = thermalEff.map(d => d.name);
-        const values = thermalEff.map(d => +d.ratio.toFixed(1));
+        const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
         makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
             'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
             thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
@@ -5258,7 +5264,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 padding: showDataLabels 
                     ? { 
                         right: (barClientIds || clientIds) && (barClientIds || clientIds).some(cid => cid) 
-                            ? ((canvasId.toLowerCase().includes('notebook') || canvasId.toLowerCase().includes('handheld') || canvasId.toLowerCase().includes('sbc')) ? 48 : 64)
+                            ? 120
                             : 10
                       } 
                     : { right: 4 } 
@@ -5543,12 +5549,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     // Find the maximum value in the entire dataset to lock the X-axis scale
     const xMax = allData.length > 0 ? Math.max(...allData) : undefined;
     
-    let initialXMax = xMax;
-    if (xMax !== undefined && initialData.length > 0 && Math.max(...initialData) < 1000 && !normalize) {
-        initialXMax = xMax / 2;
-    }
-    
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, initialXMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
@@ -5597,14 +5598,8 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             const newLabels = allLabels.slice(startIndex, startIndex + visibleCount);
             const newData = allData.slice(startIndex, startIndex + visibleCount);
 
-            // Adjust X-axis scale: if all currently visible items are < 1000, reduce max by half
-            const currentMax = newData.length > 0 ? Math.max(...newData) : 0;
             if (xMax !== undefined && !normalize) {
-                if (currentMax < 1000) {
-                    chart.options.scales.x.max = xMax / 2;
-                } else {
-                    chart.options.scales.x.max = xMax;
-                }
+                chart.options.scales.x.max = xMax;
             }
 
             chart.data.labels = newLabels;
