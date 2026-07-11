@@ -1561,6 +1561,27 @@ const STATS_PILL_LABELS = {
 
 const STATS_ICONS = { cpu: 'cpu', binary: 'binary', zap: 'zap', sprout: 'sprout' };
 
+const STAT_TOOLTIPS = {
+    performance: [
+        'Winner is the CPU model with the highest single-core benchmark score. Each CPU model is represented by its best single submission — no averaging across multiple runs of the same hardware.',
+        'Winner is the CPU model with the highest multi-core benchmark score. Each CPU model is represented by its best single submission — no averaging across multiple runs of the same hardware.',
+        'Winner is the GPU model with the highest GPU benchmark score. Each GPU model is represented by its best single submission — no averaging across multiple runs of the same hardware.',
+        'Winner is the submission with the lowest main score among all benchmarks. Highlights the most modest hardware in the database.'
+    ],
+    efficiency: [
+        'Winner is the hardware+user combo with the highest CPU single-core score per MHz of clock frequency. Formula: cpuSingle ÷ cpuMaxFreq. Higher ratios indicate more work done per clock cycle — a sign of strong architectural efficiency.',
+        'Winner is the hardware+user combo with the highest GPU score per MHz of clock frequency. Formula: gpuScore ÷ gpuMaxFreq. Higher ratios mean the GPU achieves more performance per megahertz.',
+        'Balance between CPU multi-core throughput and GPU raw performance. Well-balanced systems avoid leaving performance on the table in either component.',
+        'Average thermal efficiency across all benchmark runs. Formula: mainScore ÷ gpuTempDelta. Higher values mean more performance per degree of GPU temperature increase.'
+    ],
+    thermals: [
+        'Winner is the hardware+user combo with the highest benchmark score per degree of GPU temperature rise. Formula: mainScore ÷ gpuTempDelta. High thermal efficiency means the GPU stays cool while delivering strong performance.',
+        'Winner is the GPU model with the highest average peak temperature. Only GPUs with 2+ samples are considered to prevent single-run outliers from skewing the ranking.',
+        'Winner is the GPU model with the lowest average temperature delta (load minus idle). Only GPUs with 2+ samples are considered. Lower deltas indicate better cooling.',
+        'Average GPU temperature delta (load minus idle) across all benchmark runs. Lower values indicate generally better cooling across the community.'
+    ]
+};
+
 function renderStats(pill) {
     const pills = ['performance', 'efficiency', 'thermals'];
     const idx = pills.indexOf(pill);
@@ -1574,6 +1595,8 @@ function renderStats(pill) {
         ['stat-top-cpu-single','stat-top-cpu-multi','stat-top-gpu','stat-most-humble-score']
             .forEach(id => { const el = document.getElementById(id); if (el) delete el.dataset.counterTarget; });
         renderOverviewStatsImpl();
+        const perfTips = document.querySelectorAll('#stats-grid .stat-card .winner-info-tooltip');
+        STAT_TOOLTIPS.performance.forEach((t, i) => { if (perfTips[i]) perfTips[i].textContent = t; });
         return;
     }
 
@@ -1633,6 +1656,10 @@ function renderStats(pill) {
         document.getElementById('stat-humble-second').textContent = '2º -';
         document.getElementById('stat-humble-third').textContent = '3º -';
     }
+
+    // Update help tooltips
+    const tips = document.querySelectorAll('#stats-grid .stat-card .winner-info-tooltip');
+    STAT_TOOLTIPS[pill].forEach((t, i) => { if (tips[i]) tips[i].textContent = t; });
 }
 
 function renderOverviewStatsImpl() {
