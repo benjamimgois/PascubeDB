@@ -4708,7 +4708,7 @@ function renderBottleneckChart(data, selectedGpu) {
             cpus: [...d.cpus].join(', ')
         })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 15);
         buildBottleneckChart(canvasId, items, 'GPU model');
-        if (h3) h3.textContent = 'Top 10 Bottleneck Ratios';
+        if (h3) h3.textContent = 'GPU vs CPU Bottleneck';
         if (topEl) topEl.textContent = '';
     } else {
         const cpuMap = {};
