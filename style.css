@@ -1204,8 +1204,8 @@ h1, h2, h3, h4 {
 }
 
 .viz-info-wrap:hover .viz-info-tooltip {
-    opacity: 0;
-    visibility: hidden;
+    opacity: 1;
+    visibility: visible;
 }
 
 .viz-info-tooltip-global {

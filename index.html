@@ -484,12 +484,12 @@
                 <p>Score per degree — who delivers most performance per °C</p>
             </div>
             <div class="chart-container-wrapper full-width-chart">
-                <div class="chart-header">
+                <div class="chart-header" style="position:relative">
                     <div class="chart-header-row">
                         <h3>GPU Thermal Efficiency</h3>
-                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">How much performance each GPU model delivers per degree of temperature increase. Higher ratios mean the GPU maintains strong performance even under thermal load — critical for sustained workloads like rendering or gaming sessions.</div></span>
                     </div>
                     <p>Main Score per GPU temperature delta (higher = more efficient)</p>
+                    <span class="viz-info-wrap" style="position:absolute;right:8px;top:8px"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">How much performance each GPU model delivers per degree of temperature increase. Higher ratios mean the GPU maintains strong performance even under thermal load — critical for sustained workloads like rendering or gaming sessions.</div></span>
                 </div>
                 <div class="chart-canvas-area">
                     <canvas id="thermalEfficiencyChart"></canvas>
