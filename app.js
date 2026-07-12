@@ -5887,6 +5887,14 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
+
+    // Apply extra dataset properties to the initial visible slice
+    if (extraDataProps) {
+        Object.keys(extraDataProps).forEach(k => {
+            chart.data.datasets[0][k] = extraDataProps[k].slice(0, visibleCount);
+        });
+        chart.update('none');
+    }
     
     const canvas = document.getElementById(canvasId);
     const parent = canvas.parentElement;
