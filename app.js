@@ -1556,7 +1556,7 @@ function renderOverviewStats() {
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Most Humble'],
     efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'TOP CPU Bottleneck', 'Best Thermal GPU'],
-    thermals: ['Hottest GPU', 'Coolest GPU', 'Widest thermal delta', 'Shortest thermal delta']
+    thermals: ['Hottest GPU', 'Coolest GPU', 'Hottest Notebook', 'Top thermal delta']
 };
 
 const STATS_ICONS = { cpu: 'cpu', binary: 'binary', zap: 'zap', sprout: 'sprout' };
@@ -1577,8 +1577,8 @@ const STAT_TOOLTIPS = {
     thermals: [
         'Winner is the GPU model with the highest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered to prevent single-run outliers from skewing the ranking.',
         'Winner is the GPU model with the lowest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered. Lower temps indicate better thermal management.',
-        'Winner is the GPU model with the widest average temperature delta between idle and load (gpuTempDelta). Only GPUs with 2+ samples are considered.',
-        'Winner is the GPU model with the shortest average temperature delta between idle and load (gpuTempDelta). Only GPUs with 2+ samples are considered. Smaller deltas indicate more efficient cooling.'
+        'Hottest notebook GPU by peak temperature. Highlights the most thermally stressed portable device.',
+        'GPU model with the widest average temperature delta between idle and load (gpuTempDelta). Only GPUs with 2+ samples are considered.'
     ]
 };
 
@@ -1655,22 +1655,25 @@ function renderStats(pill) {
         document.getElementById('stat-cpu-multi-second').textContent = hotLen > 1 ? `2º ${hl[hotLen - 2]} — ${hd[hotLen - 2]}°C` : '2º -';
         document.getElementById('stat-cpu-multi-third').textContent = hotLen > 2 ? `3º ${hl[hotLen - 3]} — ${hd[hotLen - 3]}°C` : '3º -';
 
-        // Widest / Shortest thermal delta (gpuTempDelta)
+        // Thermal delta (gpuTempDelta)
         const deltaRuns = getBestCooling(thermalData, 999);
         const dl = deltaRuns.labels, dd = deltaRuns.data;
         const dLen = dl.length;
 
-        // Card 3: Widest thermal delta (last entry = highest delta)
-        document.getElementById('stat-top-gpu').textContent = dLen > 0 ? `${dd[dLen - 1]}°C` : '-';
-        document.getElementById('stat-top-gpu-sub').textContent = dLen > 0 ? dl[dLen - 1] : '-';
-        document.getElementById('stat-gpu-second').textContent = dLen > 1 ? `2º ${dl[dLen - 2]} — ${dd[dLen - 2]}°C` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = dLen > 2 ? `3º ${dl[dLen - 3]} — ${dd[dLen - 3]}°C` : '3º -';
+        // Card 3: Hottest Notebook (from Notebook Thermal Load chart)
+        const noteRuns = getCategoryHottestRuns(thermalData, 'Notebook', 3);
+        const nl = noteRuns.labels, nd = noteRuns.data;
+        const nLen = nl.length;
+        document.getElementById('stat-top-gpu').textContent = nLen > 0 ? `${nd[0]}°C` : '-';
+        document.getElementById('stat-top-gpu-sub').textContent = nLen > 0 ? nl[0] : '-';
+        document.getElementById('stat-gpu-second').textContent = nLen > 1 ? `2º ${nl[1]} — ${nd[1]}°C` : '2º -';
+        document.getElementById('stat-gpu-third').textContent = nLen > 2 ? `3º ${nl[2]} — ${nd[2]}°C` : '3º -';
 
-        // Card 4: Shortest thermal delta (first entry = lowest delta)
-        document.getElementById('stat-most-humble-score').textContent = dLen > 0 ? `${dd[0]}°C` : '-';
-        document.getElementById('stat-most-humble-hardware').textContent = dLen > 0 ? dl[0] : '-';
-        document.getElementById('stat-humble-second').textContent = dLen > 1 ? `2º ${dl[1]} — ${dd[1]}°C` : '2º -';
-        document.getElementById('stat-humble-third').textContent = dLen > 2 ? `3º ${dl[2]} — ${dd[2]}°C` : '3º -';
+        // Card 4: Top thermal delta (highest delta = last entry)
+        document.getElementById('stat-most-humble-score').textContent = dLen > 0 ? `${dd[dLen - 1]}°C` : '-';
+        document.getElementById('stat-most-humble-hardware').textContent = dLen > 0 ? dl[dLen - 1] : '-';
+        document.getElementById('stat-humble-second').textContent = dLen > 1 ? `2º ${dl[dLen - 2]} — ${dd[dLen - 2]}°C` : '2º -';
+        document.getElementById('stat-humble-third').textContent = dLen > 2 ? `3º ${dl[dLen - 3]} — ${dd[dLen - 3]}°C` : '3º -';
     }
 
     // Update help tooltips
