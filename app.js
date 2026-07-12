@@ -4708,7 +4708,7 @@ function renderBottleneckChart(data, selectedGpu) {
             cpus: [...d.cpus].join(', ')
         })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 15);
         buildBottleneckChart(canvasId, items, 'GPU model');
-        if (h3) h3.textContent = 'Top 15 Bottleneck Ratios';
+        if (h3) h3.textContent = 'Top 10 Bottleneck Ratios';
         if (topEl) topEl.textContent = '';
     } else {
         const cpuMap = {};
@@ -4736,10 +4736,10 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
     const cv = document.getElementById(canvasId);
     if (!cv) return;
     const container = cv.parentElement;
-    if (container) container.style.height = '520px';
+    if (container) container.style.height = '320px';
     if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
-    const VIS = 15;
+    const VIS = 10;
     let startIdx = 0;
     const existingOverlay = container?.querySelector('.chart-scroll-overlay');
     if (existingOverlay) existingOverlay.remove();
@@ -4812,7 +4812,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
     const overlay = document.createElement('div');
     overlay.className = 'chart-scroll-overlay';
     const spacer = document.createElement('div');
-    const totalHeight = 520 + (n - VIS) * 36;
+    const totalHeight = 320 + (n - VIS) * 36;
     spacer.style.height = `${totalHeight}px`;
     spacer.style.width = '1px';
     overlay.appendChild(spacer);
