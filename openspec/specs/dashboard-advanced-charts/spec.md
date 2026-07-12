@@ -80,3 +80,10 @@ For the Top 10 Benchmark Runs horizontal bar chart, the system SHALL render both
 - **WHEN** the Top 10 Benchmark Runs chart is rendered and both CPU and GPU frequencies are available
 - **THEN** both frequencies are shown in the center of the bar formatted as "CPU_FREQ / GPU_FREQ MHz" in a non-bold 10px font
 
+### Requirement: GPU Performance Chart Frequency Display
+For the Top 10 GPU Model Performance horizontal bar chart, the system SHALL render the GPU Max Frequency centered inside the bar (or outside if it overlaps the score) formatted as "FREQ MHz" using a small, normal-weight (non-bold) font.
+
+#### Scenario: Rendering GPU Max Frequency on GPU Performance Chart
+- **WHEN** the Top 10 GPU Model Performance chart is rendered and the GPU frequency is available
+- **THEN** the frequency is shown in the center of the bar formatted as "FREQ MHz" in a non-bold 10px font
+
