@@ -4045,10 +4045,6 @@ function renderCharts() {
         const runsData = runs(benchmarkData, 10);
         
         const runsScores = runsData.map(h => h.score);
-        const runsMin = runsScores.length > 0 ? Math.min(...runsScores) : 0;
-        const runsMax = runsScores.length > 0 ? Math.max(...runsScores) : 0;
-        const runsXMin = Math.floor(Math.max(0, runsMin * 0.95));
-        const runsXMax = Math.ceil(runsMax * 1.02);
 
         renderHorizontalBarChart(
             runsChartId,
@@ -4057,8 +4053,8 @@ function renderCharts() {
             'Main Score',
             SCORE_COLORS.portableRuns.bg,
             SCORE_COLORS.portableRuns.border,
-            runsXMax,
-            runsXMin,
+            undefined,
+            undefined,
             runsData.map(h => h.userName),
             runsData.map(h => h.cpuMaxFreq ? normalizeCPU(h.label) : null),
             null,
