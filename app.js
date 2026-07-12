@@ -5736,21 +5736,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                                 if (centerText) c.fillText(centerText, centerX, bar.y);
                             }
                         }
-                        if (chart.data.datasets[0].barClientIds || chart.data.datasets[0].clientIds) {
-                            const barIds = chart.data.datasets[0].barClientIds || chart.data.datasets[0].clientIds;
-                            c.font = '10px Inter, sans-serif';
-                            c.textAlign = 'left';
-                            c.fillStyle = 'rgba(255,255,255,0.7)';
-                            const isMobileChart = canvasId.toLowerCase().includes('notebook') || canvasId.toLowerCase().includes('handheld') || canvasId.toLowerCase().includes('sbc');
-                            const maxLen = isMobileChart ? 10 : 16;
-                            const contributorText = (barIds[i] || '').substring(0, maxLen);
-                            
-                            if (drawScoreInside) {
-                                c.fillText(contributorText, bar.x + 4, bar.y);
-                            } else {
-                                c.fillText(contributorText, bar.x + 6 + scoreWidth + 8, bar.y);
-                            }
-                        }
+
                     });
                 } else {
                     const freqs = chart.data.datasets[0].freqs;
