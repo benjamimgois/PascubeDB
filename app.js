@@ -4042,7 +4042,7 @@ function renderCharts() {
         const runs = category === 'Notebook' ? getTopNotebookRuns :
                      category === 'Handheld' ? getTopHandheldRuns :
                      getTopSbcRuns;
-        const runsData = runs(benchmarkData, 10);
+        const runsData = runs(dedupByBestScore(benchmarkData), 10);
         
         const runsScores = runsData.map(h => h.score);
 
