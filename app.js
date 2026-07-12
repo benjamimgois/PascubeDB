@@ -4914,8 +4914,7 @@ function renderTopCpuBottlenecks(data) {
         cpuMulti: d.run.cpuMulti,
         gpuScore: d.run.gpuScore
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
-    const contributors = runs.map(r => r.cpus + ' + ' + r.gpu);
-    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
+    buildBottleneckChart(canvasId, runs, 'CPU+GPU');
 }
 
 function renderThermalsCharts() {
