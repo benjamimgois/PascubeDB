@@ -4897,17 +4897,28 @@ function dedupByBestScore(entries) {
 function renderTopCpuBottlenecks(data) {
     const canvasId = 'topCpuBottleneckChart';
     if (!document.getElementById(canvasId)) return;
-    const pts = dedupByLowestRatio(data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10));
-    const runs = pts.map(r => ({
-        label: normalizeCPU(r.cpu) + ' + ' + normalizeGPU(r.gpu),
-        avgRatio: r.cpuMulti / r.gpuScore,
-        count: 1,
-        cpus: normalizeCPU(r.cpu),
-        cpuMulti: r.cpuMulti,
-        gpuScore: r.gpuScore,
-        contributor: getDisplayName(r)
+    const valid = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
+    const map = {};
+    valid.forEach(r => {
+        const key = normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
+        const ratio = r.cpuMulti / r.gpuScore;
+        if (ratio >= 0.1 && ratio <= 10) {
+            if (!map[key]) map[key] = { sumRatio: 0, sumCpu: 0, sumGpu: 0, count: 0, cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) };
+            map[key].sumRatio += ratio;
+            map[key].sumCpu += r.cpuMulti;
+            map[key].sumGpu += r.gpuScore;
+            map[key].count++;
+        }
+    });
+    const runs = Object.values(map).map(d => ({
+        label: d.cpu + ' + ' + d.gpu,
+        avgRatio: d.sumRatio / d.count,
+        count: d.count,
+        cpus: d.cpu,
+        cpuMulti: d.sumCpu / d.count,
+        gpuScore: d.sumGpu / d.count
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
-    const contributors = runs.map(r => r.contributor);
+    const contributors = runs.map(r => r.cpus + ' + ' + r.gpu);
     buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
 }
 
