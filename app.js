@@ -5594,7 +5594,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 padding: showDataLabels 
                     ? { 
                         right: (barClientIds || clientIds) && (barClientIds || clientIds).some(cid => cid) 
-                            ? 120
+                            ? 80
                             : 10
                       } 
                     : { right: 4 } 
