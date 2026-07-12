@@ -4643,7 +4643,7 @@ function renderEfficiencyCharts() {
         const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
         makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
             'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
-            thermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined, undefined,
+            thermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined,
             { barScore: thermalEff.map(d => d.score), barTemp: thermalEff.map(d => d.temp) });
         const topEl = document.getElementById('thermalEffTop');
         if (topEl) topEl.textContent = thermalEff.length > 0 ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name}` : '—';
