@@ -4570,7 +4570,7 @@ function computeGpuEfficiency(data) {
 function computeThermalEfficiency(data) {
     const map = {};
     data.forEach(r => {
-        if (r.gpuScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= 0) return;
+        if (r.gpuScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= 1) return;
         const hwKey = normalizeGPU(r.gpu) || 'Unknown GPU';
         const userKey = r.user || 'Anonymous';
         const key = hwKey + '|' + userKey;
