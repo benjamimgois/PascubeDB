@@ -3560,7 +3560,10 @@ function renderCharts() {
     
     const mainScores = mainRuns.map(r => r.mainScore);
     const mainMin = mainScores.length > 0 ? Math.min(...mainScores) : 0;
-    const mainXMin = Math.floor(mainMin * 0.9);
+    const mainMax = mainScores.length > 0 ? Math.max(...mainScores) : 0;
+    const mainRange = mainMax - mainMin || mainMin;
+    const mainXMin = Math.floor(Math.max(0, mainMin - mainRange * 0.05));
+    const mainXMax = Math.ceil(mainMax * 1.02);
     
     renderHorizontalBarChart(
         'mainOverallChart',
@@ -3569,7 +3572,7 @@ function renderCharts() {
         'Main Score',
         SCORE_COLORS.portableRuns.bg,
         SCORE_COLORS.portableRuns.border,
-        undefined,
+        mainXMax,
         mainXMin,
         mainRuns.map(r => getDisplayName(r)),
         mainRuns.map(r => r.cpu),
@@ -3595,7 +3598,10 @@ function renderCharts() {
     
     const cpuSingleScores = cpuSingleRuns.map(r => r.cpuSingle);
     const cpuSingleMin = cpuSingleScores.length > 0 ? Math.min(...cpuSingleScores) : 0;
-    const cpuSingleXMin = Math.floor(cpuSingleMin * 0.9);
+    const cpuSingleMax = cpuSingleScores.length > 0 ? Math.max(...cpuSingleScores) : 0;
+    const cpuSingleRange = cpuSingleMax - cpuSingleMin || cpuSingleMin;
+    const cpuSingleXMin = Math.floor(Math.max(0, cpuSingleMin - cpuSingleRange * 0.05));
+    const cpuSingleXMax = Math.ceil(cpuSingleMax * 1.02);
     
     renderHorizontalBarChart(
         'cpuSingleChart',
@@ -3604,7 +3610,7 @@ function renderCharts() {
         'Top 10 CPU Model - Single Thread',
         SCORE_COLORS.cpuSingle.bg,
         SCORE_COLORS.cpuSingle.border,
-        undefined,
+        cpuSingleXMax,
         cpuSingleXMin,
         cpuSingleRuns.map(r => getDisplayName(r)),
         null,
@@ -3632,7 +3638,10 @@ function renderCharts() {
         
     const cpuMultiScores = cpuMultiRuns.map(r => r.cpuMulti);
     const cpuMultiMin = cpuMultiScores.length > 0 ? Math.min(...cpuMultiScores) : 0;
-    const cpuMultiXMin = Math.floor(cpuMultiMin * 0.9);
+    const cpuMultiMax = cpuMultiScores.length > 0 ? Math.max(...cpuMultiScores) : 0;
+    const cpuMultiRange = cpuMultiMax - cpuMultiMin || cpuMultiMin;
+    const cpuMultiXMin = Math.floor(Math.max(0, cpuMultiMin - cpuMultiRange * 0.05));
+    const cpuMultiXMax = Math.ceil(cpuMultiMax * 1.02);
     
     renderHorizontalBarChart(
         'cpuMultiChart',
@@ -3641,7 +3650,7 @@ function renderCharts() {
         'Top 10 CPU Model - Multi Thread',
         SCORE_COLORS.cpuMulti.bg,
         SCORE_COLORS.cpuMulti.border,
-        undefined,
+        cpuMultiXMax,
         cpuMultiXMin,
         cpuMultiRuns.map(r => getDisplayName(r)),
         null,
@@ -3667,7 +3676,11 @@ function renderCharts() {
         .sort((a, b) => b.gpuScore - a.gpuScore)
         .slice(0, 10);
     const gpuScores = gpuRuns.map(r => r.gpuScore);
-    const gpuXMin = gpuScores.length > 0 ? Math.floor(Math.min(...gpuScores) * 0.9) : 0;
+    const gpuMin = gpuScores.length > 0 ? Math.min(...gpuScores) : 0;
+    const gpuMax = gpuScores.length > 0 ? Math.max(...gpuScores) : 0;
+    const gpuRange = gpuMax - gpuMin || gpuMin;
+    const gpuXMin = Math.floor(Math.max(0, gpuMin - gpuRange * 0.05));
+    const gpuXMax = Math.ceil(gpuMax * 1.02);
         
     renderHorizontalBarChart(
         'gpuChart',
@@ -3676,7 +3689,7 @@ function renderCharts() {
         'GPU Score',
         SCORE_COLORS.gpu.bg,
         SCORE_COLORS.gpu.border,
-        undefined,
+        gpuXMax,
         gpuXMin,
         gpuRuns.map(r => getDisplayName(r)),
         null,
@@ -4033,7 +4046,10 @@ function renderCharts() {
         
         const runsScores = runsData.map(h => h.score);
         const runsMin = runsScores.length > 0 ? Math.min(...runsScores) : 0;
-        const runsXMin = Math.floor(runsMin * 0.95);
+        const runsMax = runsScores.length > 0 ? Math.max(...runsScores) : 0;
+        const runsRange = runsMax - runsMin || runsMin;
+        const runsXMin = Math.floor(Math.max(0, runsMin - runsRange * 0.05));
+        const runsXMax = Math.ceil(runsMax * 1.02);
 
         renderHorizontalBarChart(
             runsChartId,
@@ -4042,7 +4058,7 @@ function renderCharts() {
             'Main Score',
             SCORE_COLORS.portableRuns.bg,
             SCORE_COLORS.portableRuns.border,
-            undefined,
+            runsXMax,
             runsXMin,
             runsData.map(h => h.userName),
             runsData.map(h => h.cpuMaxFreq ? normalizeCPU(h.label) : null),
