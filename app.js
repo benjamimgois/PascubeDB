@@ -4684,20 +4684,10 @@ const ratioPlugin = {
             const val = chart.data.datasets[0].data[i];
             const barW = bar.x - bar.base;
             if (barW < 30) return;
-            const cm = chart.data.datasets[0].cpuMulti?.[i];
-            const gs = chart.data.datasets[0].gpuScore?.[i];
-            if (cm != null && gs != null) {
-                const cx = (bar.base + bar.x) / 2;
-                ctx.fillStyle = '#fff';
-                ctx.font = '10px Inter, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(cm.toLocaleString() + ' / ' + gs.toLocaleString(), cx, bar.y);
-            } else {
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 12px Inter, sans-serif';
-                ctx.textAlign = 'right';
-                ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
-            }
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
             const cont = chart.data.datasets[0].contributors?.[i];
             if (cont) {
                 ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -4825,7 +4815,9 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
                                 const d = allItems[startIdx + ctx.dataIndex];
                                 if (!d) return '';
                                 const label = d.avgRatio < 0.95 ? 'CPU bottleneck' : d.avgRatio > 1.05 ? 'GPU bottleneck' : 'Balanced';
-                                return `Ratio: ${d.avgRatio.toFixed(3)} (${label}) · ${d.count} run${d.count > 1 ? 's' : ''}`;
+                                let msg = `Ratio: ${d.avgRatio.toFixed(3)} (${label})`;
+                                if (d.cpuMulti != null && d.gpuScore != null) msg += ` · CPU: ${d.cpuMulti.toLocaleString()} · GPU: ${d.gpuScore.toLocaleString()}`;
+                                return msg + ` · ${d.count} run${d.count > 1 ? 's' : ''}`;
                             }
                         }
                     }
