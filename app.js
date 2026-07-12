@@ -1555,7 +1555,7 @@ function renderOverviewStats() {
 
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Most Humble'],
-    efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'Major CPU Bottleneck', 'Best Thermal GPU'],
+    efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'TOP CPU Bottleneck', 'Best Thermal GPU'],
     thermals: ['Hottest GPU', 'Coolest GPU', 'Widest thermal delta', 'Shortest thermal delta']
 };
 
@@ -1609,15 +1609,15 @@ function renderStats(pill) {
         const effData = filteredData.length ? filteredData : benchmarkData;
         const cpuEff = computeCpuEfficiency(effData);
         const gpuEff = computeGpuEfficiency(effData);
-        document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? (Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2) : '-';
+        document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? `${(Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
         document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? cpuEff[0].name : '-';
-        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
+        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '2º -';
+        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '3º -';
 
-        document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? (Math.trunc(gpuEff[0].ratio * 100) / 100).toFixed(2) : '-';
+        document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? `${(Math.trunc(gpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
         document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? gpuEff[0].name : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].name} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
+        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].name} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '2º -';
+        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '3º -';
 
         const bneck = effData
             .filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0)
@@ -1631,10 +1631,10 @@ function renderStats(pill) {
 
         // Card 4: Best Thermal GPU
         const gpuThermalSorted = computeThermalEfficiency(effData);
-        document.getElementById('stat-most-humble-score').textContent = gpuThermalSorted.length > 0 ? Math.trunc(gpuThermalSorted[0].ratio * 10) / 10 : '-';
+        document.getElementById('stat-most-humble-score').textContent = gpuThermalSorted.length > 0 ? `${(Math.trunc(gpuThermalSorted[0].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '-';
         document.getElementById('stat-most-humble-hardware').textContent = gpuThermalSorted.length > 0 ? gpuThermalSorted[0].name : '-';
-        document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `2º ${gpuThermalSorted[1].name} — ${Math.trunc(gpuThermalSorted[1].ratio * 10) / 10}` : '2º -';
-        document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `3º ${gpuThermalSorted[2].name} — ${Math.trunc(gpuThermalSorted[2].ratio * 10) / 10}` : '3º -';
+        document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `2º ${gpuThermalSorted[1].name} — ${(Math.trunc(gpuThermalSorted[1].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '2º -';
+        document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `3º ${gpuThermalSorted[2].name} — ${(Math.trunc(gpuThermalSorted[2].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '3º -';
     } else if (pill === 'thermals') {
         const thermalData = filteredData.length ? filteredData : benchmarkData;
 

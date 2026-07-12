@@ -87,3 +87,14 @@ For the Top 10 GPU Model Performance horizontal bar chart, the system SHALL rend
 - **WHEN** the Top 10 GPU Model Performance chart is rendered and the GPU frequency is available
 - **THEN** the frequency is shown in the center of the bar formatted as "FREQ MHz" in a non-bold 10px font
 
+### Requirement: Efficiency Tab Card Units and Renaming
+In the dashboard Efficiency tab overview cards:
+- The third card SHALL be labeled "TOP CPU Bottleneck".
+- The first card (Most Efficient CPU) and the second card (Most Efficient GPU) values SHALL display with the unit "Pts / MHz" appended.
+- The fourth card (Best Thermal GPU) value SHALL display with the unit "Pts / ºC" appended.
+- Second and third place listings under these cards SHALL also show the same units.
+
+#### Scenario: Displaying overview cards in the Efficiency tab
+- **WHEN** the user selects the Efficiency tab on the dashboard
+- **THEN** the cards show "Pts / MHz" for CPU/GPU efficiency, "Pts / ºC" for thermal efficiency, and the bottleneck card is titled "TOP CPU Bottleneck"
+
