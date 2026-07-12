@@ -4673,28 +4673,58 @@ const ratioPlugin = {
         meta.data.forEach((bar, i) => {
             const val = chart.data.datasets[0].data[i];
             const barW = bar.x - bar.base;
-            if (barW < 30) return;
+            if (barW < 12) return;
             const ds = chart.data.datasets[0];
-            ctx.fillStyle = '#fff';
+            
+            const scoreText = val.toFixed(3);
             ctx.font = 'bold 12px Inter, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
+            const scoreWidth = ctx.measureText(scoreText).width;
+            
+            const drawScoreInside = barW >= (scoreWidth + 16);
+            let nextX = bar.x + 6;
+            
+            if (drawScoreInside) {
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(scoreText, bar.x - 8, bar.y);
+            } else {
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(scoreText, nextX, bar.y);
+                nextX += scoreWidth + 8;
+            }
+            
             // Center: cpuMulti / gpuScore
             const cpuMulti = ds.cpuMulti?.[i];
             const gpuScore = ds.gpuScore?.[i];
             if (cpuMulti != null && gpuScore != null) {
                 const ct = `${cpuMulti.toLocaleString()} / ${gpuScore.toLocaleString()}`;
                 ctx.font = '10px Inter, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#fff';
-                ctx.fillText(ct, (bar.base + bar.x) / 2, bar.y);
+                const ctWidth = ctx.measureText(ct).width;
+                const centerX = (bar.base + bar.x) / 2;
+                
+                const rightEdgeOfCenter = centerX + ctWidth / 2;
+                const leftEdgeOfScore = bar.x - 8 - scoreWidth;
+                const canDrawCenterInside = drawScoreInside && (rightEdgeOfCenter + 8 < leftEdgeOfScore) && (barW > 60);
+                
+                if (canDrawCenterInside) {
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(ct, centerX, bar.y);
+                } else {
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(ct, nextX, bar.y);
+                    nextX += ctWidth + 8;
+                }
             }
+            
             const cont = ds.contributors?.[i];
             if (cont) {
                 ctx.fillStyle = 'rgba(255,255,255,0.55)';
                 ctx.font = '11px Inter, sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillText(cont, bar.x + 8, bar.y);
+                ctx.fillText(cont, nextX, bar.y);
             }
         });
         ctx.restore();
