@@ -5510,7 +5510,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, percentages, normalize, showDataLabels, centerScore, barClientIds) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, percentages, normalize, showDataLabels, centerScore, barClientIds, datasetProps) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -5535,7 +5535,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
+            datasets: [Object.assign({
                 label: datasetLabel,
                 data: data,
                 backgroundColor: barColor,
@@ -5558,7 +5558,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 rankOneLocalIdx: showDataLabels ? 0 : -1,
                 rankOneIcon: showDataLabels ? '🏆' : '',
                 startIndex: 0
-            }]
+            }, datasetProps)]
         },
         options: {
             indexAxis: 'y',
@@ -5883,18 +5883,10 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     // Find the maximum value in the entire dataset to lock the X-axis scale
     const xMax = allData.length > 0 ? Math.max(...allData) : undefined;
     
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds, extraDataProps);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
-
-    // Apply extra dataset properties to the initial visible slice
-    if (extraDataProps) {
-        Object.keys(extraDataProps).forEach(k => {
-            chart.data.datasets[0][k] = extraDataProps[k].slice(0, visibleCount);
-        });
-        chart.update('none');
-    }
     
     const canvas = document.getElementById(canvasId);
     const parent = canvas.parentElement;
