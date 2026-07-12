@@ -4773,7 +4773,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
     if (existingOverlay) existingOverlay.remove();
 
     const rawMax = allItems.reduce((m, d) => Math.max(m, d.avgRatio), 0);
-    const xMax = Math.max(1.5, rawMax * 1.08);
+    const xMax = canvasId === 'topCpuBottleneckChart' ? 0.7 : Math.max(1.5, rawMax * 1.08);
 
     function makeChart(items) {
         if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
