@@ -4613,7 +4613,7 @@ function renderEfficiencyCharts() {
     // Populate GPU select then render bottleneck chart
     const sel = document.getElementById('bottleneckGpuSelect');
     if (sel) {
-        sel.innerHTML = '<option value="">All GPUs</option>';
+        sel.innerHTML = '';
         const gpuCounts = {};
         const valid = bm.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
         valid.forEach(r => {
@@ -4628,8 +4628,11 @@ function renderEfficiencyCharts() {
             sel.appendChild(opt);
         });
         sel.onchange = () => renderBottleneckChart(bm, sel.value);
+        if (sel.options.length) {
+            sel.selectedIndex = 0;
+            renderBottleneckChart(bm, sel.value);
+        }
     }
-    renderBottleneckChart(bm, '');
 
     // Thermal Efficiency (moved from Thermals tab)
     const thermalEff = computeThermalEfficiency(bm);
