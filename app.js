@@ -4903,7 +4903,7 @@ function renderTopCpuBottlenecks(data) {
         const key = normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
         const ratio = r.cpuMulti / r.gpuScore;
         if (ratio >= 0.1 && ratio <= 10) {
-            if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio, cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) };
+            if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio, cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu), user: getDisplayName(r) };
         }
     });
     const runs = Object.values(map).map(d => ({
@@ -4912,9 +4912,11 @@ function renderTopCpuBottlenecks(data) {
         count: 1,
         cpus: d.cpu,
         cpuMulti: d.run.cpuMulti,
-        gpuScore: d.run.gpuScore
+        gpuScore: d.run.gpuScore,
+        contributor: d.user
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
-    buildBottleneckChart(canvasId, runs, 'CPU+GPU');
+    const contributors = runs.map(r => r.contributor);
+    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
 }
 
 function renderThermalsCharts() {
