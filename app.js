@@ -4033,7 +4033,7 @@ function renderCharts() {
         
         const runsScores = runsData.map(h => h.score);
         const runsMin = runsScores.length > 0 ? Math.min(...runsScores) : 0;
-        const runsXMin = Math.floor(runsMin * 0.9);
+        const runsXMin = Math.floor(runsMin * 0.95);
 
         renderHorizontalBarChart(
             runsChartId,
