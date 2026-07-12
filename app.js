@@ -4624,6 +4624,10 @@ function renderEfficiencyCharts() {
             'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
             thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
     }
+
+    // Top 10 CPU/GPU Bottlenecks
+    renderTopCpuBottlenecks(bm);
+    renderTopGpuBottlenecks(bm);
 }
 
 const ratioPlugin = {
@@ -4655,24 +4659,37 @@ const ratioPlugin = {
         }
 
         ctx.save();
-        ctx.font = 'bold 12px Inter, sans-serif';
         ctx.textBaseline = 'middle';
         meta.data.forEach((bar, i) => {
             const val = chart.data.datasets[0].data[i];
             const barW = bar.x - bar.base;
             if (barW < 30) return;
             ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Inter, sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
+            const cont = chart.data.datasets[0].contributors?.[i];
+            if (cont) {
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.font = '11px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(cont, bar.x + 8, bar.y);
+            }
         });
         ctx.restore();
     }
 };
 
+function ratioColor(val) {
+    return val < 0.95 ? 'rgba(239, 68, 68, 0.85)' :
+           val > 1.05 ? 'rgba(59, 130, 246, 0.85)' :
+           'rgba(16, 185, 129, 0.85)';
+}
+
 function renderBottleneckChart(data, selectedGpu) {
     const canvasId = 'bottleneckRatioChart';
     if (!document.getElementById(canvasId)) return;
-    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
+    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
     const topEl = document.getElementById('bottleneckRatioTop');
 
     const h3 = document.querySelector('#bottleneckRatioChart')?.closest('.chart-container-wrapper')?.querySelector('h3');
@@ -4713,125 +4730,152 @@ function renderBottleneckChart(data, selectedGpu) {
         if (h3) h3.textContent = selectedGpu + ' — Bottleneck per CPU';
         if (topEl) topEl.textContent = items.length > 0 ? items[items.length - 1].label + ': ' + items[items.length - 1].avgRatio.toFixed(3) : '—';
     }
+}
 
-    function buildBottleneckChart(canvasId, allItems, prefix) {
-        const n = allItems.length;
-        const cv = document.getElementById(canvasId);
-        if (!cv) return;
-        const container = cv.parentElement;
-        if (container) container.style.height = '520px';
+function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
+    const n = allItems.length;
+    const cv = document.getElementById(canvasId);
+    if (!cv) return;
+    const container = cv.parentElement;
+    if (container) container.style.height = '520px';
+    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+
+    const VIS = 15;
+    let startIdx = 0;
+    const existingOverlay = container?.querySelector('.chart-scroll-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    const rawMax = allItems.reduce((m, d) => Math.max(m, d.avgRatio), 0);
+    const xMax = Math.max(1.5, rawMax * 1.15);
+
+    function makeChart(items) {
         if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-
-        const VIS = 15;
-        let startIdx = 0;
-        const existingOverlay = container?.querySelector('.chart-scroll-overlay');
-        if (existingOverlay) existingOverlay.remove();
-
-        function ratioColor(val) {
-            return val < 0.95 ? 'rgba(239, 68, 68, 0.85)' :
-                   val > 1.05 ? 'rgba(59, 130, 246, 0.85)' :
-                   'rgba(16, 185, 129, 0.85)';
-        }
-
-        const rawMax = allItems.reduce((m, d) => Math.max(m, d.avgRatio), 0);
-        const xMax = Math.max(1.5, rawMax * 1.15);
-
-        function makeChart(items) {
-            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-            const labels = items.map(d => d.label);
-            const values = items.map(d => d.avgRatio);
-            const colors = items.map(d => ratioColor(d.avgRatio));
-            chartInstances[canvasId] = new Chart(cv.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colors,
-                        borderColor: colors.map(c => c.replace('0.85', '1')),
-                        borderWidth: 1.5,
-                        borderRadius: 6,
-                        borderSkipped: false,
-                        barPercentage: 0.85
-                    }]
+        const labels = items.map(d => d.label);
+        const values = items.map(d => d.avgRatio);
+        const colors = items.map(d => ratioColor(d.avgRatio));
+        chartInstances[canvasId] = new Chart(cv.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: colors.map(c => c.replace('0.85', '1')),
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barPercentage: 0.85,
+                    contributors: contributors
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false, max: xMax, min: 0 },
+                    y: { ticks: { color: '#9ca3af' }, grid: { display: false } }
                 },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { display: false, max: xMax, min: 0 },
-                        y: { ticks: { color: '#9ca3af' }, grid: { display: false } }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(11, 15, 25, 1)',
-                            titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
-                            bodyFont: { family: "'Inter', sans-serif", size: 13 },
-                            padding: 12,
-                            borderColor: 'rgba(99, 102, 241, 0.45)',
-                            borderWidth: 1.5,
-                            cornerRadius: 10,
-                            displayColors: false,
-                            callbacks: {
-                                title: tooltipItems => {
-                                    const d = allItems[startIdx + tooltipItems[0].dataIndex];
-                                    return d ? d.label : '';
-                                },
-                                label: ctx => {
-                                    const d = allItems[startIdx + ctx.dataIndex];
-                                    if (!d) return '';
-                                    const label = d.avgRatio < 0.95 ? 'CPU bottleneck' : d.avgRatio > 1.05 ? 'GPU bottleneck' : 'Balanced';
-                                    return `Ratio: ${d.avgRatio.toFixed(3)} (${label}) · ${d.count} run${d.count > 1 ? 's' : ''}`;
-                                }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(11, 15, 25, 1)',
+                        titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
+                        bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                        padding: 12,
+                        borderColor: 'rgba(99, 102, 241, 0.45)',
+                        borderWidth: 1.5,
+                        cornerRadius: 10,
+                        displayColors: false,
+                        callbacks: {
+                            title: tooltipItems => {
+                                const d = allItems[startIdx + tooltipItems[0].dataIndex];
+                                return d ? d.label : '';
+                            },
+                            label: ctx => {
+                                const d = allItems[startIdx + ctx.dataIndex];
+                                if (!d) return '';
+                                const label = d.avgRatio < 0.95 ? 'CPU bottleneck' : d.avgRatio > 1.05 ? 'GPU bottleneck' : 'Balanced';
+                                return `Ratio: ${d.avgRatio.toFixed(3)} (${label}) · ${d.count} run${d.count > 1 ? 's' : ''}`;
                             }
                         }
                     }
-                },
-                plugins: [ratioPlugin]
-            });
-        }
-
-        makeChart(allItems.slice(0, VIS));
-        if (n <= VIS) return;
-
-        container.style.position = 'relative';
-        const overlay = document.createElement('div');
-        overlay.className = 'chart-scroll-overlay';
-        const spacer = document.createElement('div');
-        const totalHeight = 520 + (n - VIS) * 36;
-        spacer.style.height = `${totalHeight}px`;
-        spacer.style.width = '1px';
-        overlay.appendChild(spacer);
-        container.appendChild(overlay);
-
-        let wheelTarget = container.querySelector('canvas');
-        if (!wheelTarget) wheelTarget = cv;
-        wheelTarget.addEventListener('wheel', e => {
-            if (n <= VIS) return;
-            const prev = overlay.scrollTop;
-            overlay.scrollTop += e.deltaY;
-            if (overlay.scrollTop !== prev) e.preventDefault();
-        }, { passive: false });
-
-        overlay.onscroll = () => {
-            const maxScroll = spacer.offsetHeight - overlay.clientHeight;
-            const ratio = maxScroll > 0 ? overlay.scrollTop / maxScroll : 0;
-            const newIdx = Math.round(ratio * (n - VIS));
-            if (newIdx === startIdx) return;
-            startIdx = newIdx;
-            const s = allItems.slice(startIdx, startIdx + VIS);
-            const chart = chartInstances[canvasId];
-            if (!chart) return;
-            chart.data.labels = s.map(d => d.label);
-            chart.data.datasets[0].data = s.map(d => d.avgRatio);
-            chart.data.datasets[0].backgroundColor = s.map(d => ratioColor(d.avgRatio));
-            chart.data.datasets[0].borderColor = s.map(d => ratioColor(d.avgRatio).replace('0.85', '1'));
-            chart.options.scales.x.max = xMax;
-            chart.update('none');
-        };
+                }
+            },
+            plugins: [ratioPlugin]
+        });
     }
+
+    makeChart(allItems.slice(0, VIS));
+    if (n <= VIS) return;
+
+    container.style.position = 'relative';
+    const overlay = document.createElement('div');
+    overlay.className = 'chart-scroll-overlay';
+    const spacer = document.createElement('div');
+    const totalHeight = 520 + (n - VIS) * 36;
+    spacer.style.height = `${totalHeight}px`;
+    spacer.style.width = '1px';
+    overlay.appendChild(spacer);
+    container.appendChild(overlay);
+
+    let wheelTarget = container.querySelector('canvas');
+    if (!wheelTarget) wheelTarget = cv;
+    wheelTarget.addEventListener('wheel', e => {
+        if (n <= VIS) return;
+        const prev = overlay.scrollTop;
+        overlay.scrollTop += e.deltaY;
+        if (overlay.scrollTop !== prev) e.preventDefault();
+    }, { passive: false });
+
+    overlay.onscroll = () => {
+        const maxScroll = spacer.offsetHeight - overlay.clientHeight;
+        const ratio = maxScroll > 0 ? overlay.scrollTop / maxScroll : 0;
+        const newIdx = Math.round(ratio * (n - VIS));
+        if (newIdx === startIdx) return;
+        startIdx = newIdx;
+        const s = allItems.slice(startIdx, startIdx + VIS);
+        const chart = chartInstances[canvasId];
+        if (!chart) return;
+        chart.data.labels = s.map(d => d.label);
+        chart.data.datasets[0].data = s.map(d => d.avgRatio);
+        chart.data.datasets[0].backgroundColor = s.map(d => ratioColor(d.avgRatio));
+        chart.data.datasets[0].borderColor = s.map(d => ratioColor(d.avgRatio).replace('0.85', '1'));
+        chart.options.scales.x.max = xMax;
+        chart.update('none');
+    };
+}
+
+function renderTopCpuBottlenecks(data) {
+    const canvasId = 'topCpuBottleneckChart';
+    if (!document.getElementById(canvasId)) return;
+    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
+    const top10 = pts.map(r => ({
+        label: normalizeCPU(r.cpu) + ' + ' + normalizeGPU(r.gpu),
+        avgRatio: r.cpuMulti / r.gpuScore,
+        count: 1,
+        cpus: normalizeCPU(r.cpu),
+        contributor: getDisplayName(r)
+    })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
+    const runs = top10.map(r => ({ label: r.label, avgRatio: r.avgRatio, count: r.count, cpus: r.cpus }));
+    const contributors = top10.map(r => r.contributor);
+    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
+}
+
+function renderTopGpuBottlenecks(data) {
+    const canvasId = 'topGpuBottleneckChart';
+    if (!document.getElementById(canvasId)) return;
+    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
+    const top10 = pts.map(r => ({
+        label: normalizeCPU(r.cpu) + ' + ' + normalizeGPU(r.gpu),
+        avgRatio: r.cpuMulti / r.gpuScore,
+        count: 1,
+        cpus: normalizeCPU(r.cpu),
+        contributor: getDisplayName(r)
+    })).sort((a, b) => b.avgRatio - a.avgRatio).slice(0, 10);
+    const runs = top10.map(r => ({ label: r.label, avgRatio: r.avgRatio, count: r.count, cpus: r.cpus }));
+    const contributors = top10.map(r => r.contributor);
+    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
 }
 
 function renderThermalsCharts() {
