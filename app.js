@@ -4675,13 +4675,6 @@ const ratioPlugin = {
             ctx.font = 'bold 12px Inter, sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
-            const cont = chart.data.datasets[0].contributors?.[i];
-            if (cont) {
-                ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                ctx.font = '11px Inter, sans-serif';
-                ctx.textAlign = 'left';
-                ctx.fillText(cont, bar.x + 8, bar.y);
-            }
         });
         ctx.restore();
     }
