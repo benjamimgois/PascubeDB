@@ -5815,14 +5815,18 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             
                             const gpuFreq = gpuFreqs && gpuFreqs[i];
                             const cpuFreq = chart.data.datasets[0].freqs && chart.data.datasets[0].freqs[i];
-                            const centerFreq = gpuFreq || cpuFreq;
                             const centerScore = chart.data.datasets[0].centerScore && chart.data.datasets[0].centerScore[i];
                             
-                            const centerText = centerScore && centerFreq
-                                ? `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`
-                                : centerFreq
-                                    ? `${centerFreq.toLocaleString()} MHz`
-                                    : '';
+                            let centerText = '';
+                            if (centerScore && (gpuFreq || cpuFreq)) {
+                                const centerFreq = gpuFreq || cpuFreq;
+                                centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`;
+                            } else if (cpuFreq && gpuFreq) {
+                                centerText = `${cpuFreq.toLocaleString()} / ${gpuFreq.toLocaleString()} MHz`;
+                            } else if (gpuFreq || cpuFreq) {
+                                const freqVal = gpuFreq || cpuFreq;
+                                centerText = `${freqVal.toLocaleString()} MHz`;
+                            }
                                     
                             if (centerText) {
                                 c.font = '10px Inter, sans-serif';
