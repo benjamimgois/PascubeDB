@@ -4616,7 +4616,12 @@ function renderEfficiencyCharts() {
         });
         sel.onchange = () => renderBottleneckChart(bm, sel.value);
         if (sel.options.length) {
-            sel.selectedIndex = 0;
+            const hasTarget = Array.from(sel.options).some(opt => opt.value === 'RX 9070 XT');
+            if (hasTarget) {
+                sel.value = 'RX 9070 XT';
+            } else {
+                sel.selectedIndex = 0;
+            }
             renderBottleneckChart(bm, sel.value);
         }
     }
