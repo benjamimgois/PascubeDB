@@ -4733,16 +4733,24 @@ function renderBottleneckChart(data, selectedGpu) {
         const cpuMap = {};
         pts.filter(r => normalizeGPU(r.gpu) === selectedGpu).forEach(r => {
             const cpu = normalizeCPU(r.cpu) || 'Unknown CPU';
-            if (!cpuMap[cpu]) cpuMap[cpu] = { sum: 0, count: 0, cpus: new Set() };
+            if (!cpuMap[cpu]) cpuMap[cpu] = { sum: 0, count: 0, cpus: new Set(), bestScore: 0 };
             cpuMap[cpu].sum += r.cpuMulti / r.gpuScore;
             cpuMap[cpu].count++;
             cpuMap[cpu].cpus.add(normalizeCPU(r.cpu));
+            const s = r.mainScore || 0;
+            if (s > cpuMap[cpu].bestScore) {
+                cpuMap[cpu].bestScore = s;
+                cpuMap[cpu].bestCpuMulti = r.cpuMulti;
+                cpuMap[cpu].bestGpuScore = r.gpuScore;
+            }
         });
         const items = Object.entries(cpuMap).map(([cpu, d]) => ({
             label: cpu,
             avgRatio: d.sum / d.count,
             count: d.count,
-            cpus: [...d.cpus].join(', ')
+            cpus: [...d.cpus].join(', '),
+            cpuMulti: d.bestCpuMulti,
+            gpuScore: d.bestGpuScore
         })).sort((a, b) => a.avgRatio - b.avgRatio);
         buildBottleneckChart(canvasId, items, 'CPU model');
         if (topEl) topEl.textContent = items.length > 0 ? items[items.length - 1].label + ': ' + items[items.length - 1].avgRatio.toFixed(3) : '—';
