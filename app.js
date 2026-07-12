@@ -3561,7 +3561,7 @@ function dedupeBestPerClient(entries, scoreField) {
 // Render Interactive Charts using Chart.js
 function renderCharts() {
     // 0. Overall Top 10 Main Scores Chart
-    const mainRuns = [...benchmarkData]
+    const mainRuns = dedupByBestScore(benchmarkData)
         .filter(r => r.mainScore !== null)
         .sort((a, b) => b.mainScore - a.mainScore)
         .slice(0, 10);
@@ -4581,7 +4581,8 @@ function computeThermalEfficiency(data) {
 }
 
 function renderEfficiencyCharts() {
-    const bm = filteredData.length ? filteredData : benchmarkData;
+    const raw = filteredData.length ? filteredData : benchmarkData;
+    const bm = dedupByBestScore(raw);
 
     // CPU Efficiency
     const cpuEff = computeCpuEfficiency(bm);
@@ -4865,6 +4866,16 @@ function dedupByLowestRatio(entries) {
         const key = (r.user || 'Anonymous') + '|' + normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
         const ratio = r.cpuMulti / r.gpuScore;
         if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio };
+    });
+    return Object.values(map).map(v => v.run);
+}
+
+function dedupByBestScore(entries) {
+    const map = {};
+    entries.forEach(r => {
+        const key = (r.user || 'Anonymous') + '|' + normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
+        const score = r.mainScore || 0;
+        if (!map[key] || score > map[key].score) map[key] = { run: r, score };
     });
     return Object.values(map).map(v => v.run);
 }
