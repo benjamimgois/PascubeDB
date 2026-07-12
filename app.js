@@ -1555,7 +1555,7 @@ function renderOverviewStats() {
 
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Most Humble'],
-    efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'Major CPU Bottleneck', 'Avg Thermal Eff.'],
+    efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'Major CPU Bottleneck', 'Best Thermal GPU'],
     thermals: ['Hottest GPU', 'Coolest GPU', 'Widest thermal delta', 'Shortest thermal delta']
 };
 
@@ -1572,7 +1572,7 @@ const STAT_TOOLTIPS = {
         'Winner is the hardware+user combo with the highest CPU single-core score per MHz of clock frequency. Formula: cpuSingle ÷ cpuMaxFreq. Higher ratios indicate more work done per clock cycle — a sign of strong architectural efficiency.',
         'Winner is the hardware+user combo with the highest GPU score per MHz of clock frequency. Formula: gpuScore ÷ gpuMaxFreq. Higher ratios mean the GPU achieves more performance per megahertz.',
         'Lowest CPU Multi ÷ GPU Score. Highlights the most CPU-limited combos — the GPU far outruns the CPU.',
-        'Average thermal efficiency across all benchmark runs. Formula: mainScore ÷ gpuTempDelta. Higher values mean more performance per degree of GPU temperature increase.'
+        'GPU model with the best mainScore per gpuTempDelta. Higher ratios mean more performance per °C.'
     ],
     thermals: [
         'Winner is the GPU model with the highest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered to prevent single-run outliers from skewing the ranking.',
@@ -1629,11 +1629,20 @@ function renderStats(pill) {
         document.getElementById('stat-gpu-second').textContent = bneck[1] ? `2º ${bneck[1].cpu} + ${bneck[1].gpu} — ${bneck[1].ratio.toFixed(3)}` : '2º -';
         document.getElementById('stat-gpu-third').textContent = bneck[2] ? `3º ${bneck[2].cpu} + ${bneck[2].gpu} — ${bneck[2].ratio.toFixed(3)}` : '3º -';
 
-        // Card 4: Avg Thermal Eff (placeholder)
-        document.getElementById('stat-most-humble-score').textContent = '-';
-        document.getElementById('stat-most-humble-hardware').textContent = 'Efficiency';
-        document.getElementById('stat-humble-second').textContent = '2º -';
-        document.getElementById('stat-humble-third').textContent = '3º -';
+        // Card 4: Best Thermal GPU
+        const gpuThermal = effData
+            .filter(r => r.mainScore !== null && r.gpuTempDelta !== null && r.gpuTempDelta > 0)
+            .reduce((acc, r) => {
+                const gpu = normalizeGPU(r.gpu) || 'Unknown GPU';
+                const ratio = r.mainScore / r.gpuTempDelta;
+                if (!acc[gpu] || ratio > acc[gpu].ratio) acc[gpu] = { name: gpu, user: getDisplayName(r), ratio, score: r.mainScore, temp: r.gpuTempDelta };
+                return acc;
+            }, {});
+        const gpuThermalSorted = Object.values(gpuThermal).sort((a, b) => b.ratio - a.ratio);
+        document.getElementById('stat-most-humble-score').textContent = gpuThermalSorted.length > 0 ? Math.trunc(gpuThermalSorted[0].ratio * 10) / 10 : '-';
+        document.getElementById('stat-most-humble-hardware').textContent = gpuThermalSorted.length > 0 ? gpuThermalSorted[0].name : '-';
+        document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `2º ${gpuThermalSorted[1].name} — ${Math.trunc(gpuThermalSorted[1].ratio * 10) / 10}` : '2º -';
+        document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `3º ${gpuThermalSorted[2].name} — ${Math.trunc(gpuThermalSorted[2].ratio * 10) / 10}` : '3º -';
     } else if (pill === 'thermals') {
         const thermalData = filteredData.length ? filteredData : benchmarkData;
 
