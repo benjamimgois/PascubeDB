@@ -4047,8 +4047,7 @@ function renderCharts() {
         const runsScores = runsData.map(h => h.score);
         const runsMin = runsScores.length > 0 ? Math.min(...runsScores) : 0;
         const runsMax = runsScores.length > 0 ? Math.max(...runsScores) : 0;
-        const runsRange = runsMax - runsMin || runsMin;
-        const runsXMin = Math.floor(Math.max(0, runsMin - runsRange * 0.05));
+        const runsXMin = Math.floor(Math.max(0, runsMin * 0.95));
         const runsXMax = Math.ceil(runsMax * 1.02);
 
         renderHorizontalBarChart(
