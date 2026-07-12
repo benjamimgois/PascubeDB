@@ -4629,6 +4629,8 @@ function renderEfficiencyCharts() {
         makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
             'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
             thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
+        const topEl = document.getElementById('thermalEffTop');
+        if (topEl) topEl.textContent = thermalEff.length > 0 ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name}` : '—';
     }
 
     // Top 10 CPU Bottlenecks (deduped by lowest ratio per user+hardware)
