@@ -4903,20 +4903,16 @@ function renderTopCpuBottlenecks(data) {
         const key = normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
         const ratio = r.cpuMulti / r.gpuScore;
         if (ratio >= 0.1 && ratio <= 10) {
-            if (!map[key]) map[key] = { sumRatio: 0, sumCpu: 0, sumGpu: 0, count: 0, cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) };
-            map[key].sumRatio += ratio;
-            map[key].sumCpu += r.cpuMulti;
-            map[key].sumGpu += r.gpuScore;
-            map[key].count++;
+            if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio, cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) };
         }
     });
     const runs = Object.values(map).map(d => ({
         label: d.cpu + ' + ' + d.gpu,
-        avgRatio: d.sumRatio / d.count,
-        count: d.count,
+        avgRatio: d.ratio,
+        count: 1,
         cpus: d.cpu,
-        cpuMulti: d.sumCpu / d.count,
-        gpuScore: d.sumGpu / d.count
+        cpuMulti: d.run.cpuMulti,
+        gpuScore: d.run.gpuScore
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
     const contributors = runs.map(r => r.cpus + ' + ' + r.gpu);
     buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
@@ -5761,9 +5757,10 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         const barW = bar.x - baseX;
                         
                         const drawScoreInside = barW >= (scoreWidth + 16);
+                        let nextX = bar.x + 6;
                         
                         if (hasScoreTemp) {
-                            // Draw ratio at right edge
+                            // Draw ratio/scoreText
                             c.font = 'bold 12px Inter, sans-serif';
                             if (drawScoreInside) {
                                 c.textAlign = 'right';
@@ -5772,19 +5769,30 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             } else {
                                 c.textAlign = 'left';
                                 c.fillStyle = '#ffffff';
-                                c.fillText(scoreText, bar.x + 6, bar.y);
+                                c.fillText(scoreText, nextX, bar.y);
+                                nextX += scoreWidth + 8;
                             }
-                            // Draw centered gpuScore / gpuTempDelta
+                            
+                            // Draw centered gpuScore / gpuTempDelta (stText)
                             const centerX = (baseX + bar.x) / 2;
                             const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}ºC`;
                             c.font = '10px Inter, sans-serif';
-                            c.textAlign = 'center';
-                            c.fillStyle = '#ffffff';
                             const stWidth = c.measureText(stText).width;
-                            if (barW >= (stWidth + 16)) {
+                            
+                            // Determine if stText can be drawn inside the bar without overlapping scoreText (which sits at bar.x - 8)
+                            const rightEdgeOfSt = centerX + stWidth / 2;
+                            const leftEdgeOfScore = bar.x - 8 - scoreWidth;
+                            const canDrawStInside = drawScoreInside && (rightEdgeOfSt + 8 < leftEdgeOfScore);
+                            
+                            if (canDrawStInside) {
+                                c.textAlign = 'center';
+                                c.fillStyle = '#ffffff';
                                 c.fillText(stText, centerX, bar.y);
                             } else {
-                                c.fillText(stText, bar.x + 6, bar.y);
+                                c.textAlign = 'left';
+                                c.fillStyle = '#ffffff';
+                                c.fillText(stText, nextX, bar.y);
+                                nextX += stWidth + 8;
                             }
                         } else {
                             if (drawScoreInside) {
@@ -5796,7 +5804,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                                 c.font = '12px Inter, sans-serif';
                                 c.textAlign = 'left';
                                 c.fillStyle = '#ffffff';
-                                c.fillText(scoreText, bar.x + 6, bar.y);
+                                c.fillText(scoreText, nextX, bar.y);
+                                nextX += scoreWidth + 8;
                             }
                             
                             const gpuFreq = gpuFreqs && gpuFreqs[i];
@@ -5825,11 +5834,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             c.textAlign = 'left';
                             c.fillStyle = 'rgba(255,255,255,0.7)';
                             const contributorText = (barIds[i] || '').substring(0, 16);
-                            if (drawScoreInside) {
-                                c.fillText(contributorText, bar.x + 4, bar.y);
-                            } else {
-                                c.fillText(contributorText, bar.x + 6 + scoreWidth + 8, bar.y);
-                            }
+                            c.fillText(contributorText, nextX, bar.y);
                         }
                     });
                 } else {
