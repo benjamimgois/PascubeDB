@@ -4681,11 +4681,22 @@ const ratioPlugin = {
             const val = chart.data.datasets[0].data[i];
             const barW = bar.x - bar.base;
             if (barW < 30) return;
+            const ds = chart.data.datasets[0];
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 12px Inter, sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
-            const cont = chart.data.datasets[0].contributors?.[i];
+            // Center: cpuMulti / gpuScore
+            const cpuMulti = ds.cpuMulti?.[i];
+            const gpuScore = ds.gpuScore?.[i];
+            if (cpuMulti != null && gpuScore != null) {
+                const ct = `${cpuMulti.toLocaleString()} / ${gpuScore.toLocaleString()}`;
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(ct, (bar.base + bar.x) / 2, bar.y);
+            }
+            const cont = ds.contributors?.[i];
             if (cont) {
                 ctx.fillStyle = 'rgba(255,255,255,0.55)';
                 ctx.font = '11px Inter, sans-serif';
