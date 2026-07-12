@@ -2152,7 +2152,7 @@ function classifyDevice(r) {
         return 'Notebook';
     }
 
-    return null;
+    return 'Desktop';
 }
 
 // Check if a CPU name belongs to a handheld
@@ -2227,7 +2227,7 @@ function getMobileAverages(data) {
 
 // Get top mobile CPUs by average performance (using Single Thread)
 function getTopMobileCPUs(data, limit = 10) {
-    const mobileData = data.filter(r => classifyDevice(r) !== null && r.cpuSingle !== null);
+    const mobileData = data.filter(r => ['Handheld', 'SBC', 'Notebook'].includes(classifyDevice(r)) && r.cpuSingle !== null);
     const groups = {};
     
     mobileData.forEach(r => {
@@ -2251,7 +2251,7 @@ function getTopMobileCPUs(data, limit = 10) {
 // Get top mobile GPUs by average performance (excluding desktop GPUs)
 function getTopMobileGPUs(data, limit = 10) {
     const mobileData = data.filter(r => {
-        if (classifyDevice(r) === null) return false;
+        if (!['Handheld', 'SBC', 'Notebook'].includes(classifyDevice(r))) return false;
         if (r.gpuScore === null) return false;
         
         // Filter out desktop GPUs (eGPUs or incorrect reports)
@@ -2322,7 +2322,7 @@ function getTopSbcRuns(data, limit = 10) {
 
 // Get Mobile OS distribution
 function getMobileOSDistribution(data) {
-    const mobileData = data.filter(r => classifyDevice(r) !== null);
+    const mobileData = data.filter(r => ['Handheld', 'SBC', 'Notebook'].includes(classifyDevice(r)));
     return getOSDistribution(mobileData);
 }
 
@@ -4552,54 +4552,6 @@ function computeGpuEfficiency(data) {
     return Object.values(map).sort((a, b) => b.ratio - a.ratio);
 }
 
-function computeBottleneckRatio(data) {
-    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0);
-    return pts.map(r => ({
-        x: r.cpuMulti,
-        y: r.gpuScore,
-        label: `CPU Multi: ${r.cpuMulti.toLocaleString()}, GPU Score: ${r.gpuScore.toLocaleString()}`,
-        deviceClass: classifyDevice(r),
-        client: getDisplayName(r)
-    }));
-}
-
-function prepareCpuVsGpuScatter(data) {
-    const pts = data.filter(r => r.cpuSingle !== null && r.gpuScore !== null);
-    const gpuBrand = gpu => {
-        if (/^(AMD|Radeon|RX|RYZEN)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu)) return 'AMD';
-        if (/^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu)) return 'NVIDIA';
-        if (/^(Intel|Arc|UHD|Iris)\b/i.test(gpu)) return 'Intel';
-        return 'Other';
-    };
-    return pts.map(r => ({
-        x: r.cpuSingle,
-        y: r.gpuScore,
-        label: `CPU: ${normalizeCPU(r.cpu)}, GPU: ${normalizeGPU(r.gpu)}`,
-        brand: gpuBrand(r.gpu || ''),
-        client: getDisplayName(r)
-    }));
-}
-
-function prepareVramVsGpuScatter(data) {
-    const pts = data.filter(r => {
-        const vram = parseGB(r.vram);
-        return vram !== null && vram > 0 && r.gpuScore !== null;
-    });
-    const gpuBrand = gpu => {
-        if (/^(AMD|Radeon|RX|RYZEN)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu)) return 'AMD';
-        if (/^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu)) return 'NVIDIA';
-        if (/^(Intel|Arc|UHD|Iris)\b/i.test(gpu)) return 'Intel';
-        return 'Other';
-    };
-    return pts.map(r => ({
-        x: parseGB(r.vram),
-        y: r.gpuScore,
-        label: `GPU: ${normalizeGPU(r.gpu)}, VRAM: ${r.vram}`,
-        brand: gpuBrand(r.gpu || ''),
-        client: getDisplayName(r)
-    }));
-}
-
 function computeThermalEfficiency(data) {
     const map = {};
     data.forEach(r => {
@@ -4642,50 +4594,26 @@ function renderEfficiencyCharts() {
         if (topEl) topEl.textContent = gpuEff.length > 0 ? '1º ' + gpuEff[0].name : '—';
     }
 
-    // Bottleneck Ratio Scatter
-    if (document.getElementById('bottleneckRatioChart')) {
-        const pts = computeBottleneckRatio(bm);
-        const deviceClasses = [...new Set(pts.map(p => p.deviceClass))];
-        const colorMap = { Desktop: 'rgba(99, 102, 241, 0.7)', Notebook: 'rgba(245, 158, 11, 0.7)', Handheld: 'rgba(16, 185, 129, 0.7)', SBC: 'rgba(239, 68, 68, 0.7)' };
-        const datasets = deviceClasses.map(cls => ({
-            label: cls,
-            data: pts.filter(p => p.deviceClass === cls).map(p => ({ x: p.x || 0, y: p.y || 0 })),
-            backgroundColor: colorMap[cls] || 'rgba(107, 114, 128, 0.7)',
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }));
-        renderBasicScatterChart('bottleneckRatioChart', datasets, 'CPU Multi Score', 'GPU Score');
+    // Populate GPU select then render bottleneck chart
+    const sel = document.getElementById('bottleneckGpuSelect');
+    if (sel) {
+        sel.innerHTML = '';
+        const gpuCounts = {};
+        const valid = bm.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
+        valid.forEach(r => {
+            const g = normalizeGPU(r.gpu) || 'Unknown';
+            gpuCounts[g] = (gpuCounts[g] || 0) + 1;
+        });
+        const sorted = Object.entries(gpuCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        sorted.forEach(([g]) => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = g;
+            sel.appendChild(opt);
+        });
+        sel.onchange = () => renderBottleneckChart(bm, sel.value);
     }
-
-    // CPU Single × GPU Score Scatter
-    if (document.getElementById('cpuGpuScatterChart')) {
-        const pts = prepareCpuVsGpuScatter(bm);
-        const brands = [...new Set(pts.map(p => p.brand))];
-        const brandColors = { AMD: 'rgba(239, 68, 68, 0.7)', NVIDIA: 'rgba(16, 185, 129, 0.7)', Intel: 'rgba(99, 102, 241, 0.7)', Other: 'rgba(107, 114, 128, 0.7)' };
-        const datasets = brands.map(b => ({
-            label: b,
-            data: pts.filter(p => p.brand === b).map(p => ({ x: p.x || 0, y: p.y || 0 })),
-            backgroundColor: brandColors[b] || 'rgba(107, 114, 128, 0.7)',
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }));
-        renderBasicScatterChart('cpuGpuScatterChart', datasets, 'CPU Single Score', 'GPU Score');
-    }
-
-    // VRAM × GPU Score Scatter
-    if (document.getElementById('vramGpuScatterChart')) {
-        const pts = prepareVramVsGpuScatter(bm);
-        const brands = [...new Set(pts.map(p => p.brand))];
-        const brandColors = { AMD: 'rgba(239, 68, 68, 0.7)', NVIDIA: 'rgba(16, 185, 129, 0.7)', Intel: 'rgba(99, 102, 241, 0.7)', Other: 'rgba(107, 114, 128, 0.7)' };
-        const datasets = brands.map(b => ({
-            label: b,
-            data: pts.filter(p => p.brand === b).map(p => ({ x: p.x || 0, y: p.y || 0 })),
-            backgroundColor: brandColors[b] || 'rgba(107, 114, 128, 0.7)',
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }));
-        renderBasicScatterChart('vramGpuScatterChart', datasets, 'VRAM (GB)', 'GPU Score');
-    }
+    renderBottleneckChart(bm, sel && sel.options.length ? sel.options[0].value : '');
 
     // Thermal Efficiency (moved from Thermals tab)
     const thermalEff = computeThermalEfficiency(bm);
@@ -4698,30 +4626,212 @@ function renderEfficiencyCharts() {
     }
 }
 
-function renderBasicScatterChart(canvasId, datasets, xLabel, yLabel) {
-    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    chartInstances[canvasId] = new Chart(canvas.getContext('2d'), {
-        type: 'scatter',
-        data: { datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { title: { display: true, text: xLabel, color: '#9ca3af' }, ticks: { color: '#9ca3af' } },
-                y: { title: { display: true, text: yLabel, color: '#9ca3af' }, ticks: { color: '#9ca3af' } }
-            },
-            plugins: {
-                legend: { position: 'bottom', labels: { color: '#9ca3af', boxWidth: 12, padding: 12 } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: (${ctx.parsed.x.toLocaleString()}, ${ctx.parsed.y.toLocaleString()})`
-                    }
-                }
-            }
+const ratioPlugin = {
+    id: 'ratioLine',
+    afterDraw(chart) {
+        if (chart.config.options.indexAxis !== 'y') return;
+        const xs = chart.scales.x;
+        if (!xs) return;
+        const ctx = chart.ctx;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data) return;
+
+        const bx = xs.getPixelForValue(1);
+        if (bx >= chart.chartArea.left && bx <= chart.chartArea.right) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([6, 4]);
+            ctx.moveTo(bx, chart.chartArea.top);
+            ctx.lineTo(bx, chart.chartArea.bottom);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText('Balanced', bx + 6, chart.chartArea.top + 8);
+            ctx.restore();
         }
-    });
+
+        ctx.save();
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textBaseline = 'middle';
+        meta.data.forEach((bar, i) => {
+            const val = chart.data.datasets[0].data[i];
+            const barW = bar.x - bar.base;
+            if (barW < 30) return;
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'right';
+            ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
+        });
+        ctx.restore();
+    }
+};
+
+function renderBottleneckChart(data, selectedGpu) {
+    const canvasId = 'bottleneckRatioChart';
+    if (!document.getElementById(canvasId)) return;
+    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
+    const topEl = document.getElementById('bottleneckRatioTop');
+
+    const h3 = document.querySelector('#bottleneckRatioChart')?.closest('.chart-container-wrapper')?.querySelector('h3');
+    if (!selectedGpu) {
+        const gpuMap = {};
+        pts.forEach(r => {
+            const gpu = normalizeGPU(r.gpu) || 'Unknown';
+            if (!gpuMap[gpu]) gpuMap[gpu] = { sum: 0, count: 0, cpus: new Set() };
+            gpuMap[gpu].sum += r.cpuMulti / r.gpuScore;
+            gpuMap[gpu].count++;
+            gpuMap[gpu].cpus.add(normalizeCPU(r.cpu));
+        });
+        const items = Object.entries(gpuMap).map(([gpu, d]) => ({
+            label: gpu,
+            avgRatio: d.sum / d.count,
+            count: d.count,
+            cpus: [...d.cpus].join(', ')
+        })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 15);
+        buildBottleneckChart(canvasId, items, 'GPU model');
+        if (h3) h3.textContent = 'Top 15 Bottleneck Ratios';
+        if (topEl) topEl.textContent = '';
+    } else {
+        const cpuMap = {};
+        pts.filter(r => normalizeGPU(r.gpu) === selectedGpu).forEach(r => {
+            const cpu = normalizeCPU(r.cpu) || 'Unknown CPU';
+            if (!cpuMap[cpu]) cpuMap[cpu] = { sum: 0, count: 0, cpus: new Set() };
+            cpuMap[cpu].sum += r.cpuMulti / r.gpuScore;
+            cpuMap[cpu].count++;
+            cpuMap[cpu].cpus.add(normalizeCPU(r.cpu));
+        });
+        const items = Object.entries(cpuMap).map(([cpu, d]) => ({
+            label: cpu,
+            avgRatio: d.sum / d.count,
+            count: d.count,
+            cpus: [...d.cpus].join(', ')
+        })).sort((a, b) => a.avgRatio - b.avgRatio);
+        buildBottleneckChart(canvasId, items, 'CPU model');
+        if (h3) h3.textContent = selectedGpu + ' — Bottleneck per CPU';
+        if (topEl) topEl.textContent = items.length > 0 ? items[items.length - 1].label + ': ' + items[items.length - 1].avgRatio.toFixed(3) : '—';
+    }
+
+    function buildBottleneckChart(canvasId, allItems, prefix) {
+        const n = allItems.length;
+        const cv = document.getElementById(canvasId);
+        if (!cv) return;
+        const container = cv.parentElement;
+        if (container) container.style.height = '520px';
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+
+        const VIS = 15;
+        let startIdx = 0;
+        const existingOverlay = container?.querySelector('.chart-scroll-overlay');
+        if (existingOverlay) existingOverlay.remove();
+
+        function ratioColor(val) {
+            return val < 0.95 ? 'rgba(239, 68, 68, 0.85)' :
+                   val > 1.05 ? 'rgba(59, 130, 246, 0.85)' :
+                   'rgba(16, 185, 129, 0.85)';
+        }
+
+        const rawMax = allItems.reduce((m, d) => Math.max(m, d.avgRatio), 0);
+        const xMax = Math.max(1.5, rawMax * 1.15);
+
+        function makeChart(items) {
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            const labels = items.map(d => d.label);
+            const values = items.map(d => d.avgRatio);
+            const colors = items.map(d => ratioColor(d.avgRatio));
+            chartInstances[canvasId] = new Chart(cv.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: colors.map(c => c.replace('0.85', '1')),
+                        borderWidth: 1.5,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.85
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false, max: xMax, min: 0 },
+                        y: { ticks: { color: '#9ca3af' }, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(11, 15, 25, 1)',
+                            titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
+                            bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                            padding: 12,
+                            borderColor: 'rgba(99, 102, 241, 0.45)',
+                            borderWidth: 1.5,
+                            cornerRadius: 10,
+                            displayColors: false,
+                            callbacks: {
+                                title: tooltipItems => {
+                                    const d = allItems[startIdx + tooltipItems[0].dataIndex];
+                                    return d ? d.label : '';
+                                },
+                                label: ctx => {
+                                    const d = allItems[startIdx + ctx.dataIndex];
+                                    if (!d) return '';
+                                    const label = d.avgRatio < 0.95 ? 'CPU bottleneck' : d.avgRatio > 1.05 ? 'GPU bottleneck' : 'Balanced';
+                                    return `Ratio: ${d.avgRatio.toFixed(3)} (${label}) · ${d.count} run${d.count > 1 ? 's' : ''}`;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [ratioPlugin]
+            });
+        }
+
+        makeChart(allItems.slice(0, VIS));
+        if (n <= VIS) return;
+
+        container.style.position = 'relative';
+        const overlay = document.createElement('div');
+        overlay.className = 'chart-scroll-overlay';
+        const spacer = document.createElement('div');
+        const totalHeight = 520 + (n - VIS) * 36;
+        spacer.style.height = `${totalHeight}px`;
+        spacer.style.width = '1px';
+        overlay.appendChild(spacer);
+        container.appendChild(overlay);
+
+        let wheelTarget = container.querySelector('canvas');
+        if (!wheelTarget) wheelTarget = cv;
+        wheelTarget.addEventListener('wheel', e => {
+            if (n <= VIS) return;
+            const prev = overlay.scrollTop;
+            overlay.scrollTop += e.deltaY;
+            if (overlay.scrollTop !== prev) e.preventDefault();
+        }, { passive: false });
+
+        overlay.onscroll = () => {
+            const maxScroll = spacer.offsetHeight - overlay.clientHeight;
+            const ratio = maxScroll > 0 ? overlay.scrollTop / maxScroll : 0;
+            const newIdx = Math.round(ratio * (n - VIS));
+            if (newIdx === startIdx) return;
+            startIdx = newIdx;
+            const s = allItems.slice(startIdx, startIdx + VIS);
+            const chart = chartInstances[canvasId];
+            if (!chart) return;
+            chart.data.labels = s.map(d => d.label);
+            chart.data.datasets[0].data = s.map(d => d.avgRatio);
+            chart.data.datasets[0].backgroundColor = s.map(d => ratioColor(d.avgRatio));
+            chart.data.datasets[0].borderColor = s.map(d => ratioColor(d.avgRatio).replace('0.85', '1'));
+            chart.options.scales.x.max = xMax;
+            chart.update('none');
+        };
+    }
 }
 
 function renderThermalsCharts() {

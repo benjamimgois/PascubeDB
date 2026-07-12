@@ -443,43 +443,27 @@
 
         <section class="charts-section">
             <div class="section-header">
-                <h2>Performance Relationships</h2>
-                <p>Correlation and bottleneck analysis</p>
+                <h2>Bottleneck Ratio</h2>
+                <p>CPU Multi ÷ GPU Score — below 1.0 = CPU bottleneck <span style="color:#ef4444">●</span>, above 1.0 = GPU bottleneck <span style="color:#3b82f6">●</span></p>
             </div>
-            <div class="efficiency-scatter-grid">
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Bottleneck Ratio</h3>
-                        <p>CPU Multi vs GPU Score — colored by device class</p>
-                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">CPU Multi-core score divided by GPU Score. A balanced system has values near the diagonal. Higher CPU/GPU ratio may indicate GPU bottleneck; lower ratio may indicate CPU bottleneck.</div></span>
+            <div class="chart-container-wrapper full-width-chart">
+                <div class="chart-header">
+                    <h3>Top 15 Bottleneck Ratios</h3>
+                    <p class="chart-header-row">
+                        <span>Each bar is a GPU model — ratio of CPU Multi to GPU Score</span>
+                        <select id="bottleneckGpuSelect" class="chart-select"></select>
+                    </p>
+                    <div class="bneck-legend">
+                        <span class="bneck-badge" style="background:#ef4444">&lt;1 CPU bottleneck</span>
+                        <span class="bneck-badge" style="background:#10b981">~1 Balanced</span>
+                        <span class="bneck-badge" style="background:#3b82f6">&gt;1 GPU bottleneck</span>
                     </div>
-                    <div class="chart-canvas-area" style="height: 360px;">
-                        <canvas id="bottleneckRatioChart"></canvas>
-                    </div>
+                    <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">CPU Multi ÷ GPU Score. A balanced system has a ratio near 1.0. Below 1.0 means the GPU outruns the CPU (CPU bottleneck). Above 1.0 means the CPU outruns the GPU (GPU bottleneck).</div></span>
                 </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>CPU Single × GPU Score</h3>
-                        <p>Scatter colored by GPU brand</p>
-                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">CPU Single-core score plotted against GPU score. Each point represents a benchmark run. Color indicates GPU brand (AMD, NVIDIA, Intel). Helps visualize CPU-GPU pairing trends.</div></span>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 360px;">
-                        <canvas id="cpuGpuScatterChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>VRAM × GPU Score</h3>
-                        <p>Scatter colored by GPU brand</p>
-                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">VRAM capacity plotted against GPU score. Each point represents a benchmark run. Color indicates GPU brand. Helps visualize how VRAM relates to GPU performance.</div></span>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 360px;">
-                        <canvas id="vramGpuScatterChart"></canvas>
-                    </div>
+                <div class="chart-canvas-area">
+                    <canvas id="bottleneckRatioChart"></canvas>
                 </div>
             </div>
-        </section>
-
         </section>
 
         <section class="charts-section">

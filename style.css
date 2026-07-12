@@ -462,6 +462,18 @@ h1, h2, h3, h4 {
     order: 3;
 }
 
+.chart-header-row {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.chart-header-row span {
+    flex: 1;
+}
+
 .baseline-row {
     display: flex;
     align-items: center;
@@ -621,6 +633,62 @@ h1, h2, h3, h4 {
     color: var(--text-secondary);
 }
 
+.section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.section-header-row p {
+    flex: 1;
+}
+
+.chart-select {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: 'Inter', sans-serif;
+    padding: 0.4rem 0.7rem;
+    cursor: pointer;
+    outline: none;
+    min-width: 160px;
+}
+
+.chart-select:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.chart-select:focus {
+    border-color: rgba(99, 102, 241, 0.6);
+}
+
+.chart-select option {
+    background: #1a1f2e;
+    color: var(--text-primary);
+}
+
+.bneck-legend {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.bneck-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
 /* Tab Navigation */
 .tab-nav {
     display: flex;
@@ -769,14 +837,10 @@ h1, h2, h3, h4 {
     gap: 1.5rem;
 }
 
-.efficiency-scatter-grid {
+.scatter-grid-3col {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
-}
-
-.efficiency-scatter-grid .chart-container-wrapper:last-child {
-    grid-column: 1 / -1;
 }
 
 /* Portable runs grid (3 cols) */
@@ -1676,7 +1740,7 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
         grid-template-columns: repeat(2, 1fr);
     }
     .efficiency-charts-grid,
-    .efficiency-scatter-grid {
+    .scatter-grid-3col {
         grid-template-columns: 1fr;
     }
     .portable-runs-grid,
