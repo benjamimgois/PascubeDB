@@ -1620,8 +1620,8 @@ function renderStats(pill) {
         document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
 
         const bneck = effData
-            .filter(r => r.cpuSingle !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuSingle > 0)
-            .map(r => ({ ratio: r.cpuSingle / r.gpuScore, user: getDisplayName(r), cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) }))
+            .filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0)
+            .map(r => ({ ratio: r.cpuMulti / r.gpuScore, user: getDisplayName(r), cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) }))
             .filter(r => r.ratio >= 0.1 && r.ratio <= 10)
             .sort((a, b) => a.ratio - b.ratio);
         document.getElementById('stat-top-gpu').textContent = bneck.length > 0 ? bneck[0].ratio.toFixed(3) : '-';
@@ -4605,7 +4605,7 @@ function renderEfficiencyCharts() {
     if (sel) {
         sel.innerHTML = '<option value="">All GPUs</option>';
         const gpuCounts = {};
-        const valid = bm.filter(r => r.cpuSingle !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuSingle > 0);
+        const valid = bm.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
         valid.forEach(r => {
             const g = normalizeGPU(r.gpu) || 'Unknown';
             gpuCounts[g] = (gpuCounts[g] || 0) + 1;
@@ -4685,13 +4685,7 @@ const ratioPlugin = {
     }
 };
 
-function ratioColor(val, maxVal) {
-    if (maxVal > 0) {
-        const pct = val / maxVal;
-        return pct < 0.25 ? 'rgba(239, 68, 68, 0.85)' :
-               pct > 0.8 ? 'rgba(59, 130, 246, 0.85)' :
-               'rgba(16, 185, 129, 0.85)';
-    }
+function ratioColor(val) {
     return val < 0.95 ? 'rgba(239, 68, 68, 0.85)' :
            val > 1.05 ? 'rgba(59, 130, 246, 0.85)' :
            'rgba(16, 185, 129, 0.85)';
@@ -4700,7 +4694,7 @@ function ratioColor(val, maxVal) {
 function renderBottleneckChart(data, selectedGpu) {
     const canvasId = 'bottleneckRatioChart';
     if (!document.getElementById(canvasId)) return;
-    const pts = data.filter(r => r.cpuSingle !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuSingle > 0 && (r.cpuSingle / r.gpuScore) >= 0.001 && (r.cpuSingle / r.gpuScore) <= 1);
+    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
     const topEl = document.getElementById('bottleneckRatioTop');
 
     if (!selectedGpu) {
@@ -4708,7 +4702,7 @@ function renderBottleneckChart(data, selectedGpu) {
         pts.forEach(r => {
             const gpu = normalizeGPU(r.gpu) || 'Unknown';
             if (!gpuMap[gpu]) gpuMap[gpu] = { sum: 0, count: 0, cpus: new Set() };
-            gpuMap[gpu].sum += r.cpuSingle / r.gpuScore;
+            gpuMap[gpu].sum += r.cpuMulti / r.gpuScore;
             gpuMap[gpu].count++;
             gpuMap[gpu].cpus.add(normalizeCPU(r.cpu));
         });
@@ -4725,7 +4719,7 @@ function renderBottleneckChart(data, selectedGpu) {
         pts.filter(r => normalizeGPU(r.gpu) === selectedGpu).forEach(r => {
             const cpu = normalizeCPU(r.cpu) || 'Unknown CPU';
             if (!cpuMap[cpu]) cpuMap[cpu] = { sum: 0, count: 0, cpus: new Set() };
-            cpuMap[cpu].sum += r.cpuSingle / r.gpuScore;
+            cpuMap[cpu].sum += r.cpuMulti / r.gpuScore;
             cpuMap[cpu].count++;
             cpuMap[cpu].cpus.add(normalizeCPU(r.cpu));
         });
@@ -4760,7 +4754,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
         if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
         const labels = items.map(d => d.label);
         const values = items.map(d => d.avgRatio);
-        const colors = items.map(d => ratioColor(d.avgRatio, rawMax));
+        const colors = items.map(d => ratioColor(d.avgRatio));
         chartInstances[canvasId] = new Chart(cv.getContext('2d'), {
             type: 'bar',
             data: {
@@ -4773,8 +4767,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
                     borderRadius: 6,
                     borderSkipped: false,
                     barPercentage: 0.85,
-                    contributors: contributors,
-                    rawMax: rawMax
+                    contributors: contributors
                 }]
             },
             options: {
@@ -4804,9 +4797,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
                             label: ctx => {
                                 const d = allItems[startIdx + ctx.dataIndex];
                                 if (!d) return '';
-                                const rmax = chart.data.datasets[0].rawMax;
-                                const pct = rmax > 0 ? d.avgRatio / rmax : 0;
-                                const label = pct < 0.25 ? 'CPU bottleneck' : pct > 0.8 ? 'GPU bottleneck' : 'Balanced';
+                                const label = d.avgRatio < 0.95 ? 'CPU bottleneck' : d.avgRatio > 1.05 ? 'GPU bottleneck' : 'Balanced';
                                 return `Ratio: ${d.avgRatio.toFixed(3)} (${label}) · ${d.count} run${d.count > 1 ? 's' : ''}`;
                             }
                         }
@@ -4850,8 +4841,8 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
         if (!chart) return;
         chart.data.labels = s.map(d => d.label);
         chart.data.datasets[0].data = s.map(d => d.avgRatio);
-        chart.data.datasets[0].backgroundColor = s.map(d => ratioColor(d.avgRatio, rawMax));
-        chart.data.datasets[0].borderColor = s.map(d => ratioColor(d.avgRatio, rawMax).replace('0.85', '1'));
+        chart.data.datasets[0].backgroundColor = s.map(d => ratioColor(d.avgRatio));
+        chart.data.datasets[0].borderColor = s.map(d => ratioColor(d.avgRatio).replace('0.85', '1'));
         chart.options.scales.x.max = xMax;
         chart.update('none');
     };
@@ -4861,7 +4852,7 @@ function dedupByLowestRatio(entries) {
     const map = {};
     entries.forEach(r => {
         const key = (r.user || 'Anonymous') + '|' + normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
-        const ratio = r.cpuSingle / r.gpuScore;
+        const ratio = r.cpuMulti / r.gpuScore;
         if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio };
     });
     return Object.values(map).map(v => v.run);
@@ -4870,10 +4861,10 @@ function dedupByLowestRatio(entries) {
 function renderTopCpuBottlenecks(data) {
     const canvasId = 'topCpuBottleneckChart';
     if (!document.getElementById(canvasId)) return;
-    const pts = dedupByLowestRatio(data.filter(r => r.cpuSingle !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuSingle > 0 && (r.cpuSingle / r.gpuScore) >= 0.001 && (r.cpuSingle / r.gpuScore) <= 1));
+    const pts = dedupByLowestRatio(data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10));
     const top10 = pts.map(r => ({
         label: normalizeCPU(r.cpu) + ' + ' + normalizeGPU(r.gpu),
-        avgRatio: r.cpuSingle / r.gpuScore,
+        avgRatio: r.cpuMulti / r.gpuScore,
         count: 1,
         cpus: normalizeCPU(r.cpu),
         contributor: getDisplayName(r)
