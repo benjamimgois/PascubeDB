@@ -5758,20 +5758,27 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         const drawScoreInside = barW >= (scoreWidth + 16);
                         
                         if (hasScoreTemp) {
+                            // Draw ratio at right edge
+                            c.font = 'bold 12px Inter, sans-serif';
+                            if (drawScoreInside) {
+                                c.textAlign = 'right';
+                                c.fillStyle = '#ffffff';
+                                c.fillText(scoreText, bar.x - 8, bar.y);
+                            } else {
+                                c.textAlign = 'left';
+                                c.fillStyle = '#ffffff';
+                                c.fillText(scoreText, bar.x + 6, bar.y);
+                            }
+                            // Draw centered gpuScore / gpuTempDelta
                             const centerX = (baseX + bar.x) / 2;
                             const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}`;
                             c.font = 'bold 11px Inter, sans-serif';
                             c.textAlign = 'center';
+                            c.fillStyle = '#ffffff';
                             const stWidth = c.measureText(stText).width;
-                            const drawSTInside = barW >= (stWidth + 16);
-                            if (drawSTInside) {
-                                c.fillStyle = '#ffffff';
-                                c.fillText(stText, centerX, bar.y - 6);
-                                c.font = '9px Inter, sans-serif';
-                                c.fillStyle = 'rgba(255,255,255,0.5)';
-                                c.fillText('GPU Score / Temp \u0394', centerX, bar.y + 8);
+                            if (barW >= (stWidth + 16)) {
+                                c.fillText(stText, centerX, bar.y);
                             } else {
-                                c.fillStyle = '#ffffff';
                                 c.fillText(stText, bar.x + 6, bar.y);
                             }
                         } else {
@@ -5813,17 +5820,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             c.textAlign = 'left';
                             c.fillStyle = 'rgba(255,255,255,0.7)';
                             const contributorText = (barIds[i] || '').substring(0, 16);
-                            if (hasScoreTemp) {
-                                const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}`;
-                                c.font = 'bold 11px Inter, sans-serif';
-                                const stWidth = c.measureText(stText).width;
-                                const drawSTInside = barW >= (stWidth + 16);
-                                if (drawSTInside) {
-                                    c.fillText(contributorText, bar.x + 4, bar.y + 8);
-                                } else {
-                                    c.fillText(contributorText, bar.x + 6 + stWidth + 8, bar.y);
-                                }
-                            } else if (drawScoreInside) {
+                            if (drawScoreInside) {
                                 c.fillText(contributorText, bar.x + 4, bar.y);
                             } else {
                                 c.fillText(contributorText, bar.x + 6 + scoreWidth + 8, bar.y);
