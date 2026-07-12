@@ -3661,11 +3661,6 @@ function renderCharts() {
         .sort((a, b) => b.gpuScore - a.gpuScore)
         .slice(0, 10);
     const gpuScores = gpuRuns.map(r => r.gpuScore);
-    const gpuMin = gpuScores.length > 0 ? Math.min(...gpuScores) : 0;
-    const gpuMax = gpuScores.length > 0 ? Math.max(...gpuScores) : 0;
-    const gpuRange = gpuMax - gpuMin || gpuMin;
-    const gpuXMin = Math.floor(Math.max(0, gpuMin - gpuRange * 0.05));
-    const gpuXMax = Math.ceil(gpuMax * 1.02);
         
     renderHorizontalBarChart(
         'gpuChart',
@@ -3674,8 +3669,8 @@ function renderCharts() {
         'GPU Score',
         SCORE_COLORS.gpu.bg,
         SCORE_COLORS.gpu.border,
-        gpuXMax,
-        gpuXMin,
+        undefined,
+        undefined,
         gpuRuns.map(r => getDisplayName(r)),
         null,
         null,
