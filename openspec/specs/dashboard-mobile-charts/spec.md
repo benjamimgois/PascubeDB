@@ -2,9 +2,7 @@
 
 ## Purpose
 Specifies the capability to render performance comparison charts and distribution metrics for mobile form factors (laptops/notebooks and handheld gaming PCs) on the benchmark dashboard.
-
 ## Requirements
-
 ### Requirement: Mobile Device Detection Logic
 The system SHALL scan and analyze the benchmark dataset to identify rows representing mobile devices. Each mobile record MUST be classified as either "Handheld" or "Notebook" based on CPU, GPU, OS, and Kernel signatures.
 - "Handheld" signature includes: CPU/GPU containing "Steam Deck", "Z1 Extreme", "Z1", "Custom APU 0405", or "AMD Custom GPU 0405"; or OS/Kernel containing "Bazzite (ROG Ally", "Steam Deck", "Ally", or "Legion Go".
@@ -41,3 +39,11 @@ The system SHALL parse the "product name" field from each benchmark row. When re
 #### Scenario: Rendering the Top 10 SBC Benchmark Runs with product name
 - **WHEN** the dashboard page finishes loading the benchmark data
 - **THEN** a horizontal bar chart is rendered displaying the top 10 SBC runs sorted by Main Score, where each bar label shows the product name (e.g., "Raspberry Pi 5 Rev 1.0") when available, falling back to the CPU model name
+
+### Requirement: Portable Chart Label Legibility
+The system SHALL ensure that text labels on portable device charts (including Main Score, CPU Max Freq, and contributor names) are fully readable. If the CPU Max Freq label overlaps with the Main Score label inside the bar, it MUST be drawn outside the bar dynamically.
+
+#### Scenario: Rendering labels on a narrow portable device bar
+- **WHEN** the portable horizontal bar chart is rendered and the CPU frequency label would overlap the score
+- **THEN** the CPU frequency label is rendered outside to the right of the bar dynamically
+

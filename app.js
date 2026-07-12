@@ -5817,18 +5817,32 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             const cpuFreq = chart.data.datasets[0].freqs && chart.data.datasets[0].freqs[i];
                             const centerFreq = gpuFreq || cpuFreq;
                             const centerScore = chart.data.datasets[0].centerScore && chart.data.datasets[0].centerScore[i];
-                            if (drawScoreInside) {
-                                const centerX = (baseX + bar.x) / 2;
+                            
+                            const centerText = centerScore && centerFreq
+                                ? `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`
+                                : centerFreq
+                                    ? `${centerFreq.toLocaleString()} MHz`
+                                    : '';
+                                    
+                            if (centerText) {
                                 c.font = '10px Inter, sans-serif';
-                                c.textAlign = 'center';
-                                c.fillStyle = '#ffffff';
-                                if (barW > 60) {
-                                    const centerText = centerScore && centerFreq
-                                        ? `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`
-                                        : centerFreq
-                                            ? `${centerFreq.toLocaleString()} MHz`
-                                            : '';
-                                    if (centerText) c.fillText(centerText, centerX, bar.y);
+                                const ctWidth = c.measureText(centerText).width;
+                                const centerX = (baseX + bar.x) / 2;
+                                
+                                // Check if drawing inside would overlap with the scoreText inside the bar
+                                const rightEdgeOfCenter = centerX + ctWidth / 2;
+                                const leftEdgeOfScore = bar.x - 8 - scoreWidth;
+                                const canDrawCenterInside = drawScoreInside && (rightEdgeOfCenter + 8 < leftEdgeOfScore) && (barW > 60);
+                                
+                                if (canDrawCenterInside) {
+                                    c.textAlign = 'center';
+                                    c.fillStyle = '#ffffff';
+                                    c.fillText(centerText, centerX, bar.y);
+                                } else {
+                                    c.textAlign = 'left';
+                                    c.fillStyle = '#ffffff';
+                                    c.fillText(centerText, nextX, bar.y);
+                                    nextX += ctWidth + 8;
                                 }
                             }
                         }
