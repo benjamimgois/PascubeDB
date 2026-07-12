@@ -4625,9 +4625,8 @@ function renderEfficiencyCharts() {
             thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
     }
 
-    // Top 10 CPU/GPU Bottlenecks
+    // Top 10 CPU Bottlenecks (deduped by lowest ratio per user+hardware)
     renderTopCpuBottlenecks(bm);
-    renderTopGpuBottlenecks(bm);
 }
 
 const ratioPlugin = {
@@ -4846,10 +4845,20 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
     };
 }
 
+function dedupByLowestRatio(entries) {
+    const map = {};
+    entries.forEach(r => {
+        const key = (r.user || 'Anonymous') + '|' + normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
+        const ratio = r.cpuMulti / r.gpuScore;
+        if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio };
+    });
+    return Object.values(map).map(v => v.run);
+}
+
 function renderTopCpuBottlenecks(data) {
     const canvasId = 'topCpuBottleneckChart';
     if (!document.getElementById(canvasId)) return;
-    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
+    const pts = dedupByLowestRatio(data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10));
     const top10 = pts.map(r => ({
         label: normalizeCPU(r.cpu) + ' + ' + normalizeGPU(r.gpu),
         avgRatio: r.cpuMulti / r.gpuScore,
@@ -4857,22 +4866,6 @@ function renderTopCpuBottlenecks(data) {
         cpus: normalizeCPU(r.cpu),
         contributor: getDisplayName(r)
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
-    const runs = top10.map(r => ({ label: r.label, avgRatio: r.avgRatio, count: r.count, cpus: r.cpus }));
-    const contributors = top10.map(r => r.contributor);
-    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
-}
-
-function renderTopGpuBottlenecks(data) {
-    const canvasId = 'topGpuBottleneckChart';
-    if (!document.getElementById(canvasId)) return;
-    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
-    const top10 = pts.map(r => ({
-        label: normalizeCPU(r.cpu) + ' + ' + normalizeGPU(r.gpu),
-        avgRatio: r.cpuMulti / r.gpuScore,
-        count: 1,
-        cpus: normalizeCPU(r.cpu),
-        contributor: getDisplayName(r)
-    })).sort((a, b) => b.avgRatio - a.avgRatio).slice(0, 10);
     const runs = top10.map(r => ({ label: r.label, avgRatio: r.avgRatio, count: r.count, cpus: r.cpus }));
     const contributors = top10.map(r => r.contributor);
     buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
