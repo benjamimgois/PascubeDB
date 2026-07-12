@@ -1610,14 +1610,14 @@ function renderStats(pill) {
         const cpuEff = computeCpuEfficiency(effData);
         const gpuEff = computeGpuEfficiency(effData);
         document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? (Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2) : '-';
-        document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? `${cpuEff[0].user} — ${cpuEff[0].name}` : '-';
-        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].user} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].user} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
+        document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? cpuEff[0].name : '-';
+        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
+        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
 
         document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? (Math.trunc(gpuEff[0].ratio * 100) / 100).toFixed(2) : '-';
-        document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? `${gpuEff[0].user} — ${gpuEff[0].name}` : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].user} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].user} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
+        document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? gpuEff[0].name : '-';
+        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].name} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)}` : '2º -';
+        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)}` : '3º -';
 
         const bneck = effData
             .filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0)
@@ -1625,9 +1625,9 @@ function renderStats(pill) {
             .filter(r => r.ratio >= 0.1 && r.ratio <= 10)
             .sort((a, b) => a.ratio - b.ratio);
         document.getElementById('stat-top-gpu').textContent = bneck.length > 0 ? bneck[0].ratio.toFixed(3) : '-';
-        document.getElementById('stat-top-gpu-sub').textContent = bneck.length > 0 ? `${bneck[0].user} — ${bneck[0].cpu} + ${bneck[0].gpu}` : '-';
-        document.getElementById('stat-gpu-second').textContent = bneck[1] ? `2º ${bneck[1].user} — ${bneck[1].ratio.toFixed(3)}` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = bneck[2] ? `3º ${bneck[2].user} — ${bneck[2].ratio.toFixed(3)}` : '3º -';
+        document.getElementById('stat-top-gpu-sub').textContent = bneck.length > 0 ? `${bneck[0].cpu} + ${bneck[0].gpu}` : '-';
+        document.getElementById('stat-gpu-second').textContent = bneck[1] ? `2º ${bneck[1].cpu} + ${bneck[1].gpu} — ${bneck[1].ratio.toFixed(3)}` : '2º -';
+        document.getElementById('stat-gpu-third').textContent = bneck[2] ? `3º ${bneck[2].cpu} + ${bneck[2].gpu} — ${bneck[2].ratio.toFixed(3)}` : '3º -';
 
         // Card 4: Avg Thermal Eff (placeholder)
         document.getElementById('stat-most-humble-score').textContent = '-';
