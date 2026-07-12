@@ -4628,7 +4628,7 @@ function renderEfficiencyCharts() {
         const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
         makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
             'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
-            thermalEff.map(d => `${d.name} | ${d.score} pts / ${d.temp}°C`), null, true);
+            thermalEff.map(d => d.user), null, true);
         const topEl = document.getElementById('thermalEffTop');
         if (topEl) topEl.textContent = thermalEff.length > 0 ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name}` : '—';
     }
@@ -4675,6 +4675,13 @@ const ratioPlugin = {
             ctx.font = 'bold 12px Inter, sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(val.toFixed(3), bar.x - 8, bar.y);
+            const cont = chart.data.datasets[0].contributors?.[i];
+            if (cont) {
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.font = '11px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(cont, bar.x + 8, bar.y);
+            }
         });
         ctx.restore();
     }
@@ -5737,6 +5744,18 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             }
                         }
 
+                        if (chart.data.datasets[0].barClientIds || chart.data.datasets[0].clientIds) {
+                            const barIds = chart.data.datasets[0].barClientIds || chart.data.datasets[0].clientIds;
+                            c.font = '10px Inter, sans-serif';
+                            c.textAlign = 'left';
+                            c.fillStyle = 'rgba(255,255,255,0.7)';
+                            const contributorText = (barIds[i] || '').substring(0, 16);
+                            if (drawScoreInside) {
+                                c.fillText(contributorText, bar.x + 4, bar.y);
+                            } else {
+                                c.fillText(contributorText, bar.x + 6 + scoreWidth + 8, bar.y);
+                            }
+                        }
                     });
                 } else {
                     const freqs = chart.data.datasets[0].freqs;
@@ -6399,8 +6418,8 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                                 ctx.fillStyle = count >= 10 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
                                 ctx.font = '10px Inter, sans-serif';
                                 ctx.fillText(count >= 10 ? '\u25B2' : '\u25BC', x + (v >= 0 ? tw + 3 : -tw - 3), y + 1);
-                            }
-                        });
+                        }
+                    });
                     });
                     ctx.restore();
                 } catch (e) {
