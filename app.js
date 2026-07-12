@@ -4570,12 +4570,12 @@ function computeGpuEfficiency(data) {
 function computeThermalEfficiency(data) {
     const map = {};
     data.forEach(r => {
-        if (r.mainScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= 0) return;
+        if (r.gpuScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= 0) return;
         const hwKey = normalizeGPU(r.gpu) || 'Unknown GPU';
         const userKey = r.user || 'Anonymous';
         const key = hwKey + '|' + userKey;
-        const ratio = r.mainScore / r.gpuTempDelta;
-        if (!map[key] || ratio > map[key].ratio) map[key] = { name: hwKey, ratio, score: r.mainScore, temp: r.gpuTempDelta, user: userKey };
+        const ratio = r.gpuScore / r.gpuTempDelta;
+        if (!map[key] || ratio > map[key].ratio) map[key] = { name: hwKey, ratio, score: r.gpuScore, temp: r.gpuTempDelta, user: userKey };
     });
     return Object.values(map).sort((a, b) => b.ratio - a.ratio);
 }
