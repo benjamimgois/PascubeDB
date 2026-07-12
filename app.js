@@ -4664,7 +4664,7 @@ const ratioPlugin = {
             ctx.font = '11px Inter, sans-serif';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            ctx.fillText('Balanced', bx + 6, chart.chartArea.top + 8);
+            ctx.fillText('Balanced', bx + 6, chart.chartArea.top - 14);
             ctx.restore();
         }
 
