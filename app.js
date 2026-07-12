@@ -4643,7 +4643,8 @@ function renderEfficiencyCharts() {
         const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
         makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
             'rgba(239, 68, 68, 0.8)', '#ef4444', 10, undefined,
-            thermalEff.map(d => d.user), null, true);
+            thermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined, undefined,
+            { barScore: thermalEff.map(d => d.score), barTemp: thermalEff.map(d => d.temp) });
         const topEl = document.getElementById('thermalEffTop');
         if (topEl) topEl.textContent = thermalEff.length > 0 ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name}` : '—';
     }
@@ -5729,10 +5730,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     const gpuFreqs = chart.data.datasets[0].gpuFreqs;
                     const xScale = chart.scales.x;
                     const baseX = xScale.getPixelForValue(xScale.min || 0);
+                    const barScores = chart.data.datasets[0].barScore;
+                    const barTemps = chart.data.datasets[0].barTemp;
+                    const hasScoreTemp = barScores && barTemps;
                     meta.data.forEach((bar, i) => {
                         if (bar.x < 1 || bar.height < 1) return;
                         
-                        const label = `${vals[i].toLocaleString()}${labelUnit}`;
+                        const label = !hasScoreTemp ? `${vals[i].toLocaleString()}${labelUnit}` : '';
                         const icon = chart.data.datasets[0].rankOneIcon || '';
                         const startIndex = chart.data.datasets[0].startIndex || 0;
                         const absoluteRank = startIndex + i + 1;
@@ -5753,44 +5757,73 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         
                         const drawScoreInside = barW >= (scoreWidth + 16);
                         
-                        if (drawScoreInside) {
-                            c.font = '12px Inter, sans-serif';
-                            c.textAlign = 'right';
-                            c.fillStyle = '#ffffff';
-                            c.fillText(scoreText, bar.x - 8, bar.y);
-                        } else {
-                            c.font = '12px Inter, sans-serif';
-                            c.textAlign = 'left';
-                            c.fillStyle = '#ffffff';
-                            c.fillText(scoreText, bar.x + 6, bar.y);
-                        }
-                        
-                        const gpuFreq = gpuFreqs && gpuFreqs[i];
-                        const cpuFreq = chart.data.datasets[0].freqs && chart.data.datasets[0].freqs[i];
-                        const centerFreq = gpuFreq || cpuFreq;
-                        const centerScore = chart.data.datasets[0].centerScore && chart.data.datasets[0].centerScore[i];
-                        if (drawScoreInside) {
+                        if (hasScoreTemp) {
                             const centerX = (baseX + bar.x) / 2;
-                            c.font = '10px Inter, sans-serif';
+                            const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}`;
+                            c.font = 'bold 11px Inter, sans-serif';
                             c.textAlign = 'center';
-                            c.fillStyle = '#ffffff';
-                            if (barW > 60) {
-                                const centerText = centerScore && centerFreq
-                                    ? `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`
-                                    : centerFreq
-                                        ? `${centerFreq.toLocaleString()} MHz`
-                                        : '';
-                                if (centerText) c.fillText(centerText, centerX, bar.y);
+                            const stWidth = c.measureText(stText).width;
+                            const drawSTInside = barW >= (stWidth + 16);
+                            if (drawSTInside) {
+                                c.fillStyle = '#ffffff';
+                                c.fillText(stText, centerX, bar.y - 6);
+                                c.font = '9px Inter, sans-serif';
+                                c.fillStyle = 'rgba(255,255,255,0.5)';
+                                c.fillText('GPU Score / Temp \u0394', centerX, bar.y + 8);
+                            } else {
+                                c.fillStyle = '#ffffff';
+                                c.fillText(stText, bar.x + 6, bar.y);
+                            }
+                        } else {
+                            if (drawScoreInside) {
+                                c.font = '12px Inter, sans-serif';
+                                c.textAlign = 'right';
+                                c.fillStyle = '#ffffff';
+                                c.fillText(scoreText, bar.x - 8, bar.y);
+                            } else {
+                                c.font = '12px Inter, sans-serif';
+                                c.textAlign = 'left';
+                                c.fillStyle = '#ffffff';
+                                c.fillText(scoreText, bar.x + 6, bar.y);
+                            }
+                            
+                            const gpuFreq = gpuFreqs && gpuFreqs[i];
+                            const cpuFreq = chart.data.datasets[0].freqs && chart.data.datasets[0].freqs[i];
+                            const centerFreq = gpuFreq || cpuFreq;
+                            const centerScore = chart.data.datasets[0].centerScore && chart.data.datasets[0].centerScore[i];
+                            if (drawScoreInside) {
+                                const centerX = (baseX + bar.x) / 2;
+                                c.font = '10px Inter, sans-serif';
+                                c.textAlign = 'center';
+                                c.fillStyle = '#ffffff';
+                                if (barW > 60) {
+                                    const centerText = centerScore && centerFreq
+                                        ? `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`
+                                        : centerFreq
+                                            ? `${centerFreq.toLocaleString()} MHz`
+                                            : '';
+                                    if (centerText) c.fillText(centerText, centerX, bar.y);
+                                }
                             }
                         }
-
+                        
                         if (chart.data.datasets[0].barClientIds || chart.data.datasets[0].clientIds) {
                             const barIds = chart.data.datasets[0].barClientIds || chart.data.datasets[0].clientIds;
                             c.font = '10px Inter, sans-serif';
                             c.textAlign = 'left';
                             c.fillStyle = 'rgba(255,255,255,0.7)';
                             const contributorText = (barIds[i] || '').substring(0, 16);
-                            if (drawScoreInside) {
+                            if (hasScoreTemp) {
+                                const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}`;
+                                c.font = 'bold 11px Inter, sans-serif';
+                                const stWidth = c.measureText(stText).width;
+                                const drawSTInside = barW >= (stWidth + 16);
+                                if (drawSTInside) {
+                                    c.fillText(contributorText, bar.x + 4, bar.y + 8);
+                                } else {
+                                    c.fillText(contributorText, bar.x + 6 + stWidth + 8, bar.y);
+                                }
+                            } else if (drawScoreInside) {
                                 c.fillText(contributorText, bar.x + 4, bar.y);
                             } else {
                                 c.fillText(contributorText, bar.x + 6 + scoreWidth + 8, bar.y);
@@ -5834,7 +5867,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
 }
 
 // Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
-function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels, freqs, freqLabel, centerScore, barClientIds) {
+function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels, freqs, freqLabel, centerScore, barClientIds, extraDataProps) {
     // Pre-normalize data upfront so scroll updates use same scaled values
     if (normalize && allData.length > 0) {
         const maxVal = Math.max(...allData);
@@ -5910,6 +5943,11 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             if (centerScore) chart.data.datasets[0].centerScore = centerScore.slice(startIndex, startIndex + visibleCount);
             if (barClientIds) chart.data.datasets[0].barClientIds = barClientIds.slice(startIndex, startIndex + visibleCount);
             if (gpuFreqs) chart.data.datasets[0].gpuFreqs = gpuFreqs.slice(startIndex, startIndex + visibleCount);
+            if (extraDataProps) {
+                Object.keys(extraDataProps).forEach(k => {
+                    chart.data.datasets[0][k] = extraDataProps[k].slice(startIndex, startIndex + visibleCount);
+                });
+            }
             if (showDataLabels) chart.data.datasets[0].rankOneLocalIdx = startIndex === 0 ? 0 : -1;
             chart.data.datasets[0].startIndex = startIndex;
             if (normalize) {
