@@ -2,9 +2,7 @@
 
 ## Purpose
 Specifies the capability to render advanced metrics, averages, and distribution histograms on the dashboard.
-
 ## Requirements
-
 ### Requirement: Top 10 Main Scores Chart
 The system SHALL identify the top 10 highest individual Main Scores recorded in the dataset and render a horizontal bar chart of these runs. This chart SHALL be positioned as the first chart in the main charts section of the dashboard. When hovering over a data point, the tooltip SHALL display the Main Score, the CPU, the GPU, and the client-id (first 8 characters) of the run. The X-axis of this chart SHALL use an adaptive minimum scale based on 90% of the lowest score in the top 10.
 
@@ -67,4 +65,11 @@ The system SHALL render a horizontal bar chart displaying the top 10 GPU models 
 #### Scenario: Rendering GPU Performance Top 10 Chart
 - **WHEN** the dashboard page finishes loading the benchmark data
 - **THEN** the top 10 GPU Performance chart is rendered and displays the client-id (first 8 characters) of the run in the tooltip on hover
+
+### Requirement: Horizontal Bar Chart Label Legibility
+The system SHALL ensure that all text labels rendered on horizontal bar charts (including main score values, secondary details/temperatures, and contributor usernames) are completely legible and do not overlap, regardless of the width of the bars. If the bar is too narrow to contain any label inside, the label MUST be positioned outside to the right of the bar dynamically, preventing layout collisions.
+
+#### Scenario: Rendering labels on a very narrow horizontal bar chart
+- **WHEN** the chart is rendered and a bar's width is narrower than the width of the text labels
+- **THEN** the labels are positioned dynamically outside to the right of the bar in a non-overlapping sequence
 
