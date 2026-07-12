@@ -4646,7 +4646,9 @@ function renderEfficiencyCharts() {
             thermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined,
             { barScore: thermalEff.map(d => d.score), barTemp: thermalEff.map(d => d.temp) });
         const topEl = document.getElementById('thermalEffTop');
-        if (topEl) topEl.textContent = thermalEff.length > 0 ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name}` : '—';
+        if (topEl) topEl.textContent = thermalEff.length > 0
+            ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name} — ${Math.trunc(thermalEff[0].ratio * 10) / 10} (${thermalEff[0].score.toLocaleString()} / ${thermalEff[0].temp}ºC)`
+            : '—';
     }
 
     // Top 10 CPU Bottlenecks (deduped by lowest ratio per user+hardware)
