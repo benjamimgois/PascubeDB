@@ -5736,7 +5736,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     meta.data.forEach((bar, i) => {
                         if (bar.x < 1 || bar.height < 1) return;
                         
-                        const label = !hasScoreTemp ? `${vals[i].toLocaleString()}${labelUnit}` : '';
+                        const label = `${vals[i].toLocaleString()}${labelUnit}`;
                         const icon = chart.data.datasets[0].rankOneIcon || '';
                         const startIndex = chart.data.datasets[0].startIndex || 0;
                         const absoluteRank = startIndex + i + 1;
