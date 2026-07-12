@@ -4691,7 +4691,6 @@ function renderBottleneckChart(data, selectedGpu) {
     const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
     const topEl = document.getElementById('bottleneckRatioTop');
 
-    const h3 = document.querySelector('#bottleneckRatioChart')?.closest('.chart-container-wrapper')?.querySelector('h3');
     if (!selectedGpu) {
         const gpuMap = {};
         pts.forEach(r => {
@@ -4708,7 +4707,6 @@ function renderBottleneckChart(data, selectedGpu) {
             cpus: [...d.cpus].join(', ')
         })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 15);
         buildBottleneckChart(canvasId, items, 'GPU model');
-        if (h3) h3.textContent = 'GPU vs CPU Bottleneck';
         if (topEl) topEl.textContent = '';
     } else {
         const cpuMap = {};
@@ -4726,7 +4724,6 @@ function renderBottleneckChart(data, selectedGpu) {
             cpus: [...d.cpus].join(', ')
         })).sort((a, b) => a.avgRatio - b.avgRatio);
         buildBottleneckChart(canvasId, items, 'CPU model');
-        if (h3) h3.textContent = selectedGpu + ' — Bottleneck per CPU';
         if (topEl) topEl.textContent = items.length > 0 ? items[items.length - 1].label + ': ' + items[items.length - 1].avgRatio.toFixed(3) : '—';
     }
 }
