@@ -5772,7 +5772,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             // Draw centered gpuScore / gpuTempDelta
                             const centerX = (baseX + bar.x) / 2;
                             const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}`;
-                            c.font = 'bold 11px Inter, sans-serif';
+                            c.font = '10px Inter, sans-serif';
                             c.textAlign = 'center';
                             c.fillStyle = '#ffffff';
                             const stWidth = c.measureText(stText).width;
