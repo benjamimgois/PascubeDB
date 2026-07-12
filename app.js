@@ -4614,13 +4614,15 @@ function renderEfficiencyCharts() {
     const sel = document.getElementById('bottleneckGpuSelect');
     if (sel) {
         sel.innerHTML = '';
-        const gpuCounts = {};
+        const gpuScores = {};
         const valid = bm.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
         valid.forEach(r => {
             const g = normalizeGPU(r.gpu) || 'Unknown';
-            gpuCounts[g] = (gpuCounts[g] || 0) + 1;
+            if (!gpuScores[g]) gpuScores[g] = { sum: 0, count: 0 };
+            gpuScores[g].sum += r.gpuScore;
+            gpuScores[g].count++;
         });
-        const sorted = Object.entries(gpuCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        const sorted = Object.entries(gpuScores).sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count) || a[0].localeCompare(b[0]));
         sorted.forEach(([g]) => {
             const opt = document.createElement('option');
             opt.value = g;
