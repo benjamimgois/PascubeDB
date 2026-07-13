@@ -851,16 +851,16 @@ h1, h2, h3, h4 {
 }
 
 /* Portable runs grid (3 cols) */
-.portable-runs-grid {
+.mobile-runs-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
 }
 
-/* Portable thermals grid (3 cols) */
-.portable-thermals-grid {
+/* Mobile thermals grid (2 cols) */
+.mobile-thermals-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
 }
 
@@ -1750,8 +1750,8 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .scatter-grid-3col {
         grid-template-columns: 1fr;
     }
-    .portable-runs-grid,
-    .portable-thermals-grid {
+    .mobile-runs-grid,
+    .mobile-thermals-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
@@ -1805,8 +1805,8 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .portable-category-grid {
         grid-template-columns: 1fr;
     }
-    .portable-runs-grid,
-    .portable-thermals-grid {
+    .mobile-runs-grid,
+    .mobile-thermals-grid {
         grid-template-columns: 1fr;
     }
     .software-comparison-grid {

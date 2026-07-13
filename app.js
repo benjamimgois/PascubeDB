@@ -1027,7 +1027,9 @@ function processGvizData(jsonResponse) {
             gpuMaxTemp: cleanNumber(getVal(24)),
             gpuTempDelta: cleanNumber(getVal(25)),
             cpuMaxFreq: cleanNumber(getVal(27)),
-            gpuMaxFreq: cleanNumber(getVal(28))
+            gpuMaxFreq: cleanNumber(getVal(28)),
+            cpuMaxPower: cleanNumber(getVal(29)),
+            gpuMaxPower: cleanNumber(getVal(30))
         };
     }).filter(row => row !== null);
     
@@ -1215,7 +1217,9 @@ function processCSVData(csvText) {
             gpuMaxTemp: cleanNumber(row[24]),
             gpuTempDelta: cleanNumber(row[25]),
             cpuMaxFreq: cleanNumber(row[27]),
-            gpuMaxFreq: cleanNumber(row[28])
+            gpuMaxFreq: cleanNumber(row[28]),
+            cpuMaxPower: cleanNumber(row[29]),
+            gpuMaxPower: cleanNumber(row[30])
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -2179,118 +2183,13 @@ function isHandheldGPU(name) {
 
 // Get Mobile distribution counts
 function getMobileDistribution(data) {
-    const dist = { Handheld: 0, SBC: 0, Notebook: 0 };
+    const dist = { Handheld: 0, Mobile: 0 };
     data.forEach(r => {
         const type = classifyDevice(r);
-        if (type === 'Handheld' || type === 'SBC' || type === 'Notebook') {
-            dist[type]++;
-        }
+        if (type === 'Handheld') dist.Handheld++;
+        else if (type === 'SBC' || type === 'Notebook') dist.Mobile++;
     });
     return dist;
-}
-
-// Get Mobile category averages
-function getMobileAverages(data) {
-    const handhelds = data.filter(r => classifyDevice(r) === 'Handheld');
-    const notebooks = data.filter(r => classifyDevice(r) === 'Notebook');
-    const sbcs = data.filter(r => classifyDevice(r) === 'SBC');
-
-    const getAverage = (arr, field) => {
-        let filtered = arr;
-        if (field === 'gpuScore' || field === 'mainScore') {
-            filtered = arr.filter(r => {
-                const gpuLower = (r.gpu || '').toLowerCase();
-                if (gpuLower.includes('9070') || gpuLower.includes('9060') || gpuLower.includes('4090') || gpuLower.includes('5070') || gpuLower.includes('7900') || gpuLower.includes('7800') || gpuLower.includes('6900') || gpuLower.includes('6800') || gpuLower.includes('6700') || gpuLower.includes('6750')) {
-                    if (!gpuLower.includes('laptop') && !gpuLower.includes('mobile')) {
-                        return false;
-                    }
-                }
-                return true;
-            });
-        }
-        const valid = filtered.map(r => r[field]).filter(val => val !== null && !isNaN(val));
-        if (valid.length === 0) return 0;
-        return Math.round(valid.reduce((sum, val) => sum + val, 0) / valid.length);
-    };
-
-    return {
-        handheld: {
-            mainScore: getAverage(handhelds, 'mainScore'),
-            cpuSingle: getAverage(handhelds, 'cpuSingle'),
-            cpuMulti: getAverage(handhelds, 'cpuMulti'),
-            gpuScore: getAverage(handhelds, 'gpuScore')
-        },
-        notebook: {
-            mainScore: getAverage(notebooks, 'mainScore'),
-            cpuSingle: getAverage(notebooks, 'cpuSingle'),
-            cpuMulti: getAverage(notebooks, 'cpuMulti'),
-            gpuScore: getAverage(notebooks, 'gpuScore')
-        },
-        sbc: {
-            mainScore: getAverage(sbcs, 'mainScore'),
-            cpuSingle: getAverage(sbcs, 'cpuSingle'),
-            cpuMulti: getAverage(sbcs, 'cpuMulti'),
-            gpuScore: getAverage(sbcs, 'gpuScore')
-        }
-    };
-}
-
-// Get top mobile CPUs by average performance (using Single Thread)
-function getTopMobileCPUs(data, limit = 10) {
-    const mobileData = data.filter(r => ['Handheld', 'SBC', 'Notebook'].includes(classifyDevice(r)) && r.cpuSingle !== null);
-    const groups = {};
-    
-    mobileData.forEach(r => {
-        const name = normalizeCPU(r.cpu);
-        if (name && name !== 'Unknown CPU' && name !== 'N/D') {
-            if (!groups[name]) groups[name] = [];
-            groups[name].push(r);
-        }
-    });
-
-    return Object.entries(groups)
-        .map(([name, runs]) => {
-            const avg = Math.round(runs.reduce((sum, r) => sum + r.cpuSingle, 0) / runs.length);
-            const bestRun = runs.reduce((best, current) => current.cpuSingle > best.cpuSingle ? current : best, runs[0]);
-            return { name, avg, displayName: getDisplayName(bestRun) };
-        })
-        .sort((a, b) => b.avg - a.avg)
-        .slice(0, limit);
-}
-
-// Get top mobile GPUs by average performance (excluding desktop GPUs)
-function getTopMobileGPUs(data, limit = 10) {
-    const mobileData = data.filter(r => {
-        if (!['Handheld', 'SBC', 'Notebook'].includes(classifyDevice(r))) return false;
-        if (r.gpuScore === null) return false;
-        
-        // Filter out desktop GPUs (eGPUs or incorrect reports)
-        const gpuLower = (r.gpu || '').toLowerCase();
-        if (gpuLower.includes('9070') || gpuLower.includes('9060') || gpuLower.includes('4090') || gpuLower.includes('5070') || gpuLower.includes('7900') || gpuLower.includes('7800') || gpuLower.includes('6900') || gpuLower.includes('6800') || gpuLower.includes('6700') || gpuLower.includes('6750')) {
-            if (!gpuLower.includes('laptop') && !gpuLower.includes('mobile')) {
-                return false;
-            }
-        }
-        return true;
-    });
-    
-    const groups = {};
-    mobileData.forEach(r => {
-        const name = normalizeGPU(r.gpu);
-        if (name && name !== 'Unknown GPU' && name !== 'N/D') {
-            if (!groups[name]) groups[name] = [];
-            groups[name].push(r);
-        }
-    });
-
-    return Object.entries(groups)
-        .map(([name, runs]) => {
-            const avg = Math.round(runs.reduce((sum, r) => sum + r.gpuScore, 0) / runs.length);
-            const bestRun = runs.reduce((best, current) => current.gpuScore > best.gpuScore ? current : best, runs[0]);
-            return { name, avg, displayName: getDisplayName(bestRun) };
-        })
-        .sort((a, b) => b.avg - a.avg)
-        .slice(0, limit);
 }
 
 // Get top handheld runs by Main Score
@@ -2304,35 +2203,30 @@ function getTopHandheldRuns(data, limit = 10) {
             label: normalizeCPU(r.cpu),
             score: r.mainScore,
             cpuMaxFreq: r.cpuMaxFreq,
+            cpuMaxPower: r.cpuMaxPower,
             userName: r.user && r.user !== 'Anonymous' ? r.user : null
         }));
 }
 
-// Get SBC label for runs chart — product name only
-function getSbcLabel(r) {
-    if (r.productName && r.productName !== 'N/D') {
-        return r.productName;
-    }
-    return normalizeCPU(r.cpu);
-}
+// Get top Mobile (Notebook + SBC) runs by Main Score
+function getTopMobileRuns(data, limit = 10) {
+    const mobileData = data.filter(r => ['Notebook', 'SBC'].includes(classifyDevice(r)) && r.mainScore !== null);
 
-// Get top SBC runs by Main Score
-function getTopSbcRuns(data, limit = 10) {
-    const sbcData = data.filter(r => classifyDevice(r) === 'SBC' && r.mainScore !== null);
-    
-    return sbcData
+    return mobileData
         .sort((a, b) => b.mainScore - a.mainScore)
         .slice(0, limit)
         .map(r => ({
-            label: getSbcLabel(r),
+            label: normalizeCPU(r.cpu),
             score: r.mainScore,
-            cpuMaxFreq: r.cpuMaxFreq
+            cpuMaxFreq: r.cpuMaxFreq,
+            cpuMaxPower: r.cpuMaxPower,
+            userName: r.user && r.user !== 'Anonymous' ? r.user : null
         }));
 }
 
-// Get Mobile OS distribution
+// Get Mobile (Notebook + SBC) OS distribution
 function getMobileOSDistribution(data) {
-    const mobileData = data.filter(r => ['Handheld', 'SBC', 'Notebook'].includes(classifyDevice(r)));
+    const mobileData = data.filter(r => ['Notebook', 'SBC'].includes(classifyDevice(r)));
     return getOSDistribution(mobileData);
 }
 
@@ -2342,31 +2236,57 @@ function getHandheldOSDistribution(data) {
     return getOSDistribution(handheldData);
 }
 
-// Get SBC OS distribution
-function getSbcOSDistribution(data) {
-    const sbcData = data.filter(r => classifyDevice(r) === 'SBC');
-    return getOSDistribution(sbcData);
-}
+// Get top Mobile CPUs (Notebook + SBC combined) by average CPU Single score
+function getTopMobileCPUs(data, limit = 10) {
+    const mobileData = data.filter(r => ['Notebook', 'SBC'].includes(classifyDevice(r)) && r.cpuSingle !== null);
+    const best = {};
 
-// Get Notebook OS distribution
-function getNotebookOSDistribution(data) {
-    const notebookData = data.filter(r => classifyDevice(r) === 'Notebook');
-    return getOSDistribution(notebookData);
-}
+    mobileData.forEach(r => {
+        const name = normalizeCPU(r.cpu);
+        if (!name || name === 'Unknown CPU' || name === 'N/D') return;
+        if (!best[name] || r.cpuSingle > best[name].cpuSingle) {
+            best[name] = r;
+        }
+    });
 
-// Get top Notebook runs by Main Score
-function getTopNotebookRuns(data, limit = 10) {
-    const notebookData = data.filter(r => classifyDevice(r) === 'Notebook' && r.mainScore !== null);
-
-    return notebookData
-        .sort((a, b) => b.mainScore - a.mainScore)
+    return Object.values(best)
+        .sort((a, b) => b.cpuSingle - a.cpuSingle)
         .slice(0, limit)
-        .map(r => ({
-            label: normalizeCPU(r.cpu),
-            score: r.mainScore,
-            cpuMaxFreq: r.cpuMaxFreq,
-            userName: r.user && r.user !== 'Anonymous' ? r.user : null
-        }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+}
+
+// Get top Mobile GPUs (Notebook + SBC combined) by average GPU score
+function getTopMobileGPUs(data, limit = 10) {
+    const mobileData = data.filter(r => {
+        const type = classifyDevice(r);
+        if (type !== 'Notebook' && type !== 'SBC') return false;
+        if (r.gpuScore === null) return false;
+
+        // Exclude desktop GPUs for Notebook portion only
+        if (type === 'Notebook') {
+            const gpuLower = (r.gpu || '').toLowerCase();
+            if (gpuLower.includes('9070') || gpuLower.includes('9060') || gpuLower.includes('4090') || gpuLower.includes('5070') || gpuLower.includes('7900') || gpuLower.includes('7800') || gpuLower.includes('6900') || gpuLower.includes('6800') || gpuLower.includes('6700') || gpuLower.includes('6750')) {
+                if (!gpuLower.includes('laptop') && !gpuLower.includes('mobile')) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+
+    const best = {};
+    mobileData.forEach(r => {
+        const name = normalizeGPU(r.gpu);
+        if (!name || name === 'Unknown GPU' || name === 'N/D') return;
+        if (!best[name] || r.gpuScore > best[name].gpuScore) {
+            best[name] = r;
+        }
+    });
+
+    return Object.values(best)
+        .sort((a, b) => b.gpuScore - a.gpuScore)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
 }
 
 // Get top CPUs by category (Notebook/Handheld/SBC) by average CPU Single score
@@ -2385,7 +2305,7 @@ function getTopCategoryCPUs(data, category, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.cpuSingle - a.cpuSingle)
         .slice(0, limit)
-        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
 }
 
 // Get top GPUs by category (Notebook/Handheld/SBC) by average GPU score
@@ -2418,7 +2338,7 @@ function getTopCategoryGPUs(data, category, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.gpuScore - a.gpuScore)
         .slice(0, limit)
-        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq }));
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
 }
 
 // Helper to get CPU Brand distribution
@@ -2892,7 +2812,8 @@ function getCategoryHottestRuns(data, category, limit) {
         const desktopModels = ['9070','9060','4090','5070','7900','7800xt','7800 xt','6900','6800','6700','6750','7700','7600','4060','4080','3090','3080','3070','3060','arc a7','arc a5','arc a3'];
         return desktopModels.some(m => lower.includes(m)) && !lower.includes('laptop') && !lower.includes('mobile');
     };
-    const portableData = data.filter(r => classifyDevice(r) === category);
+    const categories = category === 'Mobile' ? ['Notebook', 'SBC'] : [category];
+    const portableData = data.filter(r => categories.includes(classifyDevice(r)));
     const runs = portableData
         .filter(r => r.gpuMaxTemp !== null && !isNaN(r.gpuMaxTemp))
         .filter(r => !isDesktopGpu(r.gpu || ''))
@@ -3015,7 +2936,7 @@ function renderSystemCharts() {
         const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
         const fixedMax = Math.max(...allD) + 5;
         renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
         const chart = chartInstances[canvasId];
         if (!chart) return;
         chart.data.datasets[0].dataLabelUnit = '°C';
@@ -3081,7 +3002,7 @@ function renderSystemCharts() {
         const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
         const fixedMax = Math.max(...allD) + 5;
         renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
         const chart = chartInstances[canvasId];
         if (!chart) return;
         chart.data.datasets[0].dataLabelUnit = '°C';
@@ -3126,9 +3047,8 @@ function renderSystemCharts() {
         chart.update('none');
     }
 
-    renderCatChart('portableNoteChart', 'Notebook', 'rgba(245, 158, 11, 0.8)', '#fbbf24');
+    renderCatChart('portableNoteChart', 'Mobile', 'rgba(245, 158, 11, 0.8)', '#fbbf24');
     renderCatChart('portableHandChart', 'Handheld', 'rgba(249, 115, 22, 0.8)', '#f97316');
-    renderCatChart('portableSbcChart', 'SBC', 'rgba(239, 68, 68, 0.8)', '#ef4444');
 }
 
 // Helper to get top contributors by number of benchmark submissions
@@ -3578,6 +3498,8 @@ function renderCharts() {
         mainRuns.map(r => r.cpuMaxFreq),
         'CPU Max Freq',
         mainRuns.map(r => r.gpuMaxFreq),
+        mainRuns.map(r => r.cpuMaxPower),
+        mainRuns.map(r => r.gpuMaxPower),
         undefined,
         chartNorm['mainOverallChart'],
         true
@@ -3611,6 +3533,8 @@ function renderCharts() {
         cpuSingleRuns.map(r => r.cpuMaxFreq),
         'CPU Max Freq',
         undefined,
+        cpuSingleRuns.map(r => r.cpuMaxPower),
+        null,
         undefined,
         chartNorm['cpuSingleChart'],
         true
@@ -3646,6 +3570,8 @@ function renderCharts() {
         cpuMultiRuns.map(r => r.cpuMaxFreq),
         'CPU Max Freq',
         undefined,
+        cpuMultiRuns.map(r => r.cpuMaxPower),
+        null,
         undefined,
         chartNorm['cpuMultiChart'],
         true
@@ -3680,6 +3606,8 @@ function renderCharts() {
         null,
         null,
         gpuRuns.map(r => r.gpuMaxFreq),
+        null,
+        gpuRuns.map(r => r.gpuMaxPower),
         undefined,
         chartNorm['gpuChart'],
         true
@@ -3704,6 +3632,8 @@ function renderCharts() {
         undefined,
         undefined,
         undefined,
+        null,
+        null,
         cpuPopPct,
         null,
         true
@@ -3728,6 +3658,8 @@ function renderCharts() {
         undefined,
         undefined,
         undefined,
+        null,
+        null,
         gpuPopPct,
         null,
         true
@@ -3987,8 +3919,7 @@ function renderCharts() {
     const portableDist = getMobileDistribution(benchmarkData);
     const portableDistColors = {
         'Handheld': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },
-        'SBC': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },
-        'Notebook': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' }
+        'Mobile': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' }
     };
     const portableDistLabels = Object.keys(portableDist);
     renderDoughnutChart(
@@ -4022,9 +3953,7 @@ function renderCharts() {
         if (!document.getElementById(runsChartId)) return;
 
         // Top runs
-        const runs = category === 'Notebook' ? getTopNotebookRuns :
-                     category === 'Handheld' ? getTopHandheldRuns :
-                     getTopSbcRuns;
+        const runs = category === 'Handheld' ? getTopHandheldRuns : getTopMobileRuns;
         const runsData = runs(dedupByBestScore(benchmarkData), 10);
         
         const runsScores = runsData.map(h => h.score);
@@ -4044,15 +3973,15 @@ function renderCharts() {
             runsData.map(h => h.cpuMaxFreq),
             'CPU Max Freq',
             undefined,
+            runsData.map(h => h.cpuMaxPower),
+            null,
             undefined,
             chartNorm[runsChartId],
             true
         );
 
         // OS distribution
-        const osFn = category === 'Notebook' ? getNotebookOSDistribution :
-                     category === 'Handheld' ? getHandheldOSDistribution :
-                     getSbcOSDistribution;
+        const osFn = category === 'Handheld' ? getHandheldOSDistribution : getMobileOSDistribution;
         const osDist = osFn(benchmarkData);
         const osLabels = Object.keys(osDist);
         const osColors = getMobileOsColors(osLabels);
@@ -4065,11 +3994,8 @@ function renderCharts() {
         );
 
         // GPU filter for Notebook: exclude desktop GPUs
-        const cpuData = getTopCategoryCPUs(benchmarkData, category, 10);
-        const cpuLabels = category === 'SBC' ? cpuData.map(c => {
-            const match = benchmarkData.find(r => classifyDevice(r) === 'SBC' && normalizeCPU(r.cpu) === c.name);
-            return match && match.productName && match.productName !== 'N/D' ? `${c.name}\n${match.productName}` : c.name;
-        }) : cpuData.map(c => c.name);
+        const cpuData = category === 'Mobile' ? getTopMobileCPUs(benchmarkData, 10) : getTopCategoryCPUs(benchmarkData, category, 10);
+        const cpuLabels = cpuData.map(c => c.name);
 
         const cpuScores = cpuData.map(c => c.score);
         const cpuMin = cpuScores.length > 0 ? Math.min(...cpuScores) : 0;
@@ -4090,16 +4016,15 @@ function renderCharts() {
             cpuData.map(c => c.cpuMaxFreq),
             'CPU Max Freq',
             undefined,
+            cpuData.map(c => c.cpuMaxPower),
+            null,
             undefined,
             chartNorm[cpuChartId],
             true
         );
 
-        const gpuData = getTopCategoryGPUs(benchmarkData, category, 10);
-        const gpuLabels = category === 'SBC' ? gpuData.map(g => {
-            const match = benchmarkData.find(r => classifyDevice(r) === 'SBC' && normalizeGPU(r.gpu) === g.name);
-            return match && match.productName && match.productName !== 'N/D' ? `${g.name}\n${match.productName}` : g.name;
-        }) : gpuData.map(g => g.name);
+        const gpuData = category === 'Mobile' ? getTopMobileGPUs(benchmarkData, 10) : getTopCategoryGPUs(benchmarkData, category, 10);
+        const gpuLabels = gpuData.map(g => g.name);
 
         const gpuScores = gpuData.map(g => g.score);
         const gpuMin = gpuScores.length > 0 ? Math.min(...gpuScores) : 0;
@@ -4120,15 +4045,16 @@ function renderCharts() {
             null,
             null,
             gpuData.map(g => g.gpuMaxFreq),
+            null,
+            gpuData.map(g => g.gpuMaxPower),
             undefined,
             chartNorm[gpuChartId],
             true
         );
     }
 
-    renderCategoryCharts('Notebook', 'notebookRunsChart', 'notebookOsDistChart', 'notebookCpuChart', 'notebookGpuChart');
+    renderCategoryCharts('Mobile', 'notebookRunsChart', 'notebookOsDistChart', 'notebookCpuChart', 'notebookGpuChart');
     renderCategoryCharts('Handheld', 'handheldRunsChart', 'handheldOsDistChart', 'handheldCpuChart', 'handheldGpuChart');
-    renderCategoryCharts('SBC', 'sbcRunsChart', 'sbcOsDistChart', 'sbcCpuChart', 'sbcGpuChart');
 
     // 21. PascubeDB Community Insights Section Calculations & Rendering
     if (document.getElementById('stat-unique-clients')) {
@@ -4301,6 +4227,8 @@ function renderCharts() {
                 null,
                 0,
                 contributors.clientIds,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -4970,9 +4898,8 @@ function renderThermalsCharts() {
     if (document.getElementById('hottestIntelChart')) renderVendorChartClosure('hottestIntelChart', 'intel', 'rgba(99, 102, 241, 0.8)', '#818cf8', bm);
 
     // Portable thermal charts
-    if (document.getElementById('portableNoteChart')) renderCatChartClosure('portableNoteChart', 'Notebook', 'rgba(245, 158, 11, 0.8)', '#fbbf24', bm);
+    if (document.getElementById('portableNoteChart')) renderCatChartClosure('portableNoteChart', 'Mobile', 'rgba(245, 158, 11, 0.8)', '#fbbf24', bm);
     if (document.getElementById('portableHandChart')) renderCatChartClosure('portableHandChart', 'Handheld', 'rgba(249, 115, 22, 0.8)', '#f97316', bm);
-    if (document.getElementById('portableSbcChart')) renderCatChartClosure('portableSbcChart', 'SBC', 'rgba(239, 68, 68, 0.8)', '#ef4444', bm);
 }
 
 function renderVendorChartClosure(canvasId, vendor, bgColor, borderColor, data) {
@@ -4984,7 +4911,7 @@ function renderVendorChartClosure(canvasId, vendor, bgColor, borderColor, data) 
     const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
     const fixedMax = Math.max(...allD) + 5;
     renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-        bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+        bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
     const chart = chartInstances[canvasId];
     if (!chart) return;
     chart.data.datasets[0].dataLabelUnit = '°C';
@@ -5030,7 +4957,7 @@ function renderCatChartClosure(canvasId, category, bgColor, borderColor, data) {
     const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
     const fixedMax = Math.max(...allD) + 5;
     renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-        bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, true);
+        bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
     const chart = chartInstances[canvasId];
     if (!chart) return;
     chart.data.datasets[0].dataLabelUnit = '°C';
@@ -5554,7 +5481,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, percentages, normalize, showDataLabels, centerScore, barClientIds, datasetProps) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, power, gpuPower, percentages, normalize, showDataLabels, centerScore, barClientIds, datasetProps) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -5595,6 +5522,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                 freqs: freqs,
                 freqLabel: freqLabel,
                 gpuFreqs: gpuFreqs,
+                power: power,
+                gpuPower: gpuPower,
                 percentages: percentages,
                 normalize: normalize,
                 showDataLabels: showDataLabels,
@@ -5655,6 +5584,14 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             const gpuFreq = context.dataset.gpuFreqs && context.dataset.gpuFreqs[context.dataIndex];
                             if (gpuFreq) {
                                 lines.push(`GPU Max Freq: ${gpuFreq.toLocaleString()} MHz`);
+                            }
+                            const cpuPower = context.dataset.power && context.dataset.power[context.dataIndex];
+                            if (cpuPower) {
+                                lines.push(`CPU Max Power: ${cpuPower.toLocaleString()} W`);
+                            }
+                            const gpuPowerVal = context.dataset.gpuPower && context.dataset.gpuPower[context.dataIndex];
+                            if (gpuPowerVal) {
+                                lines.push(`GPU Max Power: ${gpuPowerVal.toLocaleString()} W`);
                             }
                             if (context.dataset.cpus && context.dataset.cpus[context.dataIndex]) {
                                 lines.push(`CPU: ${context.dataset.cpus[context.dataIndex]}`);
@@ -5854,11 +5791,19 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             const gpuFreq = gpuFreqs && gpuFreqs[i];
                             const cpuFreq = chart.data.datasets[0].freqs && chart.data.datasets[0].freqs[i];
                             const centerScore = chart.data.datasets[0].centerScore && chart.data.datasets[0].centerScore[i];
+                            const cpuPower = chart.data.datasets[0].power && chart.data.datasets[0].power[i];
+                            const gpuPowerVal = chart.data.datasets[0].gpuPower && chart.data.datasets[0].gpuPower[i];
                             
                             let centerText = '';
                             if (centerScore && (gpuFreq || cpuFreq)) {
                                 const centerFreq = gpuFreq || cpuFreq;
                                 centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`;
+                            } else if (cpuFreq && gpuFreq && cpuPower && gpuPowerVal) {
+                                centerText = `${cpuFreq.toLocaleString()} MHz / ${cpuPower.toLocaleString()} W  |  ${gpuFreq.toLocaleString()} MHz / ${gpuPowerVal.toLocaleString()} W`;
+                            } else if (cpuFreq && cpuPower) {
+                                centerText = `${cpuFreq.toLocaleString()} MHz / ${cpuPower.toLocaleString()} W`;
+                            } else if (gpuFreq && gpuPowerVal) {
+                                centerText = `${gpuFreq.toLocaleString()} MHz / ${gpuPowerVal.toLocaleString()} W`;
                             } else if (cpuFreq && gpuFreq) {
                                 centerText = `${cpuFreq.toLocaleString()} / ${gpuFreq.toLocaleString()} MHz`;
                             } else if (gpuFreq || cpuFreq) {
@@ -5935,7 +5880,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
 }
 
 // Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
-function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels, freqs, freqLabel, centerScore, barClientIds, extraDataProps) {
+function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels, freqs, freqLabel, centerScore, barClientIds, power, gpuPower, extraDataProps) {
     // Pre-normalize data upfront so scroll updates use same scaled values
     if (normalize && allData.length > 0) {
         const maxVal = Math.max(...allData);
@@ -5951,7 +5896,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     // Find the maximum value in the entire dataset to lock the X-axis scale
     const xMax = allData.length > 0 ? Math.max(...allData) : undefined;
     
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds, extraDataProps);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, power, gpuPower, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds, extraDataProps);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
@@ -6008,9 +5953,11 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             chart.data.datasets[0].data = newData;
             if (clientIds) chart.data.datasets[0].clientIds = clientIds.slice(startIndex, startIndex + visibleCount);
             if (freqs) chart.data.datasets[0].freqs = freqs.slice(startIndex, startIndex + visibleCount);
+            if (power) chart.data.datasets[0].power = power.slice(startIndex, startIndex + visibleCount);
             if (centerScore) chart.data.datasets[0].centerScore = centerScore.slice(startIndex, startIndex + visibleCount);
             if (barClientIds) chart.data.datasets[0].barClientIds = barClientIds.slice(startIndex, startIndex + visibleCount);
             if (gpuFreqs) chart.data.datasets[0].gpuFreqs = gpuFreqs.slice(startIndex, startIndex + visibleCount);
+            if (gpuPower) chart.data.datasets[0].gpuPower = gpuPower.slice(startIndex, startIndex + visibleCount);
             if (extraDataProps) {
                 Object.keys(extraDataProps).forEach(k => {
                     chart.data.datasets[0][k] = extraDataProps[k].slice(startIndex, startIndex + visibleCount);

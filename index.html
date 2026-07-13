@@ -300,25 +300,25 @@
             </div>
         </section>
 
-        <!-- Portable Devices -->
+        <!-- Mobile Devices -->
         <section class="charts-section">
             <div class="section-header">
-                <h2>Portable Devices</h2>
-                <p>Top benchmark runs by device category</p>
+                <h2>Mobile Devices</h2>
+                <p>Top benchmark runs by mobile device category</p>
             </div>
             <div class="chart-container-wrapper full-width-chart">
                 <div class="chart-header">
-                    <h3>Portable Device Type</h3>
-                    <p>Handheld vs. SBC vs. Notebook distribution</p>
+                    <h3>Mobile Device Type</h3>
+                    <p>Handheld vs. Mobile distribution</p>
                 </div>
                 <div class="chart-canvas-area donut-chart-canvas">
                     <canvas id="mobileDistChart"></canvas>
                 </div>
             </div>
-            <div class="portable-runs-grid">
+            <div class="mobile-runs-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Top 10 Notebook Benchmark Runs</h3>
+                        <h3>Top 10 Mobile Benchmark Runs</h3>
                         <p>Highest individual Main Scores (higher is better)</p>
                         <label class="chart-toggle-wrap chart-toggle-corner" data-chart="notebookRunsChart">
                             <input type="checkbox" class="chart-toggle-cb">
@@ -344,21 +344,6 @@
                     </div>
                     <div class="chart-canvas-area">
                         <canvas id="handheldRunsChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Top 10 SBC Benchmark Runs</h3>
-                        <p>Highest individual Main Scores (higher is better)</p>
-                        <label class="chart-toggle-wrap chart-toggle-corner" data-chart="sbcRunsChart">
-                            <input type="checkbox" class="chart-toggle-cb">
-                            <span class="chart-toggle-slider"></span>
-                            <span class="chart-toggle-label">Normalize</span>
-                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
-                        </label>
-                    </div>
-                    <div class="chart-canvas-area">
-                        <canvas id="sbcRunsChart"></canvas>
                     </div>
                 </div>
 
@@ -543,14 +528,14 @@
 
         <section class="charts-section">
             <div class="section-header">
-                <h2>Portable Device Temperatures</h2>
+                <h2>Mobile Device Temperatures</h2>
                 <p>Per-contributor max temps on mobile form factors</p>
             </div>
-            <div class="portable-thermals-grid">
+            <div class="mobile-thermals-grid">
                 <div class="chart-container-wrapper">
                     <div class="chart-header">
-                        <h3>Notebook Thermal Load</h3>
-                        <p>Per-contributor max temps on notebooks</p>
+                        <h3>Mobile Thermal Load</h3>
+                        <p>Per-contributor max temps on mobile devices</p>
                     </div>
                     <div class="chart-canvas-area" style="height: 320px;">
                         <canvas id="portableNoteChart"></canvas>
@@ -563,15 +548,6 @@
                     </div>
                     <div class="chart-canvas-area" style="height: 320px;">
                         <canvas id="portableHandChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>SBC Thermal Load</h3>
-                        <p>Per-contributor max temps on SBCs</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="portableSbcChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -946,15 +922,6 @@
                     </div>
                     <div class="chart-canvas-area donut-chart-canvas">
                         <canvas id="handheldOsDistChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>SBC Operating Systems</h3>
-                        <p>OS distribution for SBC devices</p>
-                    </div>
-                    <div class="chart-canvas-area donut-chart-canvas">
-                        <canvas id="sbcOsDistChart"></canvas>
                     </div>
                 </div>
             </div>
