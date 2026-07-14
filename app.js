@@ -4181,6 +4181,20 @@ function renderCharts() {
         );
     }
 
+    // Handheld OS distribution
+    if (document.getElementById('handheldOsDistChart')) {
+        const hOsDist = getHandheldOSDistribution(benchmarkData);
+        const hOsLabels = Object.keys(hOsDist);
+        const hOsColors = getMobileOsColors(hOsLabels);
+        renderDoughnutChart(
+            'handheldOsDistChart',
+            hOsLabels,
+            Object.values(hOsDist),
+            hOsColors.bgColors,
+            hOsColors.borderColors
+        );
+    }
+
     // Mobile CPU Single
     if (document.getElementById('mobileCpuSingChart')) {
         const mobileCpuSingData = getTopMobileCPUs(benchmarkData, 10);
