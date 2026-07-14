@@ -2289,6 +2289,82 @@ function getTopMobileGPUs(data, limit = 10) {
         .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
 }
 
+// Get top Handheld CPUs by best CPU Single score
+function getTopHandheldCPUs(data, limit = 10) {
+    const handheldData = data.filter(r => classifyDevice(r) === 'Handheld' && r.cpuSingle !== null);
+    const best = {};
+
+    handheldData.forEach(r => {
+        const name = normalizeCPU(r.cpu);
+        if (!name || name === 'Unknown CPU' || name === 'N/D') return;
+        if (!best[name] || r.cpuSingle > best[name].cpuSingle) {
+            best[name] = r;
+        }
+    });
+
+    return Object.values(best)
+        .sort((a, b) => b.cpuSingle - a.cpuSingle)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+}
+
+// Get top Mobile CPUs (Notebook + SBC combined) by best CPU Multi score
+function getTopMobileCPUMulti(data, limit = 10) {
+    const mobileData = data.filter(r => ['Notebook', 'SBC'].includes(classifyDevice(r)) && r.cpuMulti !== null);
+    const best = {};
+
+    mobileData.forEach(r => {
+        const name = normalizeCPU(r.cpu);
+        if (!name || name === 'Unknown CPU' || name === 'N/D') return;
+        if (!best[name] || r.cpuMulti > best[name].cpuMulti) {
+            best[name] = r;
+        }
+    });
+
+    return Object.values(best)
+        .sort((a, b) => b.cpuMulti - a.cpuMulti)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+}
+
+// Get top Handheld CPUs by best CPU Multi score
+function getTopHandheldCPUMulti(data, limit = 10) {
+    const handheldData = data.filter(r => classifyDevice(r) === 'Handheld' && r.cpuMulti !== null);
+    const best = {};
+
+    handheldData.forEach(r => {
+        const name = normalizeCPU(r.cpu);
+        if (!name || name === 'Unknown CPU' || name === 'N/D') return;
+        if (!best[name] || r.cpuMulti > best[name].cpuMulti) {
+            best[name] = r;
+        }
+    });
+
+    return Object.values(best)
+        .sort((a, b) => b.cpuMulti - a.cpuMulti)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+}
+
+// Get top Handheld GPUs by best GPU score (no desktop GPU filtering needed)
+function getTopHandheldGPUs(data, limit = 10) {
+    const handheldData = data.filter(r => classifyDevice(r) === 'Handheld' && r.gpuScore !== null);
+    const best = {};
+
+    handheldData.forEach(r => {
+        const name = normalizeGPU(r.gpu);
+        if (!name || name === 'Unknown GPU' || name === 'N/D') return;
+        if (!best[name] || r.gpuScore > best[name].gpuScore) {
+            best[name] = r;
+        }
+    });
+
+    return Object.values(best)
+        .sort((a, b) => b.gpuScore - a.gpuScore)
+        .slice(0, limit)
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
+}
+
 // Get top CPUs by category (Notebook/Handheld/SBC) by average CPU Single score
 function getTopCategoryCPUs(data, category, limit = 10) {
     const catData = data.filter(r => classifyDevice(r) === category && r.cpuSingle !== null);
@@ -4053,8 +4129,225 @@ function renderCharts() {
         );
     }
 
-    renderCategoryCharts('Mobile', 'notebookRunsChart', 'notebookOsDistChart', 'notebookCpuChart', 'notebookGpuChart');
-    renderCategoryCharts('Handheld', 'handheldRunsChart', 'handheldOsDistChart', 'handheldCpuChart', 'handheldGpuChart');
+    // Mobile runs
+    if (document.getElementById('notebookRunsChart')) {
+        const mobileRunsData = getTopMobileRuns(dedupByBestScore(benchmarkData), 10);
+        renderHorizontalBarChart(
+            'notebookRunsChart',
+            mobileRunsData.map(r => r.label),
+            mobileRunsData.map(r => r.score),
+            'Main Score',
+            SCORE_COLORS.portableRuns.bg,
+            SCORE_COLORS.portableRuns.border,
+            undefined,
+            undefined,
+            mobileRunsData.map(r => r.userName),
+            mobileRunsData.map(r => r.cpuMaxFreq ? normalizeCPU(r.label) : null),
+            null,
+            mobileRunsData.map(r => r.cpuMaxFreq),
+            'CPU Max Freq',
+            undefined,
+            mobileRunsData.map(r => r.cpuMaxPower),
+            null,
+            undefined,
+            chartNorm['notebookRunsChart'],
+            true
+        );
+    }
+
+    // Handheld runs
+    if (document.getElementById('handheldRunsChart')) {
+        const handheldRunsData = getTopHandheldRuns(dedupByBestScore(benchmarkData), 10);
+        renderHorizontalBarChart(
+            'handheldRunsChart',
+            handheldRunsData.map(r => r.label),
+            handheldRunsData.map(r => r.score),
+            'Main Score',
+            SCORE_COLORS.portableRuns.bg,
+            SCORE_COLORS.portableRuns.border,
+            undefined,
+            undefined,
+            handheldRunsData.map(r => r.userName),
+            handheldRunsData.map(r => r.cpuMaxFreq ? normalizeCPU(r.label) : null),
+            null,
+            handheldRunsData.map(r => r.cpuMaxFreq),
+            'CPU Max Freq',
+            undefined,
+            handheldRunsData.map(r => r.cpuMaxPower),
+            null,
+            undefined,
+            chartNorm['handheldRunsChart'],
+            true
+        );
+    }
+
+    // Mobile CPU Single
+    if (document.getElementById('mobileCpuSingChart')) {
+        const mobileCpuSingData = getTopMobileCPUs(benchmarkData, 10);
+        const mobileCpuSingScores = mobileCpuSingData.map(d => d.score);
+        const mobileCpuSingMin = mobileCpuSingScores.length > 0 ? Math.min(...mobileCpuSingScores) : 0;
+        renderHorizontalBarChart(
+            'mobileCpuSingChart',
+            mobileCpuSingData.map(d => d.name),
+            mobileCpuSingScores,
+            'CPU Single Score',
+            SCORE_COLORS.cpuSingle.bg,
+            SCORE_COLORS.cpuSingle.border,
+            undefined,
+            Math.floor(mobileCpuSingMin * 0.9),
+            mobileCpuSingData.map(d => d.displayName),
+            null,
+            null,
+            mobileCpuSingData.map(d => d.cpuMaxFreq),
+            'CPU Max Freq',
+            null,
+            mobileCpuSingData.map(d => d.cpuMaxPower),
+            null,
+            undefined,
+            chartNorm['mobileCpuSingChart'],
+            true
+        );
+    }
+
+    // Handheld CPU Single
+    if (document.getElementById('handheldCpuSingChart')) {
+        const handheldCpuSingData = getTopHandheldCPUs(benchmarkData, 10);
+        const handheldCpuSingScores = handheldCpuSingData.map(d => d.score);
+        const handheldCpuSingMin = handheldCpuSingScores.length > 0 ? Math.min(...handheldCpuSingScores) : 0;
+        renderHorizontalBarChart(
+            'handheldCpuSingChart',
+            handheldCpuSingData.map(d => d.name),
+            handheldCpuSingScores,
+            'CPU Single Score',
+            SCORE_COLORS.cpuSingle.bg,
+            SCORE_COLORS.cpuSingle.border,
+            undefined,
+            Math.floor(handheldCpuSingMin * 0.9),
+            handheldCpuSingData.map(d => d.displayName),
+            null,
+            null,
+            handheldCpuSingData.map(d => d.cpuMaxFreq),
+            'CPU Max Freq',
+            null,
+            handheldCpuSingData.map(d => d.cpuMaxPower),
+            null,
+            undefined,
+            chartNorm['handheldCpuSingChart'],
+            true
+        );
+    }
+
+    // Mobile CPU Multi
+    if (document.getElementById('mobileCpuMultiChart')) {
+        const mobileCpuMultiData = getTopMobileCPUMulti(benchmarkData, 10);
+        const mobileCpuMultiScores = mobileCpuMultiData.map(d => d.score);
+        const mobileCpuMultiMin = mobileCpuMultiScores.length > 0 ? Math.min(...mobileCpuMultiScores) : 0;
+        renderHorizontalBarChart(
+            'mobileCpuMultiChart',
+            mobileCpuMultiData.map(d => d.name),
+            mobileCpuMultiScores,
+            'CPU Multi Score',
+            SCORE_COLORS.cpuMulti.bg,
+            SCORE_COLORS.cpuMulti.border,
+            undefined,
+            Math.floor(mobileCpuMultiMin * 0.9),
+            mobileCpuMultiData.map(d => d.displayName),
+            null,
+            null,
+            mobileCpuMultiData.map(d => d.cpuMaxFreq),
+            'CPU Max Freq',
+            null,
+            mobileCpuMultiData.map(d => d.cpuMaxPower),
+            null,
+            undefined,
+            chartNorm['mobileCpuMultiChart'],
+            true
+        );
+    }
+
+    // Handheld CPU Multi
+    if (document.getElementById('handheldCpuMultiChart')) {
+        const handheldCpuMultiData = getTopHandheldCPUMulti(benchmarkData, 10);
+        const handheldCpuMultiScores = handheldCpuMultiData.map(d => d.score);
+        const handheldCpuMultiMin = handheldCpuMultiScores.length > 0 ? Math.min(...handheldCpuMultiScores) : 0;
+        renderHorizontalBarChart(
+            'handheldCpuMultiChart',
+            handheldCpuMultiData.map(d => d.name),
+            handheldCpuMultiScores,
+            'CPU Multi Score',
+            SCORE_COLORS.cpuMulti.bg,
+            SCORE_COLORS.cpuMulti.border,
+            undefined,
+            Math.floor(handheldCpuMultiMin * 0.9),
+            handheldCpuMultiData.map(d => d.displayName),
+            null,
+            null,
+            handheldCpuMultiData.map(d => d.cpuMaxFreq),
+            'CPU Max Freq',
+            null,
+            handheldCpuMultiData.map(d => d.cpuMaxPower),
+            null,
+            undefined,
+            chartNorm['handheldCpuMultiChart'],
+            true
+        );
+    }
+
+    // Mobile GPU
+    if (document.getElementById('mobileGpuChart')) {
+        const mobileGpuData = getTopMobileGPUs(benchmarkData, 10);
+        const mobileGpuScores = mobileGpuData.map(d => d.score);
+        const mobileGpuMin = mobileGpuScores.length > 0 ? Math.min(...mobileGpuScores) : 0;
+        renderHorizontalBarChart(
+            'mobileGpuChart',
+            mobileGpuData.map(d => d.name),
+            mobileGpuScores,
+            'GPU Score',
+            SCORE_COLORS.gpu.bg,
+            SCORE_COLORS.gpu.border,
+            undefined,
+            Math.floor(mobileGpuMin * 0.9),
+            mobileGpuData.map(d => d.displayName),
+            null,
+            null,
+            null,
+            null,
+            mobileGpuData.map(d => d.gpuMaxFreq),
+            null,
+            mobileGpuData.map(d => d.gpuMaxPower),
+            undefined,
+            chartNorm['mobileGpuChart'],
+            true
+        );
+    }
+
+    // Handheld GPU
+    if (document.getElementById('handheldGpuChart')) {
+        const handheldGpuData = getTopHandheldGPUs(benchmarkData, 10);
+        const handheldGpuScores = handheldGpuData.map(d => d.score);
+        const handheldGpuMin = handheldGpuScores.length > 0 ? Math.min(...handheldGpuScores) : 0;
+        renderHorizontalBarChart(
+            'handheldGpuChart',
+            handheldGpuData.map(d => d.name),
+            handheldGpuScores,
+            'GPU Score',
+            SCORE_COLORS.gpu.bg,
+            SCORE_COLORS.gpu.border,
+            undefined,
+            Math.floor(handheldGpuMin * 0.9),
+            handheldGpuData.map(d => d.displayName),
+            null,
+            null,
+            null,
+            null,
+            handheldGpuData.map(d => d.gpuMaxFreq),
+            null,
+            handheldGpuData.map(d => d.gpuMaxPower),
+            undefined,
+            chartNorm['handheldGpuChart'],
+            true
+        );
+    }
 
     // 21. PascubeDB Community Insights Section Calculations & Rendering
     if (document.getElementById('stat-unique-clients')) {
@@ -4526,6 +4819,67 @@ function renderEfficiencyCharts() {
         if (topEl) topEl.textContent = gpuEff.length > 0 ? '1º ' + gpuEff[0].name : '—';
     }
 
+    // Mobile CPU Efficiency
+    const mobileCpuEff = computeCpuEfficiency(bm.filter(r => ['Notebook', 'SBC'].includes(classifyDevice(r))));
+    if (document.getElementById('mobileCpuEffChart')) {
+        const labels = mobileCpuEff.map(d => d.name);
+        const values = mobileCpuEff.map(d => Math.trunc(d.ratio * 100) / 100);
+        makeChartScrollable('mobileCpuEffChart', labels, values, 'Score / MHz',
+            'rgba(99, 102, 241, 0.85)', '#818cf8', 10, undefined,
+            mobileCpuEff.map(d => d.user), null, true,
+            mobileCpuEff.map(d => d.freq), 'Freq', mobileCpuEff.map(d => d.score), mobileCpuEff.map(d => d.user));
+        const topEl = document.getElementById('mobileCpuEffTop');
+        if (topEl) topEl.textContent = mobileCpuEff.length > 0 ? '1º ' + mobileCpuEff[0].name : '—';
+    }
+
+    // Handheld CPU Efficiency
+    const handheldCpuEff = computeCpuEfficiency(bm.filter(r => classifyDevice(r) === 'Handheld'));
+    if (document.getElementById('handheldCpuEffChart')) {
+        const labels = handheldCpuEff.map(d => d.name);
+        const values = handheldCpuEff.map(d => Math.trunc(d.ratio * 100) / 100);
+        makeChartScrollable('handheldCpuEffChart', labels, values, 'Score / MHz',
+            'rgba(99, 102, 241, 0.85)', '#818cf8', 10, undefined,
+            handheldCpuEff.map(d => d.user), null, true,
+            handheldCpuEff.map(d => d.freq), 'Freq', handheldCpuEff.map(d => d.score), handheldCpuEff.map(d => d.user));
+        const topEl = document.getElementById('handheldCpuEffTop');
+        if (topEl) topEl.textContent = handheldCpuEff.length > 0 ? '1º ' + handheldCpuEff[0].name : '—';
+    }
+
+    // Mobile GPU Efficiency
+    const isDesktopGpu = (name) => {
+        const lower = name.toLowerCase();
+        const desktopModels = ['9070','9060','4090','5070','7900','7800xt','7800 xt','6900','6800','6700','6750','7700','7600','4060','4080','3090','3080','3070','3060','arc a7','arc a5','arc a3'];
+        return desktopModels.some(m => lower.includes(m)) && !lower.includes('laptop') && !lower.includes('mobile');
+    };
+    const mobileGpuEff = computeGpuEfficiency(bm.filter(r => {
+        if (!['Notebook', 'SBC'].includes(classifyDevice(r))) return false;
+        if (classifyDevice(r) === 'Notebook' && isDesktopGpu(r.gpu || '')) return false;
+        return true;
+    }));
+    if (document.getElementById('mobileGpuEffChart')) {
+        const labels = mobileGpuEff.map(d => d.name);
+        const values = mobileGpuEff.map(d => Math.trunc(d.ratio * 100) / 100);
+        makeChartScrollable('mobileGpuEffChart', labels, values, 'Score / MHz',
+            'rgba(16, 185, 129, 0.85)', '#10b981', 10, undefined,
+            mobileGpuEff.map(d => d.user), mobileGpuEff.map(d => d.freq), true,
+            null, null, mobileGpuEff.map(d => d.score), mobileGpuEff.map(d => d.user));
+        const topEl = document.getElementById('mobileGpuEffTop');
+        if (topEl) topEl.textContent = mobileGpuEff.length > 0 ? '1º ' + mobileGpuEff[0].name : '—';
+    }
+
+    // Handheld GPU Efficiency
+    const handheldGpuEff = computeGpuEfficiency(bm.filter(r => classifyDevice(r) === 'Handheld'));
+    if (document.getElementById('handheldGpuEffChart')) {
+        const labels = handheldGpuEff.map(d => d.name);
+        const values = handheldGpuEff.map(d => Math.trunc(d.ratio * 100) / 100);
+        makeChartScrollable('handheldGpuEffChart', labels, values, 'Score / MHz',
+            'rgba(16, 185, 129, 0.85)', '#10b981', 10, undefined,
+            handheldGpuEff.map(d => d.user), handheldGpuEff.map(d => d.freq), true,
+            null, null, handheldGpuEff.map(d => d.score), handheldGpuEff.map(d => d.user));
+        const topEl = document.getElementById('handheldGpuEffTop');
+        if (topEl) topEl.textContent = handheldGpuEff.length > 0 ? '1º ' + handheldGpuEff[0].name : '—';
+    }
+
     // Populate GPU select then render bottleneck chart
     const sel = document.getElementById('bottleneckGpuSelect');
     if (sel) {
@@ -4574,6 +4928,41 @@ function renderEfficiencyCharts() {
 
     // Top 10 CPU Bottlenecks (deduped by lowest ratio per user+hardware)
     renderTopCpuBottlenecks(bm);
+    renderTopCpuBottlenecks(bm.filter(r => ['Notebook', 'SBC'].includes(classifyDevice(r))), 'mobileTopCpuBottleneckChart');
+
+    // Mobile Thermal Efficiency
+    const mobileThermalEff = computeThermalEfficiency(bm.filter(r => {
+        if (!['Notebook', 'SBC'].includes(classifyDevice(r))) return false;
+        if (classifyDevice(r) === 'Notebook' && isDesktopGpu(r.gpu || '')) return false;
+        return true;
+    }));
+    if (document.getElementById('mobileThermalEffChart')) {
+        const labels = mobileThermalEff.map(d => d.name);
+        const values = mobileThermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
+        makeChartScrollable('mobileThermalEffChart', labels, values, 'Score / °C',
+            'rgba(139, 92, 246, 0.8)', '#8b5cf6', 10, undefined,
+            mobileThermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined,
+            { barScore: mobileThermalEff.map(d => d.score), barTemp: mobileThermalEff.map(d => d.temp) });
+        const mTopEl = document.getElementById('mobileThermalEffTop');
+        if (mTopEl) mTopEl.textContent = mobileThermalEff.length > 0
+            ? `1º ${mobileThermalEff[0].user || '—'} — ${mobileThermalEff[0].name} — ${Math.trunc(mobileThermalEff[0].ratio * 10) / 10} (${mobileThermalEff[0].score.toLocaleString()} / ${mobileThermalEff[0].temp}ºC)`
+            : '—';
+    }
+
+    // Handheld Thermal Efficiency
+    const handheldThermalEff = computeThermalEfficiency(bm.filter(r => classifyDevice(r) === 'Handheld'));
+    if (document.getElementById('handheldThermalEffChart')) {
+        const labels = handheldThermalEff.map(d => d.name);
+        const values = handheldThermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
+        makeChartScrollable('handheldThermalEffChart', labels, values, 'Score / °C',
+            'rgba(139, 92, 246, 0.8)', '#8b5cf6', 10, undefined,
+            handheldThermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined,
+            { barScore: handheldThermalEff.map(d => d.score), barTemp: handheldThermalEff.map(d => d.temp) });
+        const hTopEl = document.getElementById('handheldThermalEffTop');
+        if (hTopEl) hTopEl.textContent = handheldThermalEff.length > 0
+            ? `1º ${handheldThermalEff[0].user || '—'} — ${handheldThermalEff[0].name} — ${Math.trunc(handheldThermalEff[0].ratio * 10) / 10} (${handheldThermalEff[0].score.toLocaleString()} / ${handheldThermalEff[0].temp}ºC)`
+            : '—';
+    }
 }
 
 const ratioPlugin = {
@@ -4673,8 +5062,7 @@ function ratioColor(val) {
            'rgba(16, 185, 129, 0.85)';
 }
 
-function renderBottleneckChart(data, selectedGpu) {
-    const canvasId = 'bottleneckRatioChart';
+function renderBottleneckChart(data, selectedGpu, canvasId = 'bottleneckRatioChart') {
     if (!document.getElementById(canvasId)) return;
     const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
     const topEl = document.getElementById('bottleneckRatioTop');
@@ -4724,7 +5112,7 @@ function renderBottleneckChart(data, selectedGpu) {
     }
 }
 
-function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
+function buildBottleneckChart(canvasId, allItems, prefix, contributors, xMaxOverride) {
     const n = allItems.length;
     const cv = document.getElementById(canvasId);
     if (!cv) return;
@@ -4738,7 +5126,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors) {
     if (existingOverlay) existingOverlay.remove();
 
     const rawMax = allItems.reduce((m, d) => Math.max(m, d.avgRatio), 0);
-    const xMax = canvasId === 'topCpuBottleneckChart' ? 0.7 : Math.max(1.5, rawMax * 1.08);
+    const xMax = xMaxOverride || (canvasId === 'topCpuBottleneckChart' ? 0.7 : canvasId === 'mobileTopCpuBottleneckChart' ? Math.max(0.7, rawMax * 1.08) : Math.max(1.5, rawMax * 1.08));
 
     function makeChart(items) {
         if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
@@ -4864,8 +5252,7 @@ function dedupByBestScore(entries) {
     return Object.values(map).map(v => v.run);
 }
 
-function renderTopCpuBottlenecks(data) {
-    const canvasId = 'topCpuBottleneckChart';
+function renderTopCpuBottlenecks(data, canvasId = 'topCpuBottleneckChart', xMax) {
     if (!document.getElementById(canvasId)) return;
     const valid = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
     const map = {};
@@ -4886,7 +5273,7 @@ function renderTopCpuBottlenecks(data) {
         contributor: d.user
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
     const contributors = runs.map(r => r.contributor);
-    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors);
+    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors, xMax);
 }
 
 function renderThermalsCharts() {

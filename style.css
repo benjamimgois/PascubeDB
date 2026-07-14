@@ -576,6 +576,7 @@ h1, h2, h3, h4 {
     position: relative;
     width: 100%;
     height: 320px;
+    overflow: hidden;
 }
 
 /* Custom scrollbar overlay for interactive scrolling charts */
@@ -861,6 +862,12 @@ h1, h2, h3, h4 {
 .mobile-thermals-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.thermal-eff-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
@@ -2235,7 +2242,8 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .demographics-grid-4,
     .advanced-charts-grid,
     .usage-charts-grid,
-    .driver-comparison-grid {
+    .driver-comparison-grid,
+    .thermal-eff-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
