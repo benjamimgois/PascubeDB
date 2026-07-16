@@ -4541,7 +4541,10 @@ function renderCharts() {
                 null,
                 null,
                 null,
-                true
+                true,
+                undefined,
+                undefined,
+                { tooltipClientIds: contributors.clientIds }
             );
         }
 
@@ -6003,6 +6006,11 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                                 : context.dataset.clientIds && context.dataset.clientIds[context.dataIndex];
                             if (cid) {
                                 lines.push(`Client: ${cid}`);
+                            } else {
+                                const tcid = context.dataset.tooltipClientIds && context.dataset.tooltipClientIds[context.dataIndex];
+                                if (tcid) {
+                                    lines.push(`Client: ${(tcid + '').substring(0, 8)}`);
+                                }
                             }
                             return lines;
                         }
