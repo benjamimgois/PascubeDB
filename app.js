@@ -6200,13 +6200,13 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                                 const centerFreq = gpuFreq || cpuFreq;
                                 centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`;
                             } else if (cpuFreq && gpuFreq && cpuPower && gpuPowerVal) {
-                                centerText = `${cpuFreq.toLocaleString()} MHz / ${cpuPower.toLocaleString()} W  |  ${gpuFreq.toLocaleString()} MHz / ${gpuPowerVal.toLocaleString()} W`;
+                                centerText = `${cpuFreq.toLocaleString()} MHz ${cpuPower.toLocaleString()} W / ${gpuFreq.toLocaleString()} MHz ${gpuPowerVal.toLocaleString()} W`;
                             } else if (cpuFreq && cpuPower) {
                                 centerText = `${cpuFreq.toLocaleString()} MHz / ${cpuPower.toLocaleString()} W`;
                             } else if (gpuFreq && gpuPowerVal) {
                                 centerText = `${gpuFreq.toLocaleString()} MHz / ${gpuPowerVal.toLocaleString()} W`;
                             } else if (cpuFreq && gpuFreq) {
-                                centerText = `${cpuFreq.toLocaleString()} / ${gpuFreq.toLocaleString()} MHz`;
+                                centerText = `${cpuFreq.toLocaleString()} MHz / ${gpuFreq.toLocaleString()} MHz`;
                             } else if (gpuFreq || cpuFreq) {
                                 const freqVal = gpuFreq || cpuFreq;
                                 centerText = `${freqVal.toLocaleString()} MHz`;
