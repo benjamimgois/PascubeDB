@@ -6198,7 +6198,12 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             let centerText = '';
                             if (centerScore && (gpuFreq || cpuFreq)) {
                                 const centerFreq = gpuFreq || cpuFreq;
-                                centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`;
+                                const centerPower = gpuFreq ? gpuPowerVal : cpuPower;
+                                if (centerPower) {
+                                    centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz ${centerPower.toLocaleString()} W`;
+                                } else {
+                                    centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`;
+                                }
                             } else if (cpuFreq && gpuFreq && cpuPower && gpuPowerVal) {
                                 centerText = `${cpuFreq.toLocaleString()} MHz ${cpuPower.toLocaleString()} W / ${gpuFreq.toLocaleString()} MHz ${gpuPowerVal.toLocaleString()} W`;
                             } else if (cpuFreq && cpuPower) {
@@ -6246,6 +6251,8 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     });
                 } else {
                     const freqs = chart.data.datasets[0].freqs;
+                    const cpuPowerAll = chart.data.datasets[0].power;
+                    const gpuPowerAll = chart.data.datasets[0].gpuPower;
                     if (!freqs) { c.restore(); return; }
                     c.font = 'bold 10px Inter, sans-serif';
                     c.textAlign = 'center';
@@ -6255,19 +6262,22 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     const gpuFreqs = chart.data.datasets[0].gpuFreqs;
                     meta.data.forEach((bar, i) => {
                         const freq = freqs[i];
+                        const cpuP = cpuPowerAll && cpuPowerAll[i];
+                        const gpuP = gpuPowerAll && gpuPowerAll[i];
                         if (bar.x < 1 || bar.height < 1) return;
                         const midVal = (vals[i] + baseVal) / 2;
                         const midX = xScale.getPixelForValue(midVal);
                         const gpuFreq = gpuFreqs ? gpuFreqs[i] : null;
                         if (gpuFreq) {
                             c.fillStyle = 'rgba(100,200,255,0.9)';
-                            const cpuLabel = freq ? `${freq}` : '';
-                            const gpuLabel = `GPU: ${gpuFreq} MHz`;
-                            const full = cpuLabel ? `${cpuLabel} / ${gpuLabel}` : gpuLabel;
+                            const cpuPart = freq ? `${freq} MHz${cpuP ? ` ${cpuP} W` : ''}` : '';
+                            const gpuPart = `GPU: ${gpuFreq} MHz${gpuP ? ` ${gpuP} W` : ''}`;
+                            const full = cpuPart ? `${cpuPart} / ${gpuPart}` : gpuPart;
                             c.fillText(full, midX, bar.y);
                         } else if (freq) {
                             c.fillStyle = 'rgba(255,255,255,0.85)';
-                            c.fillText(`${freq} MHz`, midX, bar.y);
+                            const text = `${freq} MHz${cpuP ? ` ${cpuP} W` : ''}`;
+                            c.fillText(text, midX, bar.y);
                         }
                     });
                 }
