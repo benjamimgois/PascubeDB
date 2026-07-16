@@ -4531,7 +4531,7 @@ function renderCharts() {
                 '#818cf8',
                 null,
                 0,
-                contributors.clientIds,
+                null,
                 null,
                 null,
                 null,
