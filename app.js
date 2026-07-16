@@ -6009,7 +6009,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             } else {
                                 const tcid = context.dataset.tooltipClientIds && context.dataset.tooltipClientIds[context.dataIndex];
                                 if (tcid) {
-                                    lines.push(`Client: ${(tcid + '').substring(0, 8)}`);
+                                    const label = context.chart.data.labels[context.dataIndex];
+                                    const isAnon = label === 'Anonymous';
+                                    lines.push(`Client: ${isAnon ? (tcid + '').substring(0, 8) : tcid}`);
                                 }
                             }
                             return lines;
