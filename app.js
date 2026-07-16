@@ -3132,35 +3132,33 @@ function getTopContributors(data, limit = 10) {
     const counts = {};
     const latestRun = {};
     data.forEach(r => {
-        const id = r.clientId || 'N/D';
-        if (id === 'N/D' || id === '') return;
-        counts[id] = (counts[id] || 0) + 1;
-        // keep best run for display name: prefer username over Anonymous, then most recent
-        const cur = latestRun[id];
+        const user = (r.user || '').toLowerCase();
+        const isAnonymous = !user || user === 'anonymous';
+        const key = isAnonymous ? (r.clientId || 'N/D') : r.user;
+        if (key === 'N/D' || key === '') return;
+        counts[key] = (counts[key] || 0) + 1;
+        const cur = latestRun[key];
         if (!cur) {
-            latestRun[id] = r;
+            latestRun[key] = r;
         } else {
-            const newHasUser = r.user && r.user.toLowerCase() !== 'anonymous';
-            const curHasUser = cur.user && cur.user.toLowerCase() !== 'anonymous';
-            if (!curHasUser && newHasUser) {
-                latestRun[id] = r;
-            } else if (curHasUser === newHasUser) {
-                const newDate = parseDate(r.dateTime);
-                const curDate = parseDate(cur.dateTime);
-                if (newDate && (!curDate || newDate > curDate)) {
-                    latestRun[id] = r;
-                }
+            const newDate = parseDate(r.dateTime);
+            const curDate = parseDate(cur.dateTime);
+            if (newDate && (!curDate || newDate > curDate)) {
+                latestRun[key] = r;
             }
         }
     });
     const entries = Object.entries(counts)
-        .map(([clientId, submissions]) => ({ clientId, submissions }))
+        .map(([key, submissions]) => ({ key, submissions }))
         .sort((a, b) => b.submissions - a.submissions)
         .slice(0, limit);
     return {
-        labels: entries.map(e => getDisplayName(latestRun[e.clientId] || {})),
+        labels: entries.map(e => {
+            const run = latestRun[e.key];
+            return getDisplayName(run || {});
+        }),
         counts: entries.map(e => e.submissions),
-        clientIds: entries.map(e => getDisplayName(latestRun[e.clientId] || {}))
+        clientIds: entries.map(e => e.key)
     };
 }
 
