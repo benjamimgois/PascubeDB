@@ -1029,7 +1029,8 @@ function processGvizData(jsonResponse) {
             cpuMaxFreq: cleanNumber(getVal(27)),
             gpuMaxFreq: cleanNumber(getVal(28)),
             cpuMaxPower: cleanNumber(getVal(29)),
-            gpuMaxPower: cleanNumber(getVal(30))
+            gpuMaxPower: cleanNumber(getVal(30)),
+            goverlayVersion: getVal(31) || 'N/D'
         };
     }).filter(row => row !== null);
     
@@ -1219,7 +1220,8 @@ function processCSVData(csvText) {
             cpuMaxFreq: cleanNumber(row[27]),
             gpuMaxFreq: cleanNumber(row[28]),
             cpuMaxPower: cleanNumber(row[29]),
-            gpuMaxPower: cleanNumber(row[30])
+            gpuMaxPower: cleanNumber(row[30]),
+            goverlayVersion: row[31] || 'N/D'
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -2425,7 +2427,7 @@ function getCPUBrandDistribution(data) {
         const arch = (r.architecture || '').toLowerCase();
         if (arch === 'aarch64') {
             brands.ARM++;
-        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('bc-250')) {
+        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('radeon') || cpu.includes('bc-250')) {
             brands.AMD++;
         } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('pentium') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra') || cpu.includes('core 5') || cpu.includes('core 3') || cpu.includes('core 7') || cpu.includes('celeron') || cpu.includes('atom') || /^\d/.test(cpu)) {
             brands.Intel++;
@@ -2446,13 +2448,13 @@ function getGPUBrandDistribution(data) {
         const arch = (r.architecture || '').toLowerCase();
         if (arch === 'aarch64') {
             brands.ARM++;
-        } else if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt 1030') || gpu.includes('mx')) {
+        } else if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt ') || gpu.includes('mx')) {
             brands.NVIDIA++;
         } else if (gpu.includes('broadcom') || gpu.includes('videocore') || gpu.includes('vc4') || gpu.includes('v3d')) {
             brands.Broadcom++;
         } else if (gpu.includes('arm') || gpu.includes('mali') || gpu.includes('rk3588')) {
             brands.ARM++;
-        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('680m') || gpu.includes('550x') || gpu.includes('w5500') || gpu.includes('hd 8') || gpu.includes('hd 7') || gpu.includes('hd 6') || gpu.includes('pro v') || gpu.includes('radeon pro') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
+        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('vii') || gpu.includes('wx') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('680m') || gpu.includes('550x') || gpu.includes('w5500') || gpu.includes('hd 8') || gpu.includes('hd 7') || gpu.includes('hd 6') || gpu.includes('pro v') || gpu.includes('radeon pro') || gpu.includes(' series') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
             brands.AMD++;
         } else if (gpu.includes('intel') || gpu.includes('arc') || gpu.includes('uhd') || gpu.includes('hd graphics')) {
             brands.Intel++;
@@ -2487,7 +2489,8 @@ function getRAMDistribution(data) {
             else if (num >= 12 && num <= 19) label = '16 GB';
             else if (num >= 6 && num <= 11) label = '8 GB';
             else if (num < 6) label = '< 8 GB';
-            else label = Math.round(num) + ' GB';
+            else if (Math.round(num) % 2 === 0) label = Math.round(num) + ' GB';
+            else label = 'Others';
         } else {
             label = 'N/D';
         }
@@ -2503,7 +2506,11 @@ function getRAMDistribution(data) {
             delete ramMap[cap];
         }
     });
-    Object.keys(ramMap).sort((a,b) => parseFloat(a) - parseFloat(b)).forEach(cap => {
+    Object.keys(ramMap).sort((a,b) => {
+        if (a === 'Others') return 1;
+        if (b === 'Others') return -1;
+        return parseFloat(a) - parseFloat(b);
+    }).forEach(cap => {
         sorted[cap] = ramMap[cap];
     });
     
@@ -2526,13 +2533,9 @@ function getVRAMDistribution(data) {
             if (num >= 30) label = '32 GB';
             else if (num >= 22 && num <= 26) label = '24 GB';
             else if (num >= 15 && num <= 18) label = '16 GB';
-            else if (num >= 11 && num <= 13) label = '12 GB';
-            else if (num >= 9 && num <= 10.5) label = '10 GB';
             else if (num >= 7.5 && num <= 8.5) label = '8 GB';
-            else if (num >= 5.5 && num <= 6.5) label = '6 GB';
-            else if (num >= 3.5 && num <= 4.5) label = '4 GB';
-            else if (num < 3.5) label = '< 4 GB';
-            else label = Math.round(num) + ' GB';
+            else if (Math.round(num) % 2 === 0) label = Math.round(num) + ' GB';
+            else label = 'Others';
         } else {
             label = 'N/D';
         }
@@ -2540,7 +2543,7 @@ function getVRAMDistribution(data) {
         vramMap[label] = (vramMap[label] || 0) + 1;
     });
     
-    const capacityOrder = ['< 4 GB', '4 GB', '6 GB', '8 GB', '10 GB', '12 GB', '16 GB', '24 GB', '32 GB'];
+    const capacityOrder = ['8 GB', '16 GB', '24 GB', '32 GB'];
     const sorted = {};
     capacityOrder.forEach(cap => {
         if (vramMap[cap]) {
@@ -2548,7 +2551,11 @@ function getVRAMDistribution(data) {
             delete vramMap[cap];
         }
     });
-    Object.keys(vramMap).sort((a,b) => parseFloat(a) - parseFloat(b)).forEach(cap => {
+    Object.keys(vramMap).sort((a,b) => {
+        if (a === 'Others') return 1;
+        if (b === 'Others') return -1;
+        return parseFloat(a) - parseFloat(b);
+    }).forEach(cap => {
         sorted[cap] = vramMap[cap];
     });
     
@@ -2613,11 +2620,17 @@ function getVersionDistribution(data, type) {
             } else {
                 return;
             }
+        } else if (type === 'goverlay') {
+            const gv = r.goverlayVersion || '';
+            if (gv && gv !== 'N/D' && gv.trim() !== '') {
+                version = gv.trim();
+            }
         }
         
         if (version) {
             counts[version] = (counts[version] || 0) + 1;
         } else {
+            if (type === 'goverlay') return;
             const rawVal = type === 'mesa' ? r.driver : r.kernel;
             if (type === 'nvidia') {
                 const d = r.driver || '';
@@ -3837,7 +3850,8 @@ function renderCharts() {
         '48 GB': { bg: 'rgba(236, 72, 153, 0.8)', border: '#f472b6' },   // Pink
         '64 GB': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },    // Rose
         '96 GB': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },   // Amber
-        '128 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' }   // Emerald
+        '128 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },  // Emerald
+        'Others': { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' }
     };
     const ramBgColors = [];
     const ramBorderColors = [];
@@ -3859,15 +3873,11 @@ function renderCharts() {
     const vramDist = getVRAMDistribution(benchmarkData);
     const vramLabels = Object.keys(vramDist);
     const vramColors = {
-        '< 4 GB': { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' },  // Gray
-        '4 GB': { bg: 'rgba(6, 182, 212, 0.8)', border: '#22d3ee' },     // Cyan
-        '6 GB': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },    // Sky
         '8 GB': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },    // Indigo
-        '10 GB': { bg: 'rgba(139, 92, 246, 0.8)', border: '#a78bfa' },   // Violet
-        '12 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#c084fc' },   // Purple
         '16 GB': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },    // Rose
         '24 GB': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },   // Amber
-        '32 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' }    // Emerald
+        '32 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },   // Emerald
+        'Others': { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' }  // Gray
     };
     const vramBgColors = [];
     const vramBorderColors = [];
@@ -3966,26 +3976,61 @@ function renderCharts() {
     );
 
     // 15b. NVIDIA Driver version distribution
-    const nvidiaVersions = getVersionDistribution(getUniqueClientRuns(benchmarkData), 'nvidia');
+    const nvidiaRaw = getVersionDistribution(getUniqueClientRuns(benchmarkData), 'nvidia');
+    const nvidiaSorted = Object.entries(nvidiaRaw).sort((a, b) => b[1] - a[1]);
+    const nvidiaTop = nvidiaSorted.slice(0, 5);
+    const nvidiaOther = nvidiaSorted.slice(5).reduce((sum, [, c]) => sum + c, 0);
+    const nvidiaLabels = nvidiaTop.map(([k]) => k);
+    const nvidiaCounts = nvidiaTop.map(([, c]) => c);
+    if (nvidiaOther > 0) {
+        nvidiaLabels.push('Others');
+        nvidiaCounts.push(nvidiaOther);
+    }
     renderDoughnutChart(
         'nvidiaVersionChart',
-        Object.keys(nvidiaVersions),
-        Object.values(nvidiaVersions),
+        nvidiaLabels,
+        nvidiaCounts,
         [
             'rgba(16, 185, 129, 0.8)',
             'rgba(99, 102, 241, 0.8)',
             'rgba(168, 85, 247, 0.8)',
             'rgba(245, 158, 11, 0.8)',
-            'rgba(156, 163, 175, 0.8)'
+            'rgba(156, 163, 175, 0.8)',
+            'rgba(75, 85, 99, 0.8)'
         ],
         [
             '#34d399',
             '#818cf8',
             '#c084fc',
             '#fbbf24',
-            '#9ca3af'
+            '#9ca3af',
+            '#6b7280'
         ]
     );
+
+    // 15c. GOverlay version distribution
+    const goverlayVersions = getVersionDistribution(getUniqueClientRuns(benchmarkData), 'goverlay');
+    if (Object.keys(goverlayVersions).length > 0) {
+        renderDoughnutChart(
+            'goverlayVersionChart',
+            Object.keys(goverlayVersions),
+            Object.values(goverlayVersions),
+            [
+                'rgba(244, 63, 94, 0.8)',
+                'rgba(235, 125, 40, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(99, 102, 241, 0.8)',
+                'rgba(156, 163, 175, 0.8)'
+            ],
+            [
+                '#fb7185',
+                '#f59e42',
+                '#34d399',
+                '#818cf8',
+                '#9ca3af'
+            ]
+        );
+    }
 
     // Portable Devices Charts Rendering
     if (!document.getElementById('mobileDistChart')) return;
@@ -6207,22 +6252,23 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                             if (centerScore && (gpuFreq || cpuFreq)) {
                                 const centerFreq = gpuFreq || cpuFreq;
                                 const centerPower = gpuFreq ? gpuPowerVal : cpuPower;
-                                if (centerPower) {
+                                if (centerPower != null) {
                                     centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz ${centerPower.toLocaleString()} W`;
                                 } else {
                                     centerText = `${centerScore.toLocaleString()} / ${centerFreq.toLocaleString()} MHz`;
                                 }
-                            } else if (cpuFreq && gpuFreq && cpuPower && gpuPowerVal) {
-                                centerText = `${cpuFreq.toLocaleString()} MHz ${cpuPower.toLocaleString()} W / ${gpuFreq.toLocaleString()} MHz ${gpuPowerVal.toLocaleString()} W`;
-                            } else if (cpuFreq && cpuPower) {
-                                centerText = `${cpuFreq.toLocaleString()} MHz / ${cpuPower.toLocaleString()} W`;
-                            } else if (gpuFreq && gpuPowerVal) {
-                                centerText = `${gpuFreq.toLocaleString()} MHz / ${gpuPowerVal.toLocaleString()} W`;
-                            } else if (cpuFreq && gpuFreq) {
-                                centerText = `${cpuFreq.toLocaleString()} MHz / ${gpuFreq.toLocaleString()} MHz`;
-                            } else if (gpuFreq || cpuFreq) {
-                                const freqVal = gpuFreq || cpuFreq;
-                                centerText = `${freqVal.toLocaleString()} MHz`;
+                            } else {
+                                const showBoth = cpuFreq && gpuFreq;
+                                const parts = [];
+                                if (cpuFreq) {
+                                    parts.push(`${showBoth ? 'CPU ' : ''}${cpuFreq.toLocaleString()} MHz${cpuPower != null ? ` / ${cpuPower.toLocaleString()} W` : ''}`);
+                                }
+                                if (gpuFreq) {
+                                    parts.push(`${showBoth ? 'GPU ' : ''}${gpuFreq.toLocaleString()} MHz${gpuPowerVal != null ? ` / ${gpuPowerVal.toLocaleString()} W` : ''}`);
+                                }
+                                if (parts.length > 0) {
+                                    centerText = parts.join('  |  ');
+                                }
                             }
                                     
                             if (centerText) {
