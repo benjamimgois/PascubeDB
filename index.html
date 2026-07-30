@@ -860,6 +860,10 @@
                                     <button class="chart-mode-btn" data-value="delta">Delta %</button>
                                 </div>
                                 <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline version.</div></span>
+                                <div class="chart-mode-group" id="mesa-grouping">
+                                    <button class="chart-mode-btn active" data-value="family">Family</button>
+                                    <button class="chart-mode-btn" data-value="individual">Model</button>
+                                </div>
                                 <div class="baseline-row" id="mesa-hw-row">
                                     <span class="baseline-label">Hardware</span>
                                     <select id="mesa-hardware" class="baseline-select"></select>
@@ -891,6 +895,10 @@
                                     <button class="chart-mode-btn" data-value="delta">Delta %</button>
                                 </div>
                                 <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline version.</div></span>
+                                <div class="chart-mode-group" id="nvidia-grouping">
+                                    <button class="chart-mode-btn active" data-value="family">Family</button>
+                                    <button class="chart-mode-btn" data-value="individual">Model</button>
+                                </div>
                                 <div class="baseline-row" id="nvidia-hw-row">
                                     <span class="baseline-label">Hardware</span>
                                     <select id="nvidia-hardware" class="baseline-select"></select>
@@ -922,7 +930,11 @@
                                 <button class="chart-mode-btn" data-value="absolute">Absolute</button>
                                 <button class="chart-mode-btn active" data-value="delta">Delta %</button>
                             </div>
-                            <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline kernel version.</div></span>
+                                <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Absolute: raw scores. Delta %: percentage difference from the selected baseline kernel version.</div></span>
+                            <div class="chart-mode-group" id="kernel-grouping">
+                                <button class="chart-mode-btn active" data-value="family">Family</button>
+                                <button class="chart-mode-btn" data-value="individual">Model</button>
+                            </div>
                             <div class="baseline-row" id="kernel-hw-row">
                                 <span class="baseline-label">Hardware</span>
                                 <select id="kernel-hardware" class="baseline-select"></select>

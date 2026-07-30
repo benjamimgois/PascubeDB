@@ -147,11 +147,26 @@ let filteredData = [];
 let chartInstances = {};
 let chartNorm = {};
 let currentSort = { column: 'mainScore', direction: 'desc' };
-let chartVizState = { mesa: { mode: 'absolute', normalize: true }, nvidia: { mode: 'absolute', normalize: true }, kernel: { mode: 'delta', normalize: true }, os: { mode: 'delta', normalize: true }, cpuAverage: { mode: 'absolute', normalize: false }, gpuAverage: { mode: 'absolute', normalize: false } };
+let chartVizState = {
+    mesa:    { mode: 'absolute', normalize: true, familyMode: true },
+    nvidia:  { mode: 'absolute', normalize: true, familyMode: true },
+    kernel:  { mode: 'delta',    normalize: true, familyMode: true },
+    os:      { mode: 'delta',    normalize: true },
+    cpuAverage: { mode: 'absolute', normalize: false },
+    gpuAverage: { mode: 'absolute', normalize: false }
+};
 let baselineState = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
 let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null, kernel: null, os: null };
 let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
 let modelSelectorActiveType = null;
+
+function getActiveSoftwareData(type) {
+    const vs = chartVizState[type];
+    if (vs && vs.familyMode === false) {
+        return lastSoftwareData[type + 'Individual'] || getActiveSoftwareData(type);
+    }
+    return getActiveSoftwareData(type);
+}
 
 // Pill Navigation State
 let PILL_STATE = {
@@ -327,7 +342,7 @@ const AVERAGE_CHART_CONFIG = { cpuAverage: { chartId: 'cpuAverageChart', color: 
 
 function populateBaselineSelects() {
     ['mesa', 'nvidia', 'kernel', 'os', 'cpuAverage', 'gpuAverage'].forEach(type => {
-        const data = lastSoftwareData[type];
+        const data = getActiveSoftwareData(type);
         if (!data) return;
         const select = document.getElementById(`${type}-baseline`);
         if (!select) return;
@@ -465,7 +480,7 @@ function populateBaselineSelects() {
     }
     ['mesa', 'nvidia'].forEach(type => {
         const hwSelect = document.getElementById(`${type}-hardware`);
-        const data = lastSoftwareData[type];
+        const data = getActiveSoftwareData(type);
         if (hwSelect && data && data.hwLabels) {
             hwSelect.innerHTML = '';
             const curHw = modelSelection[type] || '';
@@ -565,14 +580,14 @@ function setupHardwareListeners() {
 function renderAverageChart(type) {
     const cfg = AVERAGE_CHART_CONFIG[type];
     if (!cfg) return;
-    const data = lastSoftwareData[type];
+    const data = getActiveSoftwareData(type);
     if (!data || !document.getElementById(cfg.chartId)) return;
     if (chartInstances[cfg.chartId]) { chartInstances[cfg.chartId].destroy(); delete chartInstances[cfg.chartId]; }
     makeChartScrollable(cfg.chartId, data.map(d => d.name), data.map(d => d.average), cfg.label, cfg.color, cfg.border, cfg.maxItems, undefined, undefined, undefined, true);
 }
 
 function openModelSelector(type) {
-    const data = lastSoftwareData[type];
+    const data = getActiveSoftwareData(type);
     if (!data) return;
     const isAverage = type === 'cpuAverage' || type === 'gpuAverage';
     const maxItems = isAverage ? 5 : 10;
@@ -624,7 +639,7 @@ function openModelSelector(type) {
 }
 
 function renderSoftwareDeltaChart(type) {
-    const data = lastSoftwareData[type];
+    const data = getActiveSoftwareData(type);
     if (!data) return;
     const chartId = BASELINE_CHART_MAP[type];
 
@@ -735,7 +750,7 @@ function setupChartVizControls() {
                                     const toggleLabel = document.getElementById(VIZ_CHART_IDS[type].toggle);
                                     if (baselineRow) baselineRow.style.display = 'none';
                                     if (toggleLabel) toggleLabel.style.display = '';
-                                    const data = lastSoftwareData[type];
+                                    const data = getActiveSoftwareData(type);
                                     if (data && document.getElementById(chartId)) {
                                         if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                                         chartPageState[type] = 0;
@@ -749,7 +764,7 @@ function setupChartVizControls() {
                             chartVizState[type].normalize = true;
                             const cb = document.getElementById(VIZ_CHART_IDS[type].toggle)?.querySelector('.chart-toggle-cb');
                             if (cb) cb.checked = true;
-                            const data = lastSoftwareData[type];
+                            const data = getActiveSoftwareData(type);
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                             chartPageState[type] = 0;
@@ -777,7 +792,7 @@ function setupChartVizControls() {
                         if (vs.mode === 'delta') {
                             if (!modelSelection[type] || modelSelection[type].length === 0) {
                                 if (!openModelSelector(type)) {
-                                    const data = lastSoftwareData[type];
+                                    const data = getActiveSoftwareData(type);
                                     if (data && document.getElementById(chartId)) {
                                         if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                                         chartPageState[type] = 0;
@@ -788,7 +803,7 @@ function setupChartVizControls() {
                                 renderSoftwareDeltaChart(type);
                             }
                         } else {
-                            const data = lastSoftwareData[type];
+                            const data = getActiveSoftwareData(type);
                             if (!data || !document.getElementById(chartId)) return;
                             if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
                             chartPageState[type] = 0;
@@ -801,6 +816,30 @@ function setupChartVizControls() {
                     }
                 });
             }
+        }
+
+        const groupingGroup = document.getElementById(`${type}-grouping`);
+        if (groupingGroup && chartVizState[type].familyMode !== undefined) {
+            groupingGroup.querySelectorAll('.chart-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    groupingGroup.querySelectorAll('.chart-mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    chartVizState[type].familyMode = btn.dataset.value === 'family';
+                    const data = getActiveSoftwareData(type);
+                    if (!data || !document.getElementById(chartId)) return;
+                    if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+                    chartPageState[type] = 0;
+                    const vs = chartVizState[type];
+                    if (vs.mode === 'delta') {
+                        if (modelSelection[type]) renderSoftwareDeltaChart(type);
+                    } else if (vs.normalize) {
+                        renderHardwareComparisonBars(chartId, computeNormalizedData(data));
+                    } else {
+                        renderHardwareComparisonBars(chartId, data);
+                    }
+                    populateBaselineSelects();
+                });
+            });
         }
     });
     ['mesa', 'nvidia', 'kernel', 'os'].forEach(type => {
@@ -4848,49 +4887,58 @@ function renderCharts() {
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'os'), 'os');
 
     const mesaData = getDriverScatterData(benchmarkData, 'mesa');
+    const mesaDataIndiv = getDriverScatterData(benchmarkData, 'mesa', 40, 2, false);
     lastSoftwareData.mesa = mesaData;
+    lastSoftwareData.mesaIndividual = mesaDataIndiv;
     if (document.getElementById('mesaDriverScatterChart')) {
         const vsm = chartVizState.mesa;
+        const mdata = vsm.familyMode ? mesaData : mesaDataIndiv;
         if (vsm.mode === 'delta') {
             if (modelSelection.mesa) {
                 renderSoftwareDeltaChart('mesa');
             }
         } else if (vsm.normalize) {
-            renderHardwareComparisonBars('mesaDriverScatterChart', computeNormalizedData(mesaData));
+            renderHardwareComparisonBars('mesaDriverScatterChart', computeNormalizedData(mdata));
         } else {
-            renderHardwareComparisonBars('mesaDriverScatterChart', mesaData);
+            renderHardwareComparisonBars('mesaDriverScatterChart', mdata);
         }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'mesa'), 'mesa');
 
     const nvidiaData = getDriverScatterData(benchmarkData, 'nvidia');
+    const nvidiaDataIndiv = getDriverScatterData(benchmarkData, 'nvidia', 40, 2, false);
     lastSoftwareData.nvidia = nvidiaData;
+    lastSoftwareData.nvidiaIndividual = nvidiaDataIndiv;
     if (document.getElementById('nvidiaDriverScatterChart')) {
         const vsn = chartVizState.nvidia;
+        const ndata = vsn.familyMode ? nvidiaData : nvidiaDataIndiv;
         if (vsn.mode === 'delta') {
             if (modelSelection.nvidia) {
                 renderSoftwareDeltaChart('nvidia');
             }
         } else if (vsn.normalize) {
-            renderHardwareComparisonBars('nvidiaDriverScatterChart', computeNormalizedData(nvidiaData));
+            renderHardwareComparisonBars('nvidiaDriverScatterChart', computeNormalizedData(ndata));
         } else {
-            renderHardwareComparisonBars('nvidiaDriverScatterChart', nvidiaData);
+            renderHardwareComparisonBars('nvidiaDriverScatterChart', ndata);
         }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'nvidia'), 'nvidia');
 
     const kernelData = getKernelScatterData(benchmarkData);
+    const kernelDataIndiv = getKernelScatterData(benchmarkData, 40, 2, false);
     lastSoftwareData.kernel = kernelData;
+    lastSoftwareData.kernelIndividual = kernelDataIndiv;
     if (document.getElementById('kernelScatterChart')) {
         const vsk = chartVizState.kernel;
+        const kdata = vsk.familyMode ? kernelData : kernelDataIndiv;
         if (vsk.mode === 'delta') {
             if (modelSelection.kernel) {
                 renderSoftwareDeltaChart('kernel');
             }
         } else if (vsk.normalize) {
-            renderHardwareComparisonBars('kernelScatterChart', computeNormalizedData(kernelData));
+            renderHardwareComparisonBars('kernelScatterChart', computeNormalizedData(kdata));
         } else {
-            renderHardwareComparisonBars('kernelScatterChart', kernelData);
+            renderHardwareComparisonBars('kernelScatterChart', kdata);
         }
     }
     renderWinnerCard(getAbsoluteWinners(benchmarkData, 'kernel'), 'kernel');
@@ -5805,7 +5853,7 @@ function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
 }
 
 // Kernel vs CPU Score Scatter Data — CPU family × CPU Single Score per kernel version
-function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
+function getKernelScatterData(data, maxHardware = 40, minSamples = 2, useFamily = true) {
     // Step 1: group by (family, cpuModel) to track per-model data
     const familyModelGroups = {};
     data.forEach(r => {
@@ -5815,7 +5863,7 @@ function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
         const version = match[1];
         const normalized = normalizeCPU(r.cpu);
         if (!normalized || normalized.trim() === '' || normalized === 'Unknown CPU' || normalized === 'N/D') return;
-        const family = classifyCPUFamily(normalized);
+        const family = useFamily ? classifyCPUFamily(normalized) : normalized;
         if (!family) return;
         if (!familyModelGroups[family]) familyModelGroups[family] = {};
         if (!familyModelGroups[family][normalized]) familyModelGroups[family][normalized] = [];
@@ -5886,7 +5934,7 @@ function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
 }
 
 // Driver vs Hardware Scatter Data — GPU family × GPU Score per driver version
-function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2) {
+function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2, useFamily = true) {
     // Step 1: group by (family, gpuModel) to track per-model data
     const familyModelGroups = {};
     data.forEach(r => {
@@ -5905,7 +5953,7 @@ function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2
         if (!version) return;
         const normalized = normalizeGPU(r.gpu);
         if (!normalized || normalized.trim() === '' || normalized === 'Unknown GPU' || normalized === 'N/D') return;
-        const family = classifyGPUFamily(normalized);
+        const family = useFamily ? classifyGPUFamily(normalized) : normalized;
         if (!family) return;
         if (!familyModelGroups[family]) familyModelGroups[family] = {};
         if (!familyModelGroups[family][normalized]) familyModelGroups[family][normalized] = [];
