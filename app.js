@@ -163,9 +163,9 @@ let modelSelectorActiveType = null;
 function getActiveSoftwareData(type) {
     const vs = chartVizState[type];
     if (vs && vs.familyMode === false) {
-        return lastSoftwareData[type + 'Individual'] || getActiveSoftwareData(type);
+        return lastSoftwareData[type + 'Individual'] || lastSoftwareData[type];
     }
-    return getActiveSoftwareData(type);
+    return lastSoftwareData[type];
 }
 
 // Pill Navigation State
