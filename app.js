@@ -2050,6 +2050,54 @@ function normalizeGPU(name) {
     return clean;
 }
 
+// Classify a normalized GPU name into a canonical family
+function classifyGPUFamily(normalizedName) {
+    if (!normalizedName) return null;
+    const name = normalizedName.trim();
+    const lower = name.toLowerCase();
+
+    // Mobile: check suffix first (before desktop classification)
+    const isMobile = /\b(mobile|laptop)\b/i.test(name);
+
+    // AMD Radeon families
+    if (/\brx\s*5\d{2}(?:\s*xt)?\b/i.test(lower) || /\brx\s*5xx\b/i.test(lower) || /580\s*series/i.test(lower) || /590\s*series/i.test(lower))
+        return 'RX 500';
+    if (/\brx\s*vega\b/i.test(lower) || lower === 'amd vega')
+        return 'RX Vega';
+    if (/\brx\s*5\d{3}\b/i.test(lower))
+        return 'RX 5000';
+    if (/\brx\s*6\d{3}\b/i.test(lower))
+        return 'RX 6000';
+    if (/\brx\s*7\d{3}\b/i.test(lower))
+        return 'RX 7000';
+    if (/\brx\s*9\d{3}\b/i.test(lower))
+        return 'RX 9000';
+
+    // NVIDIA GeForce families
+    if (/\bgtx?\s*9\d{2}\b/i.test(lower))
+        return isMobile ? 'GTX 900 Mobile' : 'GTX 900';
+    if (/\bgtx?\s*10\d{2}\b/i.test(lower))
+        return isMobile ? 'GTX 10 Mobile' : 'GTX 10';
+    if (/\bgtx?\s*16\d{2}\b/i.test(lower))
+        return isMobile ? 'GTX 16 Mobile' : 'GTX 16';
+    if (/\brtx?\s*20\d{2}\b/i.test(lower))
+        return isMobile ? 'RTX 20 Mobile' : 'RTX 20';
+    if (/\brtx?\s*30\d{2}\b/i.test(lower))
+        return isMobile ? 'RTX 30 Mobile' : 'RTX 30';
+    if (/\brtx?\s*40\d{2}\b/i.test(lower))
+        return isMobile ? 'RTX 40 Mobile' : 'RTX 40';
+    if (/\brtx?\s*50\d{2}\b/i.test(lower))
+        return isMobile ? 'RTX 50 Mobile' : 'RTX 50';
+
+    // Intel Arc families
+    if (/\barc\s*a\d/i.test(lower))
+        return 'Arc A-Series';
+    if (/\barc\s*b\d/i.test(lower))
+        return 'Arc B-Series';
+
+    return null;
+}
+
 // Helper to get top hardware by frequency
 function getTopHardware(data, type, limit = 10) {
     const counts = {};
@@ -4626,22 +4674,21 @@ function renderCharts() {
                 score = r.mainScore;
                 version = cleanOSName(r.os);
             } else if (type === 'mesa') {
-                hwKey = normalizeGPU(r.gpu);
+                const normalized = normalizeGPU(r.gpu);
+                hwKey = classifyGPUFamily(normalized);
+                if (!hwKey) return;
                 score = r.gpuScore;
                 const d = r.driver || '';
                 const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
                 if (!match) return;
                 version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
-                // skip NVIDIA GPUs for Mesa comparison
-                const gpuLower = (r.gpu || '').toLowerCase();
-                if (gpuLower.includes('nvidia') || gpuLower.includes('rtx') || gpuLower.includes('geforce')) return;
             } else if (type === 'nvidia') {
-                hwKey = normalizeGPU(r.gpu);
+                const normalized = normalizeGPU(r.gpu);
+                hwKey = classifyGPUFamily(normalized);
+                if (!hwKey) return;
                 score = r.gpuScore;
                 const d = r.driver || '';
-                const gpuLower = (r.gpu || '').toLowerCase();
-                if (!gpuLower.includes('nvidia') && !gpuLower.includes('rtx') && !gpuLower.includes('geforce')) return;
-                if (!d.includes('NVRM') && !d.includes('NVIDIA')) return;
+                if (!(d.includes('NVRM') || d.includes('NVIDIA'))) return;
                 const match = d.match(/(?:NVRM|NVIDIA).*?(\d+\.\d+)/i);
                 if (!match) return;
                 version = match[1];
@@ -5583,6 +5630,22 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
                             const samples = context.dataset.sampleCounts ? context.dataset.sampleCounts[context.dataIndex] : 0;
                             const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`, `Samples: ${samples || 0}`];
                             if (samples > 0 && samples < 10) lines.push('⚠ low confidence');
+
+                            const family = context.chart.data.labels[context.dataIndex];
+                            const version = context.dataset.label;
+                            const map = context.chart.__familyModelMap;
+                            const models = map && map[family] && map[family][version];
+                            if (models && models.length > 0) {
+                                const totalModels = models.length;
+                                if (totalModels === 1) {
+                                    lines.push(`${models[0].model}: ${models[0].samples} samples`);
+                                } else {
+                                    lines.push(`Models (${totalModels}):`);
+                                    models.forEach(m => {
+                                        lines.push(`  ${m.model} (${m.samples})`);
+                                    });
+                                }
+                            }
                             return lines;
                         }
                     }
@@ -5592,7 +5655,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
         plugins: [barLabelsPlugin]
     });
 
-    chartInstances[canvasId].__scatterData = scatterData;
+            chartInstances[canvasId].__scatterData = scatterData;
+    chartInstances[canvasId].__familyModelMap = scatterData.familyModelMap || {};
 
     // Pagination controls
     const chartArea = canvas.parentElement;
@@ -5735,9 +5799,10 @@ function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
     return { points, hwLabels };
 }
 
-// Driver vs Hardware Scatter Data — GPU model × GPU Score per driver version
+// Driver vs Hardware Scatter Data — GPU family × GPU Score per driver version
 function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2) {
-    const groups = {};
+    // Step 1: group by (family, gpuModel) to track per-model data
+    const familyModelGroups = {};
     data.forEach(r => {
         let version = null;
         if (driverType === 'mesa') {
@@ -5752,51 +5817,79 @@ function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2
             }
         }
         if (!version) return;
-        const key = normalizeGPU(r.gpu);
-        if (!key || key.trim() === '' || key === 'Unknown GPU' || key === 'N/D') return;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ ...r, _driverVer: version });
+        const normalized = normalizeGPU(r.gpu);
+        if (!normalized || normalized.trim() === '' || normalized === 'Unknown GPU' || normalized === 'N/D') return;
+        const family = classifyGPUFamily(normalized);
+        if (!family) return;
+        if (!familyModelGroups[family]) familyModelGroups[family] = {};
+        if (!familyModelGroups[family][normalized]) familyModelGroups[family][normalized] = [];
+        familyModelGroups[family][normalized].push({ ...r, _driverVer: version });
     });
 
-    const hardwareRuns = Object.entries(groups)
-        .filter(([, runs]) => {
-            if (runs.length < minSamples) return false;
-            const verSet = new Set(runs.map(r => r._driverVer));
+    // Step 2: filter families with enough data, sort by avg score desc
+    const familyRuns = Object.entries(familyModelGroups)
+        .map(([family, models]) => {
+            const allRuns = Object.values(models).flat();
+            return { family, models, allRuns };
+        })
+        .filter(({ allRuns }) => {
+            if (allRuns.length < minSamples) return false;
+            const verSet = new Set(allRuns.map(r => r._driverVer));
             return verSet.size >= 2;
         })
         .sort((a, b) => {
-            const avgA = a[1].reduce((s, r) => s + (cleanNumber(r.gpuScore) || 0), 0) / (a[1].length || 1);
-            const avgB = b[1].reduce((s, r) => s + (cleanNumber(r.gpuScore) || 0), 0) / (b[1].length || 1);
+            const avgA = a.allRuns.reduce((s, r) => s + (cleanNumber(r.gpuScore) || 0), 0) / (a.allRuns.length || 1);
+            const avgB = b.allRuns.reduce((s, r) => s + (cleanNumber(r.gpuScore) || 0), 0) / (b.allRuns.length || 1);
             return avgB - avgA;
         })
         .slice(0, maxHardware);
 
+    // Step 3: compute mean-of-means per family+version and build familyModelMap
     const points = [];
-    hardwareRuns.forEach(([hwLabel, runs], hwIndex) => {
-        const verGroups = {};
-        runs.forEach(r => {
-            const score = cleanNumber(r.gpuScore);
-            if (score === null) return;
-            if (!verGroups[r._driverVer]) verGroups[r._driverVer] = [];
-            verGroups[r._driverVer].push({ score, run: r });
-        });
-        Object.entries(verGroups).forEach(([ver, entries]) => {
-            const avgScore = Math.round(entries.reduce((s, e) => s + e.score, 0) / entries.length);
-            const bestRun = entries.reduce((best, e) => e.score > best.score ? e : best, entries[0]).run;
-            points.push({
-                x: hwIndex,
-                y: avgScore,
-                label: ver,
-                user: bestRun.user,
-                clientId: bestRun.clientId,
-                hardwareLabel: hwLabel,
-                count: entries.length
+    const familyModelMap = {};
+    familyRuns.forEach(({ family, models }, hwIndex) => {
+        const verModelGroups = {};
+        Object.entries(models).forEach(([model, runs]) => {
+            runs.forEach(r => {
+                const score = cleanNumber(r.gpuScore);
+                if (score === null) return;
+                if (!verModelGroups[r._driverVer]) verModelGroups[r._driverVer] = {};
+                if (!verModelGroups[r._driverVer][model]) verModelGroups[r._driverVer][model] = [];
+                verModelGroups[r._driverVer][model].push(score);
             });
         });
+
+        // Build model samples breakdown for tooltip
+        const modelBreakdown = {};
+        Object.entries(verModelGroups).forEach(([ver, modelScores]) => {
+            modelBreakdown[ver] = Object.entries(modelScores)
+                .map(([model, scores]) => ({ model, samples: scores.length }))
+                .sort((a, b) => b.samples - a.samples);
+        });
+
+        Object.entries(verModelGroups).forEach(([ver, modelScores]) => {
+            const modelAvgs = Object.values(modelScores).map(scores =>
+                scores.reduce((s, v) => s + v, 0) / scores.length
+            );
+            const familyAvg = Math.round(modelAvgs.reduce((s, v) => s + v, 0) / modelAvgs.length);
+            const bestEntry = Object.values(modelScores).flat();
+            const bestScore = Math.max(...bestEntry);
+            points.push({
+                x: hwIndex,
+                y: familyAvg,
+                label: ver,
+                hardwareLabel: family,
+                count: bestEntry.length,
+                modelCount: modelAvgs.length
+            });
+        });
+
+        // Store model breakdown for tooltip
+        familyModelMap[family] = modelBreakdown;
     });
 
-    const hwLabels = hardwareRuns.map(([label]) => label);
-    return { points, hwLabels };
+    const hwLabels = familyRuns.map(({ family }) => family);
+    return { points, hwLabels, familyModelMap };
 }
 
 // Generic scatter renderer for driver comparisons
