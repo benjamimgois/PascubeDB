@@ -2098,6 +2098,56 @@ function classifyGPUFamily(normalizedName) {
     return null;
 }
 
+// Classify a normalized CPU name into a canonical family
+function classifyCPUFamily(normalizedName) {
+    if (!normalizedName) return null;
+    const name = normalizedName.trim();
+    const lower = name.toLowerCase();
+
+    // Exclude non-CPU devices
+    if (/raspberry|orange pi|custom apu|steam deck|mali/i.test(lower)) return null;
+
+    // Mobile: check suffix H/HX/HK/HS/U/Y
+    const isMobile = /\b\d{3,4}(h|hs|hx|u|y)\b/i.test(lower) || /ryzen ai.*\b(hx|hs)\b/i.test(lower) || /z1\s*extreme/i.test(lower);
+
+    // AMD Ryzen (X3D, XT, G, etc. variants all same family)
+    const ryzenMatch = lower.match(/ryzen\s*(ai\s*)?\s*[3579]\s*(\d)(\d{3})/i);
+    if (ryzenMatch) {
+        const gen = parseInt(ryzenMatch[2]);
+        const familyNum = ryzenMatch[1] ? `Ryzen AI ${gen}00` : `Ryzen ${gen}000`;
+        return isMobile ? `${familyNum} Mobile` : familyNum;
+    }
+    // Ryzen Z1
+    if (/ryzen\s+z1/i.test(lower)) return 'Ryzen Z1';
+
+    // Intel Core: try "Xth Gen" prefix first
+    const genMatch = lower.match(/(\d+)(?:th|st|nd|rd)\s*gen\s*(?:intel\s*)?(?:core\s*)?[iu]?[3579][-_]/i);
+    if (genMatch) {
+        const gen = genMatch[1];
+        return isMobile ? `Core ${gen}th Gen Mobile` : `Core ${gen}th Gen`;
+    }
+
+    // Intel: 5-digit model (e.g., i7-12700K → Core 12th Gen)
+    const intel5Match = lower.match(/[iu][3579][-_](\d{2})\d{3}/i);
+    if (intel5Match) {
+        const gen = parseInt(intel5Match[1]);
+        if (gen >= 10) return isMobile ? `Core ${gen}th Gen Mobile` : `Core ${gen}th Gen`;
+    }
+
+    // Intel: 4-digit model (e.g., i7-4790K → Core 4th Gen)
+    const intel4Match = lower.match(/[iu][3579][-_](\d)\d{3}/i);
+    if (intel4Match) {
+        const gen = parseInt(intel4Match[1]);
+        if (gen >= 2 && gen <= 9) return `Core ${gen}th Gen`;
+    }
+
+    // AMD with "with Radeon Graphics" suffix — already matched above
+    // Remaining APUs with Radeon
+    if (/ryzen.*with radeon/i.test(lower)) return null;
+
+    return null;
+}
+
 // Helper to get top hardware by frequency
 function getTopHardware(data, type, limit = 10) {
     const counts = {};
@@ -4693,7 +4743,9 @@ function renderCharts() {
                 if (!match) return;
                 version = match[1];
             } else if (type === 'kernel') {
-                hwKey = normalizeCPU(r.cpu);
+                const normalized = normalizeCPU(r.cpu);
+                hwKey = classifyCPUFamily(normalized);
+                if (!hwKey) return;
                 score = r.cpuSingle;
                 const k = r.kernel || '';
                 const match = k.match(/^(\d+\.\d+)/);
@@ -5744,59 +5796,85 @@ function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
     return { points, hwLabels };
 }
 
-// Kernel vs CPU Score Scatter Data
+// Kernel vs CPU Score Scatter Data — CPU family × CPU Single Score per kernel version
 function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
-    const groups = {};
+    // Step 1: group by (family, cpuModel) to track per-model data
+    const familyModelGroups = {};
     data.forEach(r => {
         const k = r.kernel || '';
         const match = k.match(/^(\d+\.\d+)/);
         if (!match) return;
         const version = match[1];
-        const key = normalizeCPU(r.cpu);
-        if (!key || key.trim() === '' || key === 'Unknown CPU' || key === 'N/D') return;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ ...r, _kernelVer: version });
+        const normalized = normalizeCPU(r.cpu);
+        if (!normalized || normalized.trim() === '' || normalized === 'Unknown CPU' || normalized === 'N/D') return;
+        const family = classifyCPUFamily(normalized);
+        if (!family) return;
+        if (!familyModelGroups[family]) familyModelGroups[family] = {};
+        if (!familyModelGroups[family][normalized]) familyModelGroups[family][normalized] = [];
+        familyModelGroups[family][normalized].push({ ...r, _kernelVer: version });
     });
 
-    const hardwareRuns = Object.entries(groups)
-        .filter(([, runs]) => {
-            if (runs.length < minSamples) return false;
-            const verSet = new Set(runs.map(r => r._kernelVer));
+    // Step 2: filter families with enough data, sort by avg score desc
+    const familyRuns = Object.entries(familyModelGroups)
+        .map(([family, models]) => {
+            const allRuns = Object.values(models).flat();
+            return { family, models, allRuns };
+        })
+        .filter(({ allRuns }) => {
+            if (allRuns.length < minSamples) return false;
+            const verSet = new Set(allRuns.map(r => r._kernelVer));
             return verSet.size >= 2;
         })
         .sort((a, b) => {
-            const avgA = a[1].reduce((s, r) => s + (cleanNumber(r.cpuSingle) || 0), 0) / (a[1].length || 1);
-            const avgB = b[1].reduce((s, r) => s + (cleanNumber(r.cpuSingle) || 0), 0) / (b[1].length || 1);
+            const avgA = a.allRuns.reduce((s, r) => s + (cleanNumber(r.cpuSingle) || 0), 0) / (a.allRuns.length || 1);
+            const avgB = b.allRuns.reduce((s, r) => s + (cleanNumber(r.cpuSingle) || 0), 0) / (b.allRuns.length || 1);
             return avgB - avgA;
         })
         .slice(0, maxHardware);
 
+    // Step 3: compute mean-of-means per family+version and build familyModelMap
     const points = [];
-    hardwareRuns.forEach(([hwLabel, runs], hwIndex) => {
-        const verGroups = {};
-        runs.forEach(r => {
-            const score = cleanNumber(r.cpuSingle);
-            if (score === null) return;
-            if (!verGroups[r._kernelVer]) verGroups[r._kernelVer] = [];
-            verGroups[r._kernelVer].push({ score, run: r });
-        });
-        Object.entries(verGroups).forEach(([ver, entries]) => {
-            const avgScore = Math.round(entries.reduce((s, e) => s + e.score, 0) / entries.length);
-            const bestRun = entries.reduce((best, e) => e.score > best.score ? e : best, entries[0]).run;
-            points.push({
-                x: hwIndex,
-                y: avgScore,
-                label: `Kernel ${ver}`,
-                user: bestRun.user,
-                clientId: bestRun.clientId,
-                hardwareLabel: hwLabel,
-                count: entries.length
+    const familyModelMap = {};
+    familyRuns.forEach(({ family, models }, hwIndex) => {
+        const verModelGroups = {};
+        Object.entries(models).forEach(([model, runs]) => {
+            runs.forEach(r => {
+                const score = cleanNumber(r.cpuSingle);
+                if (score === null) return;
+                if (!verModelGroups[r._kernelVer]) verModelGroups[r._kernelVer] = {};
+                if (!verModelGroups[r._kernelVer][model]) verModelGroups[r._kernelVer][model] = [];
+                verModelGroups[r._kernelVer][model].push(score);
             });
         });
+
+        const modelBreakdown = {};
+        Object.entries(verModelGroups).forEach(([ver, modelScores]) => {
+            modelBreakdown[ver] = Object.entries(modelScores)
+                .map(([model, scores]) => ({ model, samples: scores.length }))
+                .sort((a, b) => b.samples - a.samples);
+        });
+
+        Object.entries(verModelGroups).forEach(([ver, modelScores]) => {
+            const modelAvgs = Object.values(modelScores).map(scores =>
+                scores.reduce((s, v) => s + v, 0) / scores.length
+            );
+            const familyAvg = Math.round(modelAvgs.reduce((s, v) => s + v, 0) / modelAvgs.length);
+            const bestEntry = Object.values(modelScores).flat();
+            points.push({
+                x: hwIndex,
+                y: familyAvg,
+                label: `Kernel ${ver}`,
+                hardwareLabel: family,
+                count: bestEntry.length,
+                modelCount: modelAvgs.length
+            });
+        });
+
+        familyModelMap[family] = modelBreakdown;
     });
 
-    const hwLabels = hardwareRuns.map(([label]) => label);
-    return { points, hwLabels };
+    const hwLabels = familyRuns.map(({ family }) => family);
+    return { points, hwLabels, familyModelMap };
 }
 
 // Driver vs Hardware Scatter Data — GPU family × GPU Score per driver version
