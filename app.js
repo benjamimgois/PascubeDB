@@ -2050,6 +2050,14 @@ function normalizeGPU(name) {
     return clean;
 }
 
+// Compute median of a numeric array
+function median(arr) {
+    if (!arr || arr.length === 0) return 0;
+    const sorted = arr.slice().sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 // Classify a normalized GPU name into a canonical family
 function classifyGPUFamily(normalizedName) {
     if (!normalizedName) return null;
@@ -5856,7 +5864,7 @@ function getKernelScatterData(data, maxHardware = 40, minSamples = 2) {
 
         Object.entries(verModelGroups).forEach(([ver, modelScores]) => {
             const modelAvgs = Object.values(modelScores).map(scores =>
-                scores.reduce((s, v) => s + v, 0) / scores.length
+                median(scores)
             );
             const familyAvg = Math.round(modelAvgs.reduce((s, v) => s + v, 0) / modelAvgs.length);
             const bestEntry = Object.values(modelScores).flat();
@@ -5947,7 +5955,7 @@ function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2
 
         Object.entries(verModelGroups).forEach(([ver, modelScores]) => {
             const modelAvgs = Object.values(modelScores).map(scores =>
-                scores.reduce((s, v) => s + v, 0) / scores.length
+                median(scores)
             );
             const familyAvg = Math.round(modelAvgs.reduce((s, v) => s + v, 0) / modelAvgs.length);
             const bestEntry = Object.values(modelScores).flat();
