@@ -2673,15 +2673,25 @@ function getVRAMDistribution(data) {
         if (!match) return;
 
         let num = parseFloat(match[1]);
-        if (num > 0) {
-            const label = Math.round(num) + ' GB';
-            vramMap[label] = (vramMap[label] || 0) + 1;
-        }
+        let label = '';
+        if (num >= 29) label = '32 GB';
+        else if (num >= 20.5) label = '24 GB';
+        else if (num >= 14) label = '16 GB';
+        else if (num >= 10.5) label = '12 GB';
+        else if (num >= 7) label = '8 GB';
+        else if (num >= 5) label = '6 GB';
+        else if (num >= 3) label = '4 GB';
+        else return;
+
+        vramMap[label] = (vramMap[label] || 0) + 1;
     });
 
+    const capacityOrder = ['4 GB', '6 GB', '8 GB', '12 GB', '16 GB', '24 GB', '32 GB'];
     const sorted = {};
-    Object.keys(vramMap).sort((a, b) => parseFloat(a) - parseFloat(b)).forEach(cap => {
-        sorted[cap] = vramMap[cap];
+    capacityOrder.forEach(cap => {
+        if (vramMap[cap]) {
+            sorted[cap] = vramMap[cap];
+        }
     });
 
     return sorted;
