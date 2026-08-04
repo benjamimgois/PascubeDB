@@ -4008,16 +4008,18 @@ function renderCharts() {
     const vramDist = getVRAMDistribution(benchmarkData);
     const vramLabels = Object.keys(vramDist);
     const vramColors = {
-        '8 GB': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },    // Indigo
-        '16 GB': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' },    // Rose
-        '24 GB': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },   // Amber
-        '32 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },   // Emerald
-        'Others': { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' }  // Gray
+        '4 GB': { bg: 'rgba(14, 165, 233, 0.8)', border: '#38bdf8' },      // Sky
+        '6 GB': { bg: 'rgba(6, 182, 212, 0.8)', border: '#22d3ee' },        // Cyan
+        '8 GB': { bg: 'rgba(99, 102, 241, 0.8)', border: '#818cf8' },       // Indigo
+        '12 GB': { bg: 'rgba(139, 92, 246, 0.8)', border: '#a78bfa' },      // Violet
+        '16 GB': { bg: 'rgba(16, 185, 129, 0.8)', border: '#34d399' },      // Emerald
+        '24 GB': { bg: 'rgba(245, 158, 11, 0.8)', border: '#fbbf24' },      // Amber
+        '32 GB': { bg: 'rgba(244, 63, 94, 0.8)', border: '#fb7185' }        // Rose
     };
     const vramBgColors = [];
     const vramBorderColors = [];
     vramLabels.forEach(label => {
-        const color = vramColors[label] || { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' };
+        const color = vramColors[label] || { bg: 'rgba(107, 114, 128, 0.8)', border: '#9ca3af' };
         vramBgColors.push(color.bg);
         vramBorderColors.push(color.border);
     });
