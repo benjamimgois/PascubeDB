@@ -1069,7 +1069,16 @@ function processGvizData(jsonResponse) {
             gpuMaxFreq: cleanNumber(getVal(28)),
             cpuMaxPower: cleanNumber(getVal(29)),
             gpuMaxPower: cleanNumber(getVal(30)),
-            goverlayVersion: getVal(31) || 'N/D'
+            goverlayVersion: (() => {
+                const raw = getVal(31);
+                if (raw instanceof Date) {
+                    const d = raw.getDate();
+                    const m = raw.getMonth() + 1;
+                    const y = raw.getFullYear();
+                    return `${d}.${m}.${parseInt(String(y).slice(-2), 10)}`;
+                }
+                return raw || 'N/D';
+            })()
         };
     }).filter(row => row !== null);
     
