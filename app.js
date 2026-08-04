@@ -1071,13 +1071,25 @@ function processGvizData(jsonResponse) {
             gpuMaxPower: cleanNumber(getVal(30)),
             goverlayVersion: (() => {
                 const raw = getVal(31);
+                if (!raw) return 'N/D';
                 if (raw instanceof Date) {
                     const d = raw.getDate();
                     const m = raw.getMonth() + 1;
                     const y = raw.getFullYear();
                     return `${d}.${m}.${parseInt(String(y).slice(-2), 10)}`;
                 }
-                return raw || 'N/D';
+                const str = String(raw).trim();
+                // "1.8.2009" or "1/8/2009" → "1.8.9"
+                const dateMatch = str.match(/^(\d+)[.\/-](\d+)[.\/-](\d{4})$/);
+                if (dateMatch) {
+                    const p1 = parseInt(dateMatch[1], 10);
+                    const p2 = parseInt(dateMatch[2], 10);
+                    const y = parseInt(dateMatch[3], 10);
+                    if (y >= 2000 && y <= 2100) {
+                        return `${p1}.${p2}.${parseInt(String(y).slice(-2), 10)}`;
+                    }
+                }
+                return str;
             })()
         };
     }).filter(row => row !== null);
