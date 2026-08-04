@@ -2668,42 +2668,22 @@ function getVRAMDistribution(data) {
     data.forEach(r => {
         let vram = r.vram || 'N/D';
         if (vram === 'N/D' || vram.trim() === '') return;
-        
+
         const match = vram.match(/(\d+(?:\.\d+)?)/);
         if (!match) return;
-        
+
         let num = parseFloat(match[1]);
-        let label = '';
         if (num > 0) {
-            if (num >= 30) label = '32 GB';
-            else if (num >= 22 && num <= 26) label = '24 GB';
-            else if (num >= 15 && num <= 18) label = '16 GB';
-            else if (num >= 7.5 && num <= 8.5) label = '8 GB';
-            else if (Math.round(num) % 2 === 0) label = Math.round(num) + ' GB';
-            else label = 'Others';
-        } else {
-            label = 'N/D';
+            const label = Math.round(num) + ' GB';
+            vramMap[label] = (vramMap[label] || 0) + 1;
         }
-        
-        vramMap[label] = (vramMap[label] || 0) + 1;
     });
-    
-    const capacityOrder = ['8 GB', '16 GB', '24 GB', '32 GB'];
+
     const sorted = {};
-    capacityOrder.forEach(cap => {
-        if (vramMap[cap]) {
-            sorted[cap] = vramMap[cap];
-            delete vramMap[cap];
-        }
-    });
-    Object.keys(vramMap).sort((a,b) => {
-        if (a === 'Others') return 1;
-        if (b === 'Others') return -1;
-        return parseFloat(a) - parseFloat(b);
-    }).forEach(cap => {
+    Object.keys(vramMap).sort((a, b) => parseFloat(a) - parseFloat(b)).forEach(cap => {
         sorted[cap] = vramMap[cap];
     });
-    
+
     return sorted;
 }
 
