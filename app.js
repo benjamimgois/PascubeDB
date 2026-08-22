@@ -2094,7 +2094,7 @@ function normalizeCPU(name) {
     clean = clean.replace(/\s+Eight-Core$/i, ''); // strip " Eight-Core"
     clean = clean.replace(/\s+@\s+\d+\.\d+GHz.*/i, ''); // strip "@ 4.00GHz" etc.
     if (/^eng\s*sample/i.test(clean)) return 'AMD Engineering Sample';
-    if (/^dg\d/i.test(clean)) return 'AMD Embedded';
+    if (/^dg\d/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     return clean.trim();
 }
 
@@ -2109,7 +2109,7 @@ function normalizeGPU(name) {
     clean = clean.replace(/Laptop\s+GPU/gi, 'Mobile');
     clean = clean.trim();
     if (/^AMD\s*Vega|^Vega\s*\d|^Vega$|^Radeon.*Vega|^RX\s*Vega/i.test(clean)) return 'AMD Vega';
-    if (/^dg\d/i.test(clean)) return 'AMD Embedded';
+    if (/^dg\d/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     return clean;
 }
 
@@ -2517,7 +2517,7 @@ function getTopHandheldCPUMulti(data, limit = 10) {
         .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
 }
 
-// Get top Handheld GPUs by best GPU score (no desktop GPU filtering needed)
+// Get top Handheld GPUs by best GPU score (excludes discrete mobile GPUs via eGPU)
 function getTopHandheldGPUs(data, limit = 10) {
     const handheldData = data.filter(r => classifyDevice(r) === 'Handheld' && r.gpuScore !== null);
     const best = {};
@@ -2525,6 +2525,7 @@ function getTopHandheldGPUs(data, limit = 10) {
     handheldData.forEach(r => {
         const name = normalizeGPU(r.gpu);
         if (!name || name === 'Unknown GPU' || name === 'N/D') return;
+        if (/\b(?:rx|rtx|gtx)\s*\d+\s*m\b/i.test(r.gpu || '')) return;
         if (!best[name] || r.gpuScore > best[name].gpuScore) {
             best[name] = r;
         }
