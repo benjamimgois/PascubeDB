@@ -2093,6 +2093,8 @@ function normalizeCPU(name) {
     clean = clean.replace(/\s+\d+-Core$/i, ''); // strip " 16-Core" etc.
     clean = clean.replace(/\s+Eight-Core$/i, ''); // strip " Eight-Core"
     clean = clean.replace(/\s+@\s+\d+\.\d+GHz.*/i, ''); // strip "@ 4.00GHz" etc.
+    if (/^eng\s*sample/i.test(clean)) return 'AMD Engineering Sample';
+    if (/^dg\d/i.test(clean)) return 'AMD Embedded';
     return clean.trim();
 }
 
@@ -2107,6 +2109,7 @@ function normalizeGPU(name) {
     clean = clean.replace(/Laptop\s+GPU/gi, 'Mobile');
     clean = clean.trim();
     if (/^AMD\s*Vega|^Vega\s*\d|^Vega$|^Radeon.*Vega|^RX\s*Vega/i.test(clean)) return 'AMD Vega';
+    if (/^dg\d/i.test(clean)) return 'AMD Embedded';
     return clean;
 }
 
@@ -2593,7 +2596,7 @@ function getCPUBrandDistribution(data) {
         const arch = (r.architecture || '').toLowerCase();
         if (arch === 'aarch64') {
             brands.ARM++;
-        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('radeon') || cpu.includes('bc-250')) {
+        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('phenom') || cpu.includes('radeon') || cpu.includes('eng sample') || cpu.includes('bc-250') || /^dg\d/.test(cpu)) {
             brands.AMD++;
         } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('pentium') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra') || cpu.includes('core 5') || cpu.includes('core 3') || cpu.includes('core 7') || cpu.includes('celeron') || cpu.includes('atom') || /^\d/.test(cpu)) {
             brands.Intel++;
