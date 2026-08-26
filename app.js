@@ -4795,7 +4795,12 @@ function renderCharts() {
                 const d = r.driver || '';
                 const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
                 if (!match) return;
-                version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
+                if (match[2] === '99') {
+                    const [maj, min] = match[1].split('.').map(Number);
+                    version = `${maj}.${min + 1}`;
+                } else {
+                    version = match[1];
+                }
             } else if (type === 'nvidia') {
                 const normalized = normalizeGPU(r.gpu);
                 hwKey = classifyGPUFamily(normalized);
@@ -5959,7 +5964,14 @@ function getDriverScatterData(data, driverType, maxHardware = 40, minSamples = 2
         if (driverType === 'mesa') {
             const d = r.driver || '';
             const match = d.match(/Mesa\s+(\d+\.\d+)(?:\.(\d+))?/i);
-            if (match) version = match[2] === '99' ? `${match[1]} (mesa-git)` : match[1];
+            if (match) {
+                if (match[2] === '99') {
+                    const [maj, min] = match[1].split('.').map(Number);
+                    version = `${maj}.${min + 1}`;
+                } else {
+                    version = match[1];
+                }
+            }
         } else if (driverType === 'nvidia') {
             const d = r.driver || '';
             if (d.includes('NVRM') || d.includes('NVIDIA')) {
