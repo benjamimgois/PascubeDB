@@ -1069,28 +1069,7 @@ function processGvizData(jsonResponse) {
             gpuMaxFreq: cleanNumber(getVal(28)),
             cpuMaxPower: cleanNumber(getVal(29)),
             gpuMaxPower: cleanNumber(getVal(30)),
-            goverlayVersion: (() => {
-                const raw = getVal(31);
-                if (!raw) return 'N/D';
-                if (raw instanceof Date) {
-                    const d = raw.getDate();
-                    const m = raw.getMonth() + 1;
-                    const y = raw.getFullYear();
-                    return `${d}.${m}.${parseInt(String(y).slice(-2), 10)}`;
-                }
-                const str = String(raw).trim();
-                // "1.8.2009" or "1/8/2009" → "1.8.9"
-                const dateMatch = str.match(/^(\d+)[.\/-](\d+)[.\/-](\d{4})$/);
-                if (dateMatch) {
-                    const p1 = parseInt(dateMatch[1], 10);
-                    const p2 = parseInt(dateMatch[2], 10);
-                    const y = parseInt(dateMatch[3], 10);
-                    if (y >= 2000 && y <= 2100) {
-                        return `${p1}.${p2}.${parseInt(String(y).slice(-2), 10)}`;
-                    }
-                }
-                return str;
-            })()
+            goverlayVersion: normalizeGoverlayVersion(getFormattedVal(31))
         };
     }).filter(row => row !== null);
     
@@ -1281,7 +1260,7 @@ function processCSVData(csvText) {
             gpuMaxFreq: cleanNumber(row[28]),
             cpuMaxPower: cleanNumber(row[29]),
             gpuMaxPower: cleanNumber(row[30]),
-            goverlayVersion: row[31] || 'N/D'
+            goverlayVersion: normalizeGoverlayVersion(row[31])
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -2111,6 +2090,22 @@ function normalizeGPU(name) {
     if (/^AMD\s*Vega|^Vega\s*\d|^Vega$|^Radeon.*Vega|^RX\s*Vega/i.test(clean)) return 'AMD Vega';
     if (/^dg\d/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     return clean;
+}
+
+// Normalize GOverlay version strings: Google Sheets can interpret the build
+// number as a year (e.g., "1.8.2007" -> "1.8.7", "1.9.2001" -> "1.9.1").
+function normalizeGoverlayVersion(v) {
+    if (!v || v === 'N/D') return 'N/D';
+    const s = String(v).trim();
+    const parts = s.split('.');
+    if (parts.length !== 3) return s;
+    const buildNum = parseInt(parts[2], 10);
+    if (isNaN(buildNum)) return s;
+    let build = buildNum;
+    if (buildNum >= 2000 && buildNum <= 2099) {
+        build = buildNum - 2000;
+    }
+    return `${parts[0]}.${parts[1]}.${build}`;
 }
 
 // Compute median of a numeric array
