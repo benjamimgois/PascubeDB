@@ -131,17 +131,17 @@ Anonymous,Raspberry Pi 5,8GB,VideoCore VII,0.5GB,Mesa 26.1.2,7.0.12-1-cachyos,Ub
 Anonymous,Orange Pi 5 Plus,16GB,Mali G610,2GB,Mesa 26.1.2,7.0.12-1-cachyos,Debian 12,78,1,1,52,22/06/2026 14:30:00,,aarch64,native,,Orange Pi 5 Plus 16GB,,,,,,,,,,2000,800
 `;
 
-// Score type color scheme — consistent across all charts
+// Score type color scheme — consistent across all charts (Goverlay theme)
 const SCORE_COLORS = {
-    cpuSingle: { bg: 'rgba(99, 102, 241, 0.85)', border: '#818cf8' },
-    cpuMulti: { bg: 'rgba(168, 85, 247, 0.85)', border: '#c084fc' },
-    gpu: { bg: 'rgba(16, 185, 129, 0.85)', border: '#10b981' },
+    cpuSingle: { bg: 'rgba(14, 165, 233, 0.85)', border: '#38bdf8' },
+    cpuMulti: { bg: 'rgba(2, 132, 199, 0.85)', border: '#0ea5e9' },
+    gpu: { bg: 'rgba(34, 197, 94, 0.85)', border: '#22c55e' },
     popular: { bg: 'rgba(245, 158, 11, 0.85)', border: '#f59e0b' },
     popularGpu: { bg: 'rgba(217, 119, 6, 0.85)', border: '#d97706' },
-    rare: { bg: 'rgba(217, 70, 239, 0.85)', border: '#e879f9' },
-    rareCpu: { bg: 'rgba(217, 70, 239, 0.85)', border: '#e879f9' },
-    rareGpu: { bg: 'rgba(217, 70, 239, 0.85)', border: '#e879f9' },
-    portableRuns: { bg: 'rgba(6, 182, 212, 0.85)', border: '#22d3ee' },
+    rare: { bg: 'rgba(232, 121, 249, 0.85)', border: '#e879f9' },
+    rareCpu: { bg: 'rgba(232, 121, 249, 0.85)', border: '#e879f9' },
+    rareGpu: { bg: 'rgba(232, 121, 249, 0.85)', border: '#e879f9' },
+    portableRuns: { bg: 'rgba(56, 189, 248, 0.85)', border: '#38bdf8' },
 };
 
 // State Variables
@@ -314,6 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupTabNavigation() {
     const tabs = document.querySelectorAll('.tab-btn');
     const contents = document.querySelectorAll('.tab-content');
+    const underline = document.querySelector('.tab-nav-underline');
+
+    const updateUnderline = (tabElement) => {
+        if (!underline || !tabElement) return;
+        underline.style.left = tabElement.offsetLeft + 'px';
+        underline.style.width = tabElement.offsetWidth + 'px';
+    };
+
     window.switchTab = (target) => {
         const activeTab = document.querySelector(`.tab-btn[data-tab="${target}"]`);
         const activeContents = document.querySelectorAll(`.tab-content[data-tab="${target}"]`);
@@ -321,7 +329,10 @@ function setupTabNavigation() {
         const updateUI = () => {
             tabs.forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.style.display = 'none');
-            if (activeTab) activeTab.classList.add('active');
+            if (activeTab) {
+                activeTab.classList.add('active');
+                updateUnderline(activeTab);
+            }
             activeContents.forEach(c => c.style.display = 'block');
         };
 
@@ -332,16 +343,30 @@ function setupTabNavigation() {
         }
 
         trackPage('tab:' + target);
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            const currentActive = document.querySelector('.tab-btn.active');
+            if (currentActive) updateUnderline(currentActive);
+        }, 50);
     };
+
     tabs.forEach(tab => {
         tab.addEventListener('click', () => window.switchTab(tab.getAttribute('data-tab')));
     });
+
+    const initialActive = document.querySelector('.tab-btn.active');
+    if (initialActive) {
+        setTimeout(() => updateUnderline(initialActive), 100);
+    }
+    window.addEventListener('resize', () => {
+        const currentActive = document.querySelector('.tab-btn.active');
+        if (currentActive) updateUnderline(currentActive);
+    }, { passive: true });
 }
 
 const BASELINE_CHART_MAP = { mesa: 'mesaDriverScatterChart', nvidia: 'nvidiaDriverScatterChart', kernel: 'kernelScatterChart', os: 'osHardwareScatterChart' };
 const VIZ_CHART_IDS = { mesa: { mode: 'mesa-mode', toggle: 'mesa-toggle' }, nvidia: { mode: 'nvidia-mode', toggle: 'nvidia-toggle' }, kernel: { mode: 'kernel-mode', toggle: 'kernel-toggle' }, os: { mode: 'os-mode', toggle: 'os-toggle' }, cpuAverage: { mode: 'cpuAverage-mode', toggle: 'cpuAverage-toggle' }, gpuAverage: { mode: 'gpuAverage-mode', toggle: 'gpuAverage-toggle' } };
-const AVERAGE_CHART_CONFIG = { cpuAverage: { chartId: 'cpuAverageChart', color: 'rgba(99, 102, 241, 0.85)', border: '#818cf8', label: 'Average CPU Single Score', maxItems: 10 }, gpuAverage: { chartId: 'gpuAverageChart', color: SCORE_COLORS.gpu.bg, border: SCORE_COLORS.gpu.border, label: 'Average GPU Score', maxItems: 10 } };
+const AVERAGE_CHART_CONFIG = { cpuAverage: { chartId: 'cpuAverageChart', color: 'rgba(14, 165, 233, 0.85)', border: '#38bdf8', label: 'Average CPU Single Score', maxItems: 10 }, gpuAverage: { chartId: 'gpuAverageChart', color: SCORE_COLORS.gpu.bg, border: SCORE_COLORS.gpu.border, label: 'Average GPU Score', maxItems: 10 } };
 
 function populateBaselineSelects() {
     ['mesa', 'nvidia', 'kernel', 'os', 'cpuAverage', 'gpuAverage'].forEach(type => {
@@ -3450,7 +3475,7 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -3461,7 +3486,7 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderColor: 'rgba(14, 165, 233, 0.5)',
                     borderWidth: 1.5,
                     cornerRadius: 10,
                     displayColors: false,
@@ -3546,7 +3571,7 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -3557,7 +3582,7 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderColor: 'rgba(14, 165, 233, 0.5)',
                     borderWidth: 1.5,
                     cornerRadius: 10,
                     callbacks: {
@@ -3650,11 +3675,11 @@ function renderOSHardwareScatterChart(canvasId, data) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
-                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderColor: 'rgba(14, 165, 233, 0.5)',
                     borderWidth: 1.5,
                     cornerRadius: 10,
                     callbacks: {
@@ -3901,8 +3926,8 @@ function renderCharts() {
         gpuRtRuns.map(r => r.gpu),
         gpuRtScores,
         'GPU RT Score',
-        'rgba(59, 130, 246, 0.85)',
-        '#3b82f6',
+        SCORE_COLORS.gpu.bg,
+        SCORE_COLORS.gpu.border,
         undefined,
         undefined,
         gpuRtRuns.map(r => getDisplayName(r)),
@@ -4774,11 +4799,11 @@ function renderCharts() {
             plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(11, 15, 25, 1)',
+                            backgroundColor: 'rgba(17, 22, 34, 0.98)',
                             titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                             bodyFont: { family: "'Inter', sans-serif", size: 13 },
                             padding: 12,
-                            borderColor: 'rgba(99, 102, 241, 0.45)',
+                            borderColor: 'rgba(14, 165, 233, 0.5)',
                             borderWidth: 1.5,
                             cornerRadius: 10,
                             displayColors: false,
@@ -5502,11 +5527,11 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors, xMaxOver
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(11, 15, 25, 1)',
+                        backgroundColor: 'rgba(17, 22, 34, 0.98)',
                         titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                         bodyFont: { family: "'Inter', sans-serif", size: 13 },
                         padding: 12,
-                        borderColor: 'rgba(99, 102, 241, 0.45)',
+                        borderColor: 'rgba(14, 165, 233, 0.5)',
                         borderWidth: 1.5,
                         cornerRadius: 10,
                         displayColors: false,
@@ -5857,8 +5882,8 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
-                    padding: 10, borderColor: 'rgba(99, 102, 241, 0.45)', borderWidth: 1.5, cornerRadius: 10, displayColors: true,
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                    padding: 10, borderColor: 'rgba(14, 165, 233, 0.5)', borderWidth: 1.5, cornerRadius: 10, displayColors: true,
                     callbacks: {
                         label: function(context) {
                             const samples = context.dataset.sampleCounts ? context.dataset.sampleCounts[context.dataIndex] : 0;
@@ -6210,11 +6235,11 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
-                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderColor: 'rgba(14, 165, 233, 0.5)',
                     borderWidth: 1.5,
                     cornerRadius: 10,
                     callbacks: {
@@ -6358,7 +6383,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -6369,7 +6394,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderColor: 'rgba(14, 165, 233, 0.5)',
                     borderWidth: 1.5,
                     cornerRadius: 10,
                     displayColors: false,
@@ -6876,7 +6901,7 @@ function renderGroupedBarChart(canvasId, labels, datasets) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: {
                         family: "'Outfit', sans-serif",
                         size: 13,
@@ -6887,7 +6912,7 @@ function renderGroupedBarChart(canvasId, labels, datasets) {
                         size: 13
                     },
                     padding: 12,
-                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    borderColor: 'rgba(14, 165, 233, 0.5)',
                     borderWidth: 1.5,
                     cornerRadius: 10
                 }
@@ -7207,7 +7232,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     labels: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 }, padding: 10, boxWidth: 10, usePointStyle: true }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(11, 15, 25, 1)',
+                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
                     titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     padding: 12,
