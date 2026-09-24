@@ -138,8 +138,9 @@ const SCORE_COLORS = {
     gpu: { bg: 'rgba(16, 185, 129, 0.85)', border: '#10b981' },
     popular: { bg: 'rgba(245, 158, 11, 0.85)', border: '#f59e0b' },
     popularGpu: { bg: 'rgba(217, 119, 6, 0.85)', border: '#d97706' },
-    rareCpu: { bg: 'rgba(244, 63, 94, 0.85)', border: '#fb7185' },
-    rareGpu: { bg: 'rgba(139, 92, 246, 0.85)', border: '#a78bfa' },
+    rare: { bg: 'rgba(217, 70, 239, 0.85)', border: '#e879f9' },
+    rareCpu: { bg: 'rgba(217, 70, 239, 0.85)', border: '#e879f9' },
+    rareGpu: { bg: 'rgba(217, 70, 239, 0.85)', border: '#e879f9' },
     portableRuns: { bg: 'rgba(6, 182, 212, 0.85)', border: '#22d3ee' },
 };
 
@@ -2235,6 +2236,21 @@ function getTopHardware(data, type, limit = 10, order = 'desc') {
         .slice(0, limit);
 }
 
+// Helper to get rare hardware (<= maxEntries in benchmark data, one entry per model)
+function getRarestHardware(data, type, maxEntries = 3) {
+    const counts = {};
+    data.forEach(r => {
+        const name = type === 'cpu' ? normalizeCPU(r.cpu) : normalizeGPU(r.gpu);
+        if (name && name !== 'Unknown CPU' && name !== 'Unknown GPU' && name !== 'N/D') {
+            counts[name] = (counts[name] || 0) + 1;
+        }
+    });
+    return Object.entries(counts)
+        .map(([name, count]) => ({ name, count }))
+        .filter(item => item.count <= maxEntries)
+        .sort((a, b) => (a.count - b.count) || a.name.localeCompare(b.name));
+}
+
 // Helper to get OS distribution
 function getOSDistribution(data) {
     const osMap = {};
@@ -3954,52 +3970,50 @@ function renderCharts() {
         true
     );
 
-    // 5b. Top 10 CPU - Rarest CPUs Chart
-    const rareCPUs = getTopHardware(benchmarkData, 'cpu', 10, 'asc');
-    renderHorizontalBarChart(
+    // 5b. Rarest CPUs Chart (<= 3 entries in spreadsheet)
+    const rareCPUs = getRarestHardware(benchmarkData, 'cpu', 3);
+    makeChartScrollable(
         'cpuRareChart',
         rareCPUs.map(c => c.name),
         rareCPUs.map(c => c.count),
         'Count',
-        SCORE_COLORS.rareCpu.bg,
-        SCORE_COLORS.rareCpu.border,
+        SCORE_COLORS.rare.bg,
+        SCORE_COLORS.rare.border,
+        10,
+        undefined,
+        undefined,
+        undefined,
+        true,
         undefined,
         undefined,
         undefined,
         undefined,
         undefined,
         undefined,
-        undefined,
-        undefined,
-        null,
-        null,
-        null,
-        null,
-        true
+        { rankOneIcon: '', rankOneLocalIdx: -1 }
     );
 
-    // 5c. Top 10 GPU - Rarest Chart
-    const rareGPUs = getTopHardware(benchmarkData, 'gpu', 10, 'asc');
-    renderHorizontalBarChart(
+    // 5c. Rarest GPUs Chart (<= 3 entries in spreadsheet)
+    const rareGPUs = getRarestHardware(benchmarkData, 'gpu', 3);
+    makeChartScrollable(
         'gpuRareChart',
         rareGPUs.map(g => g.name),
         rareGPUs.map(g => g.count),
         'Count',
-        SCORE_COLORS.rareGpu.bg,
-        SCORE_COLORS.rareGpu.border,
+        SCORE_COLORS.rare.bg,
+        SCORE_COLORS.rare.border,
+        10,
+        undefined,
+        undefined,
+        undefined,
+        true,
         undefined,
         undefined,
         undefined,
         undefined,
         undefined,
         undefined,
-        undefined,
-        undefined,
-        null,
-        null,
-        null,
-        null,
-        true
+        { rankOneIcon: '', rankOneLocalIdx: -1 }
     );
 
     // 6. Pie/Doughnut OS Distribution Chart
@@ -6771,10 +6785,16 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
             if (gpuPower) chart.data.datasets[0].gpuPower = gpuPower.slice(startIndex, startIndex + visibleCount);
             if (extraDataProps) {
                 Object.keys(extraDataProps).forEach(k => {
-                    chart.data.datasets[0][k] = extraDataProps[k].slice(startIndex, startIndex + visibleCount);
+                    if (Array.isArray(extraDataProps[k])) {
+                        chart.data.datasets[0][k] = extraDataProps[k].slice(startIndex, startIndex + visibleCount);
+                    } else {
+                        chart.data.datasets[0][k] = extraDataProps[k];
+                    }
                 });
             }
-            if (showDataLabels) chart.data.datasets[0].rankOneLocalIdx = startIndex === 0 ? 0 : -1;
+            if (showDataLabels) {
+                chart.data.datasets[0].rankOneLocalIdx = (chart.data.datasets[0].rankOneIcon && startIndex === 0) ? 0 : -1;
+            }
             chart.data.datasets[0].startIndex = startIndex;
             if (normalize) {
                 chart.data.datasets[0].percentages = newData;
