@@ -138,6 +138,8 @@ const SCORE_COLORS = {
     gpu: { bg: 'rgba(16, 185, 129, 0.85)', border: '#10b981' },
     popular: { bg: 'rgba(245, 158, 11, 0.85)', border: '#f59e0b' },
     popularGpu: { bg: 'rgba(217, 119, 6, 0.85)', border: '#d97706' },
+    rareCpu: { bg: 'rgba(244, 63, 94, 0.85)', border: '#fb7185' },
+    rareGpu: { bg: 'rgba(139, 92, 246, 0.85)', border: '#a78bfa' },
     portableRuns: { bg: 'rgba(6, 182, 212, 0.85)', border: '#22d3ee' },
 };
 
@@ -1069,7 +1071,8 @@ function processGvizData(jsonResponse) {
             gpuMaxFreq: cleanNumber(getVal(28)),
             cpuMaxPower: cleanNumber(getVal(29)),
             gpuMaxPower: cleanNumber(getVal(30)),
-            goverlayVersion: normalizeGoverlayVersion(getFormattedVal(31))
+            goverlayVersion: normalizeGoverlayVersion(getFormattedVal(31)),
+            gpuRt: cleanNumber(getVal(32))
         };
     }).filter(row => row !== null);
     
@@ -1260,7 +1263,8 @@ function processCSVData(csvText) {
             gpuMaxFreq: cleanNumber(row[28]),
             cpuMaxPower: cleanNumber(row[29]),
             gpuMaxPower: cleanNumber(row[30]),
-            goverlayVersion: normalizeGoverlayVersion(row[31])
+            goverlayVersion: normalizeGoverlayVersion(row[31]),
+            gpuRt: cleanNumber(row[32])
         };
     }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
     
@@ -2215,7 +2219,7 @@ function classifyCPUFamily(normalizedName) {
 }
 
 // Helper to get top hardware by frequency
-function getTopHardware(data, type, limit = 10) {
+function getTopHardware(data, type, limit = 10, order = 'desc') {
     const counts = {};
     data.forEach(r => {
         const name = type === 'cpu' ? normalizeCPU(r.cpu) : normalizeGPU(r.gpu);
@@ -2225,7 +2229,9 @@ function getTopHardware(data, type, limit = 10) {
     });
     return Object.entries(counts)
         .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
+        .sort((a, b) => order === 'asc'
+            ? (a.count - b.count) || a.name.localeCompare(b.name)
+            : (b.count - a.count) || a.name.localeCompare(b.name))
         .slice(0, limit);
 }
 
@@ -2592,9 +2598,9 @@ function getCPUBrandDistribution(data) {
         const arch = (r.architecture || '').toLowerCase();
         if (arch === 'aarch64') {
             brands.ARM++;
-        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('phenom') || cpu.includes('radeon') || cpu.includes('eng sample') || cpu.includes('bc-250') || /^dg\d/.test(cpu)) {
+        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('phenom') || cpu.includes('radeon') || cpu.includes('eng sample') || cpu.includes('bc-250') || cpu.includes('jaguar') || /^dg\d/.test(cpu)) {
             brands.AMD++;
-        } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('pentium') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra') || cpu.includes('core 5') || cpu.includes('core 3') || cpu.includes('core 7') || cpu.includes('celeron') || cpu.includes('atom') || /^\d/.test(cpu)) {
+        } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('pentium') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra') || cpu.includes('core 5') || cpu.includes('core 3') || cpu.includes('core 7') || cpu.includes('celeron') || cpu.includes('atom') || /^m\d-\d/.test(cpu) || /^\d/.test(cpu)) {
             brands.Intel++;
         } else if (cpu.includes('arm') || cpu.includes('rk3588') || cpu.includes('mali')) {
             brands.ARM++;
@@ -2757,7 +2763,12 @@ function getVersionDistribution(data, type) {
             if (match) {
                 const majorMinor = match[1];
                 const patch = match[2];
-                version = patch === '99' ? `${majorMinor} (mesa-git)` : majorMinor;
+                if (patch === '99') {
+                    const [maj, min] = majorMinor.split('.').map(Number);
+                    version = `${maj}.${min + 1}`;
+                } else {
+                    version = majorMinor;
+                }
             }
         } else if (type === 'kernel') {
             const k = r.kernel || '';
@@ -3855,6 +3866,42 @@ function renderCharts() {
         true
     );
 
+    // 3b. GPU Raytracing Performance Top 10 Chart
+    const gpuRtBest = {};
+    benchmarkData.filter(r => r.gpuRt !== null && r.gpuRt !== undefined).forEach(r => {
+        const key = normalizeGPU(r.gpu);
+        if (!key || key === 'Unknown GPU') return;
+        if (!gpuRtBest[key] || r.gpuRt > gpuRtBest[key].gpuRt) {
+            gpuRtBest[key] = r;
+        }
+    });
+    const gpuRtRuns = Object.values(gpuRtBest)
+        .sort((a, b) => b.gpuRt - a.gpuRt)
+        .slice(0, 10);
+    const gpuRtScores = gpuRtRuns.map(r => r.gpuRt);
+        
+    renderHorizontalBarChart(
+        'gpuRtChart',
+        gpuRtRuns.map(r => r.gpu),
+        gpuRtScores,
+        'GPU RT Score',
+        'rgba(59, 130, 246, 0.85)',
+        '#3b82f6',
+        undefined,
+        undefined,
+        gpuRtRuns.map(r => getDisplayName(r)),
+        null,
+        null,
+        null,
+        null,
+        gpuRtRuns.map(r => r.gpuMaxFreq),
+        null,
+        gpuRtRuns.map(r => r.gpuMaxPower),
+        undefined,
+        chartNorm['gpuRtChart'],
+        true
+    );
+
     // 4. Top 10 CPU - Most Used Chart
     const popularCPUs = getTopHardware(benchmarkData, 'cpu', 10);
     const cpuPopTotal = popularCPUs.reduce((s, c) => s + c.count, 0);
@@ -3903,6 +3950,54 @@ function renderCharts() {
         null,
         null,
         gpuPopPct,
+        null,
+        true
+    );
+
+    // 5b. Top 10 CPU - Rarest CPUs Chart
+    const rareCPUs = getTopHardware(benchmarkData, 'cpu', 10, 'asc');
+    renderHorizontalBarChart(
+        'cpuRareChart',
+        rareCPUs.map(c => c.name),
+        rareCPUs.map(c => c.count),
+        'Count',
+        SCORE_COLORS.rareCpu.bg,
+        SCORE_COLORS.rareCpu.border,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        null,
+        null,
+        null,
+        true
+    );
+
+    // 5c. Top 10 GPU - Rarest Chart
+    const rareGPUs = getTopHardware(benchmarkData, 'gpu', 10, 'asc');
+    renderHorizontalBarChart(
+        'gpuRareChart',
+        rareGPUs.map(g => g.name),
+        rareGPUs.map(g => g.count),
+        'Count',
+        SCORE_COLORS.rareGpu.bg,
+        SCORE_COLORS.rareGpu.border,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        null,
+        null,
         null,
         true
     );

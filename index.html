@@ -214,9 +214,9 @@
                 </div>
             </div>
 
-            <div class="chart-container-wrapper full-width-chart">
+            <div class="chart-container-wrapper large-chart">
                 <div class="chart-header">
-                    <h3>Top 10 GPU Model - Performance</h3>
+                    <h3>Top 10 GPU Model - Performance (Raster)</h3>
                     <p>Highest GPU score per GPU model (higher is better)</p>
                     <label class="chart-toggle-wrap chart-toggle-corner" data-chart="gpuChart">
                         <input type="checkbox" class="chart-toggle-cb">
@@ -227,6 +227,22 @@
                 </div>
                 <div class="chart-canvas-area">
                     <canvas id="gpuChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container-wrapper large-chart">
+                <div class="chart-header">
+                    <h3>Top 10 GPU Model - Performance (RT)</h3>
+                    <p>Highest raytracing score per GPU model (higher is better)</p>
+                    <label class="chart-toggle-wrap chart-toggle-corner" data-chart="gpuRtChart">
+                        <input type="checkbox" class="chart-toggle-cb">
+                        <span class="chart-toggle-slider"></span>
+                        <span class="chart-toggle-label">Normalize</span>
+                        <span class="viz-info-wrap"><i data-lucide="help-circle" class="viz-info-icon"></i><div class="viz-info-tooltip">Scales scores to 0-100%. Best = 100%, others = % of best.</div></span>
+                    </label>
+                </div>
+                <div class="chart-canvas-area">
+                    <canvas id="gpuRtChart"></canvas>
                 </div>
             </div>
         </section>
@@ -256,6 +272,26 @@
                     </div>
                     <div class="chart-canvas-area">
                         <canvas id="gpuPopularChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Top 10 CPU - Rarest CPUs</h3>
+                        <p>CPU models with the fewest benchmark samples</p>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="cpuRareChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container-wrapper">
+                    <div class="chart-header">
+                        <h3>Top 10 GPU - Rarest</h3>
+                        <p>GPU models with the fewest benchmark samples</p>
+                    </div>
+                    <div class="chart-canvas-area">
+                        <canvas id="gpuRareChart"></canvas>
                     </div>
                 </div>
             </div>
