@@ -19,6 +19,16 @@
     --dropdown-bg: #141a27;
     --dropdown-border: #283449;
 
+    /* Specimen rarity tiers (S = rarest) */
+    --tier-s: #e879f9;
+    --tier-s-bg: rgba(232, 121, 249, 0.15);
+    --tier-a: #a78bfa;
+    --tier-a-bg: rgba(167, 139, 250, 0.15);
+    --tier-b: #38bdf8;
+    --tier-b-bg: rgba(56, 189, 248, 0.15);
+    --tier-c: #94a3b8;
+    --tier-c-bg: rgba(148, 163, 184, 0.15);
+
     /* Font Families */
     --font-heading: 'Outfit', sans-serif;
     --font-body: 'Inter', sans-serif;
@@ -1038,6 +1048,324 @@ h1, h2, h3, h4 {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
     margin-top: 1.5rem;
+}
+
+/* Curiosity filter section + specimen chips */
+.curiosity-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.specimen-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.specimen-chips-cell {
+    margin-top: 0.35rem;
+}
+
+.specimen-chip {
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    white-space: nowrap;
+}
+
+/* Specimen Detail Modal */
+.specimen-modal {
+    max-width: 620px;
+}
+
+.specimen-modal-sub {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+}
+
+.specimen-modal-reason {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0.75rem 0 1rem;
+}
+
+.specimen-scores {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1.1rem;
+}
+
+.specimen-score {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.5rem 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.specimen-score-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.specimen-score-value {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.specimen-context {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    border-top: 1px solid var(--card-border);
+    padding-top: 0.85rem;
+}
+
+.specimen-context-row {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.78rem;
+}
+
+.specimen-context-label {
+    color: var(--text-muted);
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.specimen-context-value {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Curiosity: filter chips + summary */
+.curiosity-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.curiosity-chip {
+    --chip-color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.curiosity-chip:hover {
+    border-color: var(--chip-color);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.curiosity-chip.tier-s { --chip-color: var(--tier-s); }
+.curiosity-chip.tier-a { --chip-color: var(--tier-a); }
+.curiosity-chip.tier-b { --chip-color: var(--tier-b); }
+.curiosity-chip.tier-c { --chip-color: var(--tier-c); }
+
+.curiosity-chip.active {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--chip-color);
+    color: var(--text-primary);
+}
+
+.curiosity-chip-count {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    padding: 0.02rem 0.4rem;
+    color: var(--text-secondary);
+}
+
+.curiosity-chip.active .curiosity-chip-count {
+    background: var(--chip-color);
+    color: #0b0f19;
+}
+
+.curiosity-summary {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+/* Curiosity: submitted benchmarks table */
+.submissions-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-top: 2rem;
+}
+
+.submissions-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.submissions-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.submissions-control select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    padding: 0.4rem 0.7rem;
+    outline: none;
+    min-width: 220px;
+    max-width: 100%;
+}
+
+.submissions-control select:focus {
+    border-color: var(--primary);
+}
+
+.submissions-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    background: var(--card-bg);
+}
+
+.submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    min-width: 980px;
+}
+
+.submissions-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--card-border);
+    position: sticky;
+    top: 0;
+    background: rgba(17, 22, 34, 0.98);
+    backdrop-filter: blur(6px);
+}
+
+.submissions-table td {
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid rgba(35, 45, 63, 0.6);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.submissions-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.submissions-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.submissions-table .ta-right {
+    text-align: right;
+}
+
+.sub-rank {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.sub-user {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.sub-cpu,
+.sub-gpu {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sub-type {
+    max-width: 220px;
+}
+
+.sub-row {
+    cursor: pointer;
+}
+
+.sub-date {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+}
+
+.sub-main {
+    position: relative;
+    min-width: 120px;
+}
+
+.sub-bar {
+    position: absolute;
+    right: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60%;
+    max-width: calc(100% - 1.7rem);
+    background: linear-gradient(90deg, rgba(14, 165, 233, 0.35), rgba(14, 165, 233, 0.1));
+    border-radius: 4px;
+    z-index: 0;
+}
+
+.sub-main-val {
+    position: relative;
+    z-index: 1;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.submissions-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
+    font-size: 0.85rem;
 }
 
 .donut-chart-canvas {

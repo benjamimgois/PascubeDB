@@ -92,7 +92,7 @@
         <!-- Tab Bar -->
         <div class="hw-tab-bar">
             <button class="hw-tab active" data-pill="performance"><i data-lucide="cpu"></i> Performance</button>
-            <button class="hw-tab" data-pill="thermals"><i data-lucide="thermometer"></i> Thermals</button>
+            <button class="hw-tab" data-pill="curiosity"><i data-lucide="sparkles"></i> Curiosity</button>
             <button class="hw-tab" data-pill="efficiency"><i data-lucide="bar-chart-3"></i> Efficiency</button>
             <div class="hw-tab-underline"></div>
         </div>
@@ -271,26 +271,6 @@
                     </div>
                     <div class="chart-canvas-area">
                         <canvas id="gpuPopularChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Rarest CPUs</h3>
-                        <p>CPU models with 3 or fewer benchmark samples</p>
-                    </div>
-                    <div class="chart-canvas-area">
-                        <canvas id="cpuRareChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Rarest GPUs</h3>
-                        <p>GPU models with 3 or fewer benchmark samples</p>
-                    </div>
-                    <div class="chart-canvas-area">
-                        <canvas id="gpuRareChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -738,73 +718,63 @@
 
         </div><!-- /pill-content efficiency -->
 
-        <!-- Thermals Pill -->
-        <div class="pill-content" data-pill="thermals">
+        <!-- Curiosity Pill -->
+        <div class="pill-content" data-pill="curiosity">
 
-        <section class="charts-section">
+        <section class="curiosity-section">
             <div class="section-header">
-                <h2>Temperature by Brand</h2>
-                <p>GPU max temperatures per contributor</p>
+                <h2>Curiosity</h2>
+                <p>Filter submitted benchmarks by the kind of oddity — legacy GPU, server, console, SBC and more</p>
             </div>
-            <div class="advanced-charts-grid">
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>AMD — GPU Temps</h3>
-                        <p>Per-contributor max temperatures</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="hottestAmdChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>NVIDIA — GPU Temps</h3>
-                        <p>Per-contributor max temperatures</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="hottestNvidiaChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Intel — GPU Temps</h3>
-                        <p>Per-contributor max temperatures</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="hottestIntelChart"></canvas>
-                    </div>
-                </div>
+
+            <div class="curiosity-chips" id="curiosity-chips"></div>
+            <p class="curiosity-summary" id="curiosity-summary"></p>
+        </section>
+
+        <section class="submissions-section">
+            <div class="section-header">
+                <h2>Submitted Benchmarks</h2>
+                <p id="submissions-sub">Benchmark runs contributed for the selected curiosity</p>
+            </div>
+            <div class="submissions-controls">
+                <label class="submissions-control">
+                    <span>Device</span>
+                    <select id="submissions-device"></select>
+                </label>
+                <label class="submissions-control">
+                    <span>Sort by</span>
+                    <select id="submissions-sort">
+                        <option value="score">Main Score</option>
+                        <option value="cpuSingle">CPU Single</option>
+                        <option value="cpuMulti">CPU Multi</option>
+                        <option value="gpuScore">GPU Score</option>
+                        <option value="newest">Newest</option>
+                    </select>
+                </label>
+            </div>
+            <div class="submissions-table-wrap">
+                <table class="submissions-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Contributor</th>
+                            <th>CPU</th>
+                            <th>GPU</th>
+                            <th>Type</th>
+                            <th class="ta-right">Main</th>
+                            <th class="ta-right">CPU S</th>
+                            <th class="ta-right">CPU M</th>
+                            <th class="ta-right">GPU</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="submissions-body"></tbody>
+                </table>
+                <p class="submissions-empty" id="submissions-empty" hidden>No benchmark runs for this selection.</p>
             </div>
         </section>
 
-        <section class="charts-section">
-            <div class="section-header">
-                <h2>Mobile Device Temperatures</h2>
-                <p>Per-contributor max temps on mobile form factors</p>
-            </div>
-            <div class="mobile-thermals-grid">
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Mobile Thermal Load</h3>
-                        <p>Per-contributor max temps on mobile devices</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="portableNoteChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container-wrapper">
-                    <div class="chart-header">
-                        <h3>Handheld Thermal Load</h3>
-                        <p>Per-contributor max temps on handhelds</p>
-                    </div>
-                    <div class="chart-canvas-area" style="height: 320px;">
-                        <canvas id="portableHandChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        </div><!-- /pill-content thermals -->
+        </div><!-- /pill-content curiosity -->
 
         </div><!-- /hw-benchmark-container -->
 
@@ -1454,6 +1424,25 @@
                 <button id="model-select-confirm" class="btn btn-primary">Compare</button>
                 <button id="model-select-cancel" class="btn btn-secondary">Cancel</button>
             </div>
+        </div>
+    </dialog>
+
+    <!-- Specimen Detail Modal -->
+    <dialog id="specimen-modal" class="modal-dialog specimen-modal" closedby="any" aria-labelledby="specimen-modal-title">
+        <div class="modal-header">
+            <div class="modal-title-block">
+                <h2 id="specimen-modal-title">Specimen</h2>
+                <p id="specimen-modal-sub" class="specimen-modal-sub"></p>
+            </div>
+            <button id="close-specimen-modal" class="btn-close-modal" aria-label="Close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body-wrapper">
+            <div id="specimen-modal-chips" class="specimen-chips"></div>
+            <p id="specimen-modal-reason" class="specimen-modal-reason"></p>
+            <div class="specimen-scores" id="specimen-modal-scores"></div>
+            <div class="specimen-context" id="specimen-modal-context"></div>
         </div>
     </dialog>
 

@@ -138,9 +138,6 @@ const SCORE_COLORS = {
     gpu: { bg: 'rgba(34, 197, 94, 0.85)', border: '#22c55e' },
     popular: { bg: 'rgba(245, 158, 11, 0.85)', border: '#f59e0b' },
     popularGpu: { bg: 'rgba(217, 119, 6, 0.85)', border: '#d97706' },
-    rare: { bg: 'rgba(232, 121, 249, 0.85)', border: '#e879f9' },
-    rareCpu: { bg: 'rgba(232, 121, 249, 0.85)', border: '#e879f9' },
-    rareGpu: { bg: 'rgba(232, 121, 249, 0.85)', border: '#e879f9' },
     portableRuns: { bg: 'rgba(56, 189, 248, 0.85)', border: '#38bdf8' },
 };
 
@@ -174,7 +171,7 @@ function getActiveSoftwareData(type) {
 // Pill Navigation State
 let PILL_STATE = {
     active: 'performance',
-    rendered: { performance: false, efficiency: false, thermals: false }
+    rendered: { performance: false, efficiency: false, curiosity: false }
 };
 
 function updateURLParam(key, value) {
@@ -222,7 +219,7 @@ function switchPill(name) {
                 // Browser laid out content → canvas has real dimensions
                 if (!PILL_STATE.rendered[name]) {
                     if (name === 'efficiency') renderEfficiencyCharts();
-                    if (name === 'thermals') renderThermalsCharts();
+                    if (name === 'curiosity') renderCuriosityCharts();
                     PILL_STATE.rendered[name] = true;
                 }
                 requestAnimationFrame(() => {
@@ -240,7 +237,7 @@ function switchPill(name) {
 function initPillNav() {
     const params = new URLSearchParams(window.location.search);
     const subtab = params.get('subtab');
-    const initialPill = (subtab === 'efficiency' || subtab === 'thermals') ? subtab : 'performance';
+    const initialPill = (subtab === 'efficiency' || subtab === 'curiosity') ? subtab : 'performance';
     PILL_STATE.active = initialPill;
 
     document.querySelectorAll('.hw-tab').forEach(btn => {
@@ -305,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initScrollObservers();
     initBackToTop();
     initPillNav();
+    initSpecimenModal();
     initVizTooltips();
     fetchData();
     trackPage('tab:hardware');
@@ -1620,18 +1618,18 @@ function handleFilterChange(updateUrl = true) {
 
     // Invalidate lazy-rendered pills so they re-render on next activation
     PILL_STATE.rendered.efficiency = false;
-    PILL_STATE.rendered.thermals = false;
+    PILL_STATE.rendered.curiosity = false;
 }
 
 // Render Overview Statistics
 function renderOverviewStats() {
-    renderStats('performance');
+    renderStats(PILL_STATE.active || 'performance');
 }
 
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Most Humble'],
     efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'TOP CPU Bottleneck', 'Best Thermal GPU'],
-    thermals: ['Hottest GPU', 'Coolest GPU', 'Hottest Notebook', 'Top thermal delta']
+    curiosity: ['Rarest Specimen', 'Oldest CPU', 'Oldest GPU', 'Console APU']
 };
 
 const STATS_ICONS = { cpu: 'cpu', binary: 'binary', zap: 'zap', sprout: 'sprout' };
@@ -1649,18 +1647,26 @@ const STAT_TOOLTIPS = {
         'Lowest CPU Multi ÷ GPU Score. Highlights the most CPU-limited combos — the GPU far outruns the CPU.',
         'GPU model with the best gpuScore per gpuTempDelta. Higher ratios mean more performance per °C.'
     ],
-    thermals: [
-        'Winner is the GPU model with the highest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered to prevent single-run outliers from skewing the ranking.',
-        'Winner is the GPU model with the lowest average peak temperature (gpuMaxTemp). Only GPUs with 2+ samples are considered. Lower temps indicate better thermal management.',
-        'Hottest notebook GPU by peak temperature. Highlights the most thermally stressed portable device.',
-        'GPU model with the widest average temperature delta between idle and load (gpuTempDelta). Only GPUs with 2+ samples are considered.'
+    curiosity: [
+        'The rarest curiosity present, ranked by tier (S is rarest). Tier S covers engineering samples, console APUs, and exotic architectures. Unique hardware only.',
+        'The oldest CPU model on the platform by curated release year — hardware still running Linux after more than a decade. Unique models only.',
+        'The oldest GPU model on the platform by curated release year. Unique models only.',
+        'The most-submitted console-derived APU on the platform — e.g. the PS5-derived BC-250 or the PlayStation 4 Jaguar/Liverpool. Unique models only.'
     ]
 };
 
 function renderStats(pill) {
-    const pills = ['performance', 'efficiency', 'thermals'];
+    const pills = ['performance', 'efficiency', 'curiosity'];
     const idx = pills.indexOf(pill);
     if (idx === -1) return;
+
+    // Stop in-flight counter animations so they cannot overwrite the values set below
+    // (e.g. the Performance pill's animated GPU score bleeding into the Curiosity pill).
+    ['stat-top-cpu-single', 'stat-top-cpu-multi', 'stat-top-gpu', 'stat-most-humble-score'].forEach(id => {
+        cancelCounter(id);
+        const el = document.getElementById(id);
+        if (el) delete el.dataset.counterTarget;
+    });
 
     if (pill === 'performance') {
         document.getElementById('stat-label-1').textContent = STATS_PILL_LABELS.performance[0];
@@ -1710,45 +1716,65 @@ function renderStats(pill) {
         document.getElementById('stat-most-humble-hardware').textContent = gpuThermalSorted.length > 0 ? gpuThermalSorted[0].name : '-';
         document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `2º ${gpuThermalSorted[1].name} — ${(Math.trunc(gpuThermalSorted[1].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '2º -';
         document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `3º ${gpuThermalSorted[2].name} — ${(Math.trunc(gpuThermalSorted[2].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '3º -';
-    } else if (pill === 'thermals') {
-        const thermalData = filteredData.length ? filteredData : benchmarkData;
+    } else if (pill === 'curiosity') {
+        const data = collectSpecimenData();
+        const tierOrder = { S: 0, A: 1, B: 2, C: 3 };
+        const uniqueBy = (arr, keyFn) => {
+            const seen = new Set();
+            return arr.filter(item => {
+                const k = keyFn(item);
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+            });
+        };
 
-        // Hottest / Coolest GPU by peak temp (gpuMaxTemp)
-        const hotRuns = getHottestGPU(thermalData, 999, 1);
-        const hl = hotRuns.labels, hd = hotRuns.data;
-        const hotLen = hl.length;
+        // Card 1: Rarest Specimen (highest tier, unique hardware)
+        const byTier = uniqueBy(
+            data.specimens.slice().sort((a, b) => tierOrder[a.specimen.tier] - tierOrder[b.specimen.tier]),
+            a => normalizeCPU(a.row.cpu)
+        );
+        document.getElementById('stat-top-cpu-single').textContent = byTier[0] ? byTier[0].specimen.tier : '-';
+        document.getElementById('stat-top-cpu-single-sub').textContent = byTier[0] ? `${normalizeCPU(byTier[0].row.cpu)} + ${normalizeGPU(byTier[0].row.gpu)}` : '-';
+        document.getElementById('stat-cpu-single-second').textContent = byTier[1] ? `2º ${normalizeCPU(byTier[1].row.cpu)} — tier ${byTier[1].specimen.tier}` : '2º -';
+        document.getElementById('stat-cpu-single-third').textContent = byTier[2] ? `3º ${normalizeCPU(byTier[2].row.cpu)} — tier ${byTier[2].specimen.tier}` : '3º -';
 
-        // Card 1: Hottest GPU
-        document.getElementById('stat-top-cpu-single').textContent = hotLen > 0 ? `${hd[0]}°C` : '-';
-        document.getElementById('stat-top-cpu-single-sub').textContent = hotLen > 0 ? hl[0] : '-';
-        document.getElementById('stat-cpu-single-second').textContent = hotLen > 1 ? `2º ${hl[1]} — ${hd[1]}°C` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = hotLen > 2 ? `3º ${hl[2]} — ${hd[2]}°C` : '3º -';
+        // Card 2: Oldest CPU (lowest curated CPU year, unique model)
+        const cpuWithYear = uniqueBy(
+            data.annotated.filter(a => a.specimen.cpuYear)
+                .sort((a, b) => (a.specimen.cpuYear - b.specimen.cpuYear) || normalizeCPU(a.row.cpu).localeCompare(normalizeCPU(b.row.cpu))),
+            a => normalizeCPU(a.row.cpu)
+        );
+        document.getElementById('stat-top-cpu-multi').textContent = cpuWithYear[0] ? String(cpuWithYear[0].specimen.cpuYear) : '-';
+        document.getElementById('stat-top-cpu-multi-sub').textContent = cpuWithYear[0] ? normalizeCPU(cpuWithYear[0].row.cpu) : '-';
+        document.getElementById('stat-cpu-multi-second').textContent = cpuWithYear[1] ? `2º ${normalizeCPU(cpuWithYear[1].row.cpu)} — ${cpuWithYear[1].specimen.cpuYear}` : '2º -';
+        document.getElementById('stat-cpu-multi-third').textContent = cpuWithYear[2] ? `3º ${normalizeCPU(cpuWithYear[2].row.cpu)} — ${cpuWithYear[2].specimen.cpuYear}` : '3º -';
 
-        // Card 2: Coolest GPU (reverse of hottest)
-        document.getElementById('stat-top-cpu-multi').textContent = hotLen > 0 ? `${hd[hotLen - 1]}°C` : '-';
-        document.getElementById('stat-top-cpu-multi-sub').textContent = hotLen > 0 ? hl[hotLen - 1] : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = hotLen > 1 ? `2º ${hl[hotLen - 2]} — ${hd[hotLen - 2]}°C` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = hotLen > 2 ? `3º ${hl[hotLen - 3]} — ${hd[hotLen - 3]}°C` : '3º -';
+        // Card 3: Oldest GPU (lowest curated GPU year, unique model)
+        const gpuWithYear = uniqueBy(
+            data.annotated.filter(a => a.specimen.gpuYear)
+                .sort((a, b) => (a.specimen.gpuYear - b.specimen.gpuYear) || normalizeGPU(a.row.gpu).localeCompare(normalizeGPU(b.row.gpu))),
+            a => normalizeGPU(a.row.gpu)
+        );
+        document.getElementById('stat-top-gpu').textContent = gpuWithYear[0] ? String(gpuWithYear[0].specimen.gpuYear) : '-';
+        document.getElementById('stat-top-gpu-sub').textContent = gpuWithYear[0] ? normalizeGPU(gpuWithYear[0].row.gpu) : '-';
+        document.getElementById('stat-gpu-second').textContent = gpuWithYear[1] ? `2º ${normalizeGPU(gpuWithYear[1].row.gpu)} — ${gpuWithYear[1].specimen.gpuYear}` : '2º -';
+        document.getElementById('stat-gpu-third').textContent = gpuWithYear[2] ? `3º ${normalizeGPU(gpuWithYear[2].row.gpu)} — ${gpuWithYear[2].specimen.gpuYear}` : '3º -';
 
-        // Thermal delta (gpuTempDelta)
-        const deltaRuns = getBestCooling(thermalData, 999);
-        const dl = deltaRuns.labels, dd = deltaRuns.data;
-        const dLen = dl.length;
-
-        // Card 3: Hottest Notebook (from Notebook Thermal Load chart)
-        const noteRuns = getCategoryHottestRuns(thermalData, 'Notebook', 3);
-        const nl = noteRuns.labels, nd = noteRuns.data;
-        const nLen = nl.length;
-        document.getElementById('stat-top-gpu').textContent = nLen > 0 ? `${nd[0]}°C` : '-';
-        document.getElementById('stat-top-gpu-sub').textContent = nLen > 0 ? nl[0] : '-';
-        document.getElementById('stat-gpu-second').textContent = nLen > 1 ? `2º ${nl[1]} — ${nd[1]}°C` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = nLen > 2 ? `3º ${nl[2]} — ${nd[2]}°C` : '3º -';
-
-        // Card 4: Top thermal delta (highest delta = last entry)
-        document.getElementById('stat-most-humble-score').textContent = dLen > 0 ? `${dd[dLen - 1]}°C` : '-';
-        document.getElementById('stat-most-humble-hardware').textContent = dLen > 0 ? dl[dLen - 1] : '-';
-        document.getElementById('stat-humble-second').textContent = dLen > 1 ? `2º ${dl[dLen - 2]} — ${dd[dLen - 2]}°C` : '2º -';
-        document.getElementById('stat-humble-third').textContent = dLen > 2 ? `3º ${dl[dLen - 3]} — ${dd[dLen - 3]}°C` : '3º -';
+        // Card 4: Console APU (most-submitted console-derived APU, unique model)
+        const consoleCounts = {};
+        data.annotated.forEach(({ row, specimen }) => {
+            if (!specimen.tags.includes('console')) return;
+            const name = normalizeCPU(row.cpu);
+            consoleCounts[name] = (consoleCounts[name] || 0) + 1;
+        });
+        const consoles = Object.entries(consoleCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name));
+        document.getElementById('stat-most-humble-score').textContent = consoles[0] ? String(consoles[0].count) : '-';
+        document.getElementById('stat-most-humble-hardware').textContent = consoles[0] ? consoles[0].name : '-';
+        document.getElementById('stat-humble-second').textContent = consoles[1] ? `2º ${consoles[1].name} — ${consoles[1].count} ×` : '2º -';
+        document.getElementById('stat-humble-third').textContent = consoles[2] ? `3º ${consoles[2].name} — ${consoles[2].count} ×` : '3º -';
     }
 
     // Update help tooltips
@@ -1994,7 +2020,7 @@ function renderTable() {
         tr.innerHTML = `
             <td class="rank-cell">${rankContent}</td>
             <td>${clientIdHtml}</td>
-            <td title="${row.cpu}">${highlightText(row.cpu, searchQuery)}</td>
+            <td title="${row.cpu}">${highlightText(row.cpu, searchQuery)}${specimenChipsHtml(row)}</td>
             <td>${row.cpuMaxFreq ? `${row.cpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
             <td>${row.ram}</td>
             <td title="${row.gpu}">${highlightText(row.gpu, searchQuery)}</td>
@@ -2103,7 +2129,9 @@ function normalizeCPU(name) {
     clean = clean.replace(/\s+Eight-Core$/i, ''); // strip " Eight-Core"
     clean = clean.replace(/\s+@\s+\d+\.\d+GHz.*/i, ''); // strip "@ 4.00GHz" etc.
     if (/^eng\s*sample/i.test(clean)) return 'AMD Engineering Sample';
-    if (/^dg\d/i.test(clean)) return 'PlayStation 4 APU (AMD)';
+    if (/^dg\d{3,}/i.test(clean)) return 'PlayStation 4 APU (AMD)';
+    if (/^bc-?250/i.test(clean)) return 'PS5 APU (BC-250)';
+    if (/^(liverpool|jaguar)\b/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     return clean.trim();
 }
 
@@ -2118,7 +2146,9 @@ function normalizeGPU(name) {
     clean = clean.replace(/Laptop\s+GPU/gi, 'Mobile');
     clean = clean.trim();
     if (/^AMD\s*Vega|^Vega\s*\d|^Vega$|^Radeon.*Vega|^RX\s*Vega/i.test(clean)) return 'AMD Vega';
-    if (/^dg\d/i.test(clean)) return 'PlayStation 4 APU (AMD)';
+    if (/^dg\d{3,}/i.test(clean)) return 'PlayStation 4 APU (AMD)';
+    if (/^bc-?250/i.test(clean)) return 'PS5 APU (BC-250)';
+    if (/^(liverpool|jaguar)\b/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     return clean;
 }
 
@@ -2261,21 +2291,6 @@ function getTopHardware(data, type, limit = 10, order = 'desc') {
         .slice(0, limit);
 }
 
-// Helper to get rare hardware (<= maxEntries in benchmark data, one entry per model)
-function getRarestHardware(data, type, maxEntries = 3) {
-    const counts = {};
-    data.forEach(r => {
-        const name = type === 'cpu' ? normalizeCPU(r.cpu) : normalizeGPU(r.gpu);
-        if (name && name !== 'Unknown CPU' && name !== 'Unknown GPU' && name !== 'N/D') {
-            counts[name] = (counts[name] || 0) + 1;
-        }
-    });
-    return Object.entries(counts)
-        .map(([name, count]) => ({ name, count }))
-        .filter(item => item.count <= maxEntries)
-        .sort((a, b) => (a.count - b.count) || a.name.localeCompare(b.name));
-}
-
 // Helper to get OS distribution
 function getOSDistribution(data) {
     const osMap = {};
@@ -2382,16 +2397,459 @@ function classifyDevice(r) {
     return 'Desktop';
 }
 
-// Check if a CPU name belongs to a handheld
-function isHandheldCPU(name) {
-    const lower = (name || '').toLowerCase();
-    return lower.includes('z1') || lower.includes('deck') || lower.includes('apu 0405');
+// ===== Specimen classification: curated "curious hardware" taxonomy =====
+
+// Rarest first — used to pick a row's overall tier from its tags
+const SPECIMEN_TIER_ORDER = { S: 0, A: 1, B: 2, C: 3 };
+
+// Curated release-year tables (raw model signatures -> year). Unknown models skip year-based tags.
+const CPU_YEARS = [
+    { match: /i7-2600K/i, year: 2011 },
+    { match: /i5-3470|i7-3770/i, year: 2012 },
+    { match: /i7-4770/i, year: 2013 },
+    { match: /i7-4790K/i, year: 2014 },
+    { match: /i5-5250U|i5-5300U/i, year: 2015 },
+    { match: /i5-6400|i5-6500|i7-6700/i, year: 2015 },
+    { match: /i7-7700K/i, year: 2017 },
+    { match: /i7-8700K|i5-8400/i, year: 2017 },
+    { match: /i7-9700K|i5-9400/i, year: 2018 },
+    { match: /i5-10500|i7-10700/i, year: 2020 },
+    { match: /i7-10870H/i, year: 2020 },
+    { match: /i5-11400|i7-11700/i, year: 2021 },
+    { match: /i5-11400H/i, year: 2021 },
+    { match: /12th Gen|i5-12400|i7-12700K|i9-12900K/i, year: 2022 },
+    { match: /13th Gen|i9-13900/i, year: 2023 },
+    { match: /Core Ultra|14th Gen/i, year: 2024 },
+    { match: /Xeon.*E5-\d+ v3/i, year: 2014 },
+    { match: /Xeon.*E5-\d+ v4/i, year: 2016 },
+    { match: /FX-\d{4}/i, year: 2011 },
+    { match: /Ryzen 7 3800XT|Ryzen 9 3900X|Ryzen 5 3600/i, year: 2019 },
+    { match: /Ryzen 5 5600|Ryzen 7 5800X3D/i, year: 2020 },
+    { match: /Ryzen 5 7600X|Ryzen 7 7800X3D|Ryzen 9 7950X3D/i, year: 2022 },
+    { match: /Ryzen 9 9950X3D|Ryzen 7 9800X3D|Ryzen 9 9900X3D/i, year: 2024 },
+    { match: /Ryzen AI 9 HX 370/i, year: 2024 },
+    { match: /RYZEN AI MAX\+ 395/i, year: 2025 },
+    { match: /Ryzen Z1 Extreme/i, year: 2023 },
+    { match: /Steam Deck OLED/i, year: 2023 },
+    { match: /Steam Deck$/i, year: 2022 },
+    { match: /Threadripper/i, year: 2017 },
+    { match: /EPYC/i, year: 2017 },
+];
+
+const GPU_YEARS = [
+    { match: /R9 3\d\d/i, year: 2015 },
+    { match: /HD Graphics [2-6]\d{3}/i, year: 2015 },
+    { match: /GTX 9\d\d/i, year: 2015 },
+    { match: /GTX 10\d\d/i, year: 2016 },
+    { match: /GT 1030/i, year: 2017 },
+    { match: /RX 580|RX 590/i, year: 2017 },
+    { match: /UHD Graphics 6\d{2}/i, year: 2018 },
+    { match: /GTX 16\d\d/i, year: 2019 },
+    { match: /RX 5\d{3} XT|RX 6\d{3}/i, year: 2020 },
+    { match: /RTX 30\d\d/i, year: 2020 },
+    { match: /RX 6\d{3} XT/i, year: 2021 },
+    { match: /RTX 4090/i, year: 2022 },
+    { match: /RX 7\d{3}/i, year: 2022 },
+    { match: /Arc [AB]\d{3}/i, year: 2022 },
+    { match: /Mali G\d+/i, year: 2022 },
+    { match: /RTX 40\d\d/i, year: 2023 },
+    { match: /VideoCore VII/i, year: 2023 },
+    { match: /RX 7\d{3} XT/i, year: 2023 },
+    { match: /Arc B\d{3}/i, year: 2024 },
+    { match: /RTX 50\d\d/i, year: 2025 },
+    { match: /RX 9\d{3}/i, year: 2025 },
+];
+
+// Tag metadata: tier drives ordering + color, label is shown in chips
+const SPECIMEN_TAG_META = {
+    'es':          { tier: 'S', label: 'ES' },
+    'console':     { tier: 'S', label: 'Console' },
+    'exotic-arch': { tier: 'S', label: 'Exotic arch' },
+    'vm':          { tier: 'A', label: 'VM' },
+    'sbc':         { tier: 'A', label: 'SBC' },
+    'server':      { tier: 'B', label: 'Server' },
+    'fossil':      { tier: 'B', label: 'Fossil' },
+    'anachronism': { tier: 'B', label: 'Anachronism' },
+    'exotic-gpu':  { tier: 'C', label: 'Legacy GPU' },
+};
+
+function lookupHardwareYear(name, table) {
+    if (!name) return null;
+    for (const entry of table) {
+        if (entry.match.test(name)) return entry.year;
+    }
+    return null;
 }
 
-// Check if a GPU name belongs to a handheld
-function isHandheldGPU(name) {
-    const lower = (name || '').toLowerCase();
-    return lower.includes('z1') || lower.includes('deck') || lower.includes('gpu 0405');
+// Classify a benchmark row into specimen tags. Tolerates false positives by design.
+function classifySpecimen(row) {
+    const cpuRaw = row.cpu || '';
+    const gpuRaw = row.gpu || '';
+    const cpuNorm = normalizeCPU(cpuRaw);
+    const archRaw = (row.architecture || '').trim();
+    const archLower = archRaw.toLowerCase();
+    const os = row.os || '';
+    const kernel = row.kernel || '';
+    const driver = row.driver || '';
+    const hasArch = archLower && archLower !== 'n/d';
+    const now = new Date().getFullYear();
+
+    const cpuYear = lookupHardwareYear(cpuRaw, CPU_YEARS);
+    const gpuYear = lookupHardwareYear(gpuRaw, GPU_YEARS);
+
+    const tags = [];
+
+    if (/eng\s*sample/i.test(cpuRaw) || /eng\s*sample/i.test(gpuRaw) ||
+        /genuine intel.*\b0{4}\b/i.test(cpuRaw) || /^0{4}/.test(cpuRaw.trim()) ||
+        /^100-0000\d{4,}/.test(cpuRaw.trim())) {
+        tags.push('es');
+    }
+
+    if (/(?:^|\s)dg\d{3,}|bc-?250|liverpool|jaguar|oberon|ariel|durango|scarlett|grizzly/i.test(`${cpuRaw} ${gpuRaw}`) ||
+        /playstation|ps[45]\b|xbox|nintendo|steam machine/i.test(`${cpuRaw} ${gpuRaw} ${os}`)) {
+        tags.push('console');
+    }
+
+    if (hasArch && !['x86_64', 'amd64', 'i386', 'i686', 'aarch64', 'arm64'].includes(archLower)) {
+        tags.push('exotic-arch');
+    }
+
+    if (/\bvm\b|virtual|qemu|kvm/i.test(`${os} ${kernel}`)) {
+        tags.push('vm');
+    }
+
+    if (classifyDevice(row) === 'SBC' || archLower === 'aarch64' || archLower === 'arm64' ||
+        /raspberry pi|orange pi|banana pi|rock pi|rockchip|allwinner|pine64|odroid|nanopi|khadas|videocore|mali|rk3\d{3}/i.test(`${cpuRaw} ${gpuRaw}`)) {
+        tags.push('sbc');
+    }
+
+    if (/xeon|epyc|threadripper/i.test(cpuRaw)) {
+        tags.push('server');
+    }
+
+    if (cpuYear && (now - cpuYear) >= 10) tags.push('fossil');
+    if (cpuYear && gpuYear && (gpuYear - cpuYear) >= 8) tags.push('anachronism');
+
+    if (/^\s*(r9|r7|r5)\b|radeon hd|hd graphics [2-6]|uhd graphics 6\d{2}|geforce gt \d|gtx (6|7|9)\d{2}/i.test(gpuRaw)) tags.push('exotic-gpu');
+
+    let tier = null;
+    tags.forEach(tag => {
+        const meta = SPECIMEN_TAG_META[tag];
+        if (!meta) return;
+        if (tier === null || SPECIMEN_TIER_ORDER[meta.tier] < SPECIMEN_TIER_ORDER[tier]) {
+            tier = meta.tier;
+        }
+    });
+
+    const archLabel = hasArch ? archRaw : 'ARM';
+    const cpuAge = cpuYear ? now - cpuYear : null;
+    const gap = (cpuYear && gpuYear) ? gpuYear - cpuYear : null;
+    const reasonFor = (tag) => {
+        switch (tag) {
+            case 'es': return 'Engineering silicon — never sold to the public';
+            case 'console': return 'Console APU repurposed for the bench';
+            case 'exotic-arch': return `Non-x86 architecture: ${archLabel}`;
+            case 'vm': return `Virtualized on ${os || 'a virtual machine'}`;
+            case 'sbc': return `${archLabel} board running Linux as a daily driver`;
+            case 'server': return 'Datacenter silicon on the desktop';
+            case 'fossil': return `Released ${cpuYear} — ${cpuAge} years of Linux`;
+            case 'anachronism': return `${cpuYear} CPU + ${gpuYear} GPU — ${gap} years apart`;
+            case 'exotic-gpu': return 'Legacy GPU still alive';
+            default: return '';
+        }
+    };
+
+    return {
+        tags,
+        tier,
+        reasons: tags.map(reasonFor),
+        key: cpuNorm || 'Unknown CPU',
+        cpuYear,
+        gpuYear,
+        year: (cpuYear || gpuYear) || null,
+    };
+}
+
+function specimenChipsHtml(row, max = 3) {
+    const { tags } = classifySpecimen(row);
+    if (!tags.length) return '';
+    const chips = tags.slice(0, max).map(tag => {
+        const meta = SPECIMEN_TAG_META[tag];
+        return `<span class="specimen-chip">${meta.label}</span>`;
+    }).join('');
+    return `<div class="specimen-chips specimen-chips-cell">${chips}</div>`;
+}
+
+function escapeSpecimenHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+let curiosityState = { tag: null, deviceKey: null, sort: 'score' };
+
+function bySpecimenOrder(a, b) {
+    const tierDiff = SPECIMEN_TIER_ORDER[a.specimen.tier] - SPECIMEN_TIER_ORDER[b.specimen.tier];
+    if (tierDiff) return tierDiff;
+    const yearDiff = (b.specimen.year || 0) - (a.specimen.year || 0);
+    if (yearDiff) return yearDiff;
+    return (b.row.mainScore || 0) - (a.row.mainScore || 0);
+}
+
+function collectSpecimenData() {
+    const annotated = benchmarkData.map(row => ({ row, specimen: classifySpecimen(row) }));
+    const sampleCounts = {};
+    const bestByKey = new Map();
+    annotated.forEach(({ row, specimen }) => {
+        sampleCounts[specimen.key] = (sampleCounts[specimen.key] || 0) + 1;
+        if (!specimen.tags.length) return;
+        const prev = bestByKey.get(specimen.key);
+        if (!prev || (row.mainScore || 0) > (prev.row.mainScore || 0)) {
+            bestByKey.set(specimen.key, { row, specimen });
+        }
+    });
+    const specimens = [...bestByKey.values()].sort(bySpecimenOrder);
+    const tagCounts = {};
+    specimens.forEach(({ specimen }) => {
+        specimen.tags.forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; });
+    });
+    return { annotated, sampleCounts, specimens, tagCounts };
+}
+
+function specimensForTag(specimens) {
+    if (!curiosityState.tag) return specimens;
+    return specimens.filter(item => item.specimen.tags.includes(curiosityState.tag));
+}
+
+function curiosityRuns(annotated) {
+    return annotated.filter(({ specimen }) => {
+        if (!specimen.tags.length) return false;
+        if (curiosityState.tag && !specimen.tags.includes(curiosityState.tag)) return false;
+        if (curiosityState.deviceKey && specimen.key !== curiosityState.deviceKey) return false;
+        return true;
+    }).map(item => item.row);
+}
+
+function renderCuriosityFilters(data) {
+    const chips = document.getElementById('curiosity-chips');
+    if (!chips) return;
+    const items = [{ tag: null, label: 'All', count: data.specimens.length, tier: null }]
+        .concat(Object.keys(data.tagCounts)
+            .sort((a, b) => data.tagCounts[b] - data.tagCounts[a])
+            .map(tag => ({ tag, label: SPECIMEN_TAG_META[tag].label, count: data.tagCounts[tag], tier: SPECIMEN_TAG_META[tag].tier })));
+
+    chips.innerHTML = items.map(item => {
+        const active = curiosityState.tag === item.tag;
+        const tierCls = item.tier ? ` tier-${item.tier.toLowerCase()}` : '';
+        const value = item.tag === null ? '' : item.tag;
+        return `<button type="button" class="curiosity-chip${active ? ' active' : ''}${tierCls}" data-tag="${value}">${item.label}<span class="curiosity-chip-count">${item.count}</span></button>`;
+    }).join('');
+
+    chips.querySelectorAll('.curiosity-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const value = btn.getAttribute('data-tag');
+            curiosityState.tag = value || null;
+            curiosityState.deviceKey = null;
+            renderCuriosityCharts();
+        });
+    });
+}
+
+function renderCuriositySummary(data) {
+    const el = document.getElementById('curiosity-summary');
+    if (!el) return;
+    const tagLabel = curiosityState.tag ? SPECIMEN_TAG_META[curiosityState.tag].label : 'All curiosities';
+    const specimenCount = specimensForTag(data.specimens).length;
+    const runCount = curiosityRuns(data.annotated).length;
+    el.textContent = `${tagLabel}: ${specimenCount} ${specimenCount === 1 ? 'specimen' : 'specimens'} · ${runCount} submitted ${runCount === 1 ? 'benchmark' : 'benchmarks'}`;
+}
+
+function renderSubmissions(data) {
+    const body = document.getElementById('submissions-body');
+    const empty = document.getElementById('submissions-empty');
+    const sub = document.getElementById('submissions-sub');
+    if (!body) return;
+
+    const tagSpecimens = specimensForTag(data.specimens);
+    const deviceSel = document.getElementById('submissions-device');
+    if (deviceSel) {
+        const current = curiosityState.deviceKey || '';
+        deviceSel.innerHTML = `<option value="">All devices (${tagSpecimens.length})</option>` +
+            tagSpecimens.map(item => {
+                const label = `${normalizeCPU(item.row.cpu)} + ${normalizeGPU(item.row.gpu)}`;
+                return `<option value="${escapeSpecimenHtml(item.specimen.key)}"${current === item.specimen.key ? ' selected' : ''}>${escapeSpecimenHtml(label)}</option>`;
+            }).join('');
+        deviceSel.onchange = () => {
+            curiosityState.deviceKey = deviceSel.value || null;
+            renderSubmissions(data);
+        };
+    }
+
+    const sortSel = document.getElementById('submissions-sort');
+    if (sortSel) {
+        sortSel.value = curiosityState.sort;
+        sortSel.onchange = () => {
+            curiosityState.sort = sortSel.value;
+            renderSubmissions(data);
+        };
+    }
+
+    const runs = curiosityRuns(data.annotated);
+    const sorters = {
+        score: (a, b) => (b.mainScore || 0) - (a.mainScore || 0),
+        cpuSingle: (a, b) => (b.cpuSingle || 0) - (a.cpuSingle || 0),
+        cpuMulti: (a, b) => (b.cpuMulti || 0) - (a.cpuMulti || 0),
+        gpuScore: (a, b) => (b.gpuScore || 0) - (a.gpuScore || 0),
+        newest: (a, b) => {
+            const da = parseDate(a.dateTime);
+            const db = parseDate(b.dateTime);
+            return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+        },
+    };
+    runs.sort(sorters[curiosityState.sort] || sorters.score);
+
+    const LIMIT = 30;
+    const shown = runs.slice(0, LIMIT);
+    const maxScore = Math.max(1, ...shown.map(r => r.mainScore || 0));
+    const num = v => (v === null || v === undefined) ? 'N/D' : v.toLocaleString();
+    const specimenByRow = new Map(data.annotated.map(a => [a.row, a.specimen]));
+    const chipsFor = row => {
+        const specimen = specimenByRow.get(row);
+        if (!specimen || !specimen.tags.length) return '';
+        return specimen.tags.map(tag => {
+            const meta = SPECIMEN_TAG_META[tag];
+            return `<span class="specimen-chip">${meta.label}</span>`;
+        }).join('');
+    };
+
+    body.innerHTML = shown.map((row, i) => {
+        const pct = Math.max(2, ((row.mainScore || 0) / maxScore) * 100);
+        return `<tr class="sub-row">
+            <td class="sub-rank">${i + 1}</td>
+            <td class="sub-user">${escapeSpecimenHtml(getDisplayName(row))}</td>
+            <td class="sub-cpu" title="${escapeSpecimenHtml(row.cpu)}">${escapeSpecimenHtml(normalizeCPU(row.cpu))}</td>
+            <td class="sub-gpu" title="${escapeSpecimenHtml(row.gpu)}">${escapeSpecimenHtml(normalizeGPU(row.gpu))}</td>
+            <td class="sub-type"><div class="specimen-chips">${chipsFor(row)}</div></td>
+            <td class="ta-right sub-main"><span class="sub-bar" style="width:${pct.toFixed(1)}%"></span><span class="sub-main-val">${num(row.mainScore)}</span></td>
+            <td class="ta-right">${num(row.cpuSingle)}</td>
+            <td class="ta-right">${num(row.cpuMulti)}</td>
+            <td class="ta-right">${num(row.gpuScore)}</td>
+            <td class="sub-date">${escapeSpecimenHtml(row.dateTime || 'N/D')}</td>
+        </tr>`;
+    }).join('');
+
+    Array.prototype.forEach.call(body.querySelectorAll('tr'), (tr, i) => {
+        const row = shown[i];
+        if (!row) return;
+        tr.addEventListener('click', () => openSpecimenModal({ row, specimen: specimenByRow.get(row) }));
+    });
+
+    if (empty) empty.hidden = runs.length > 0;
+    if (sub) {
+        sub.textContent = runs.length
+            ? `${runs.length} submitted ${runs.length === 1 ? 'benchmark' : 'benchmarks'}${runs.length > LIMIT ? ` · showing top ${LIMIT}` : ''}`
+            : 'Benchmark runs contributed for the selected curiosity';
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+function renderCuriosityCharts() {
+    const data = collectSpecimenData();
+    renderCuriosityFilters(data);
+    renderCuriositySummary(data);
+    renderSubmissions(data);
+}
+
+function openSpecimenModal(item) {
+    const modal = document.getElementById('specimen-modal');
+    if (!modal) return;
+    const { row, specimen } = item;
+    const cpuName = normalizeCPU(row.cpu);
+    const gpuName = normalizeGPU(row.gpu);
+
+    const titleEl = document.getElementById('specimen-modal-title');
+    if (titleEl) titleEl.textContent = cpuName;
+    const subEl = document.getElementById('specimen-modal-sub');
+    if (subEl) {
+        const osLabel = (row.os && row.os !== 'N/D') ? row.os : 'Linux';
+        subEl.textContent = `${gpuName} · ${osLabel}`;
+    }
+
+    const chipsEl = document.getElementById('specimen-modal-chips');
+    if (chipsEl) {
+        chipsEl.innerHTML = specimen.tags.map(tag => {
+            const meta = SPECIMEN_TAG_META[tag];
+            return `<span class="specimen-chip">${meta.label}</span>`;
+        }).join('');
+    }
+
+    const reasonEl = document.getElementById('specimen-modal-reason');
+    if (reasonEl) reasonEl.textContent = specimen.reasons.filter(Boolean).join(' · ');
+
+    const fmt = (value, unit) => {
+        if (value === null || value === undefined || value === '' || value === 'N/D') return 'N/D';
+        const num = typeof value === 'number' ? value.toLocaleString() : String(value);
+        return unit ? `${num} ${unit}` : num;
+    };
+
+    const scoreRows = [
+        ['Main Score', row.mainScore, ''],
+        ['CPU Single', row.cpuSingle, ''],
+        ['CPU Multi', row.cpuMulti, ''],
+        ['GPU Score', row.gpuScore, ''],
+        ['GPU RT', row.gpuRt, ''],
+        ['CPU Max Freq', row.cpuMaxFreq, 'MHz'],
+        ['GPU Max Freq', row.gpuMaxFreq, 'MHz'],
+        ['CPU Max Power', row.cpuMaxPower, 'W'],
+        ['GPU Max Power', row.gpuMaxPower, 'W'],
+        ['GPU Max Temp', row.gpuMaxTemp, '°C'],
+        ['GPU Temp Delta', row.gpuTempDelta, '°C'],
+    ];
+    const scoresEl = document.getElementById('specimen-modal-scores');
+    if (scoresEl) {
+        scoresEl.innerHTML = scoreRows.map(([label, value, unit]) => `
+            <div class="specimen-score">
+                <span class="specimen-score-label">${label}</span>
+                <span class="specimen-score-value">${escapeSpecimenHtml(fmt(value, unit))}</span>
+            </div>`).join('');
+    }
+
+    const contextRows = [
+        ['Architecture', row.architecture],
+        ['Product', row.productName],
+        ['Kernel', row.kernel],
+        ['Driver', row.driver],
+        ['Date', row.dateTime],
+        ['Contributor', getDisplayName(row)],
+    ];
+    const contextEl = document.getElementById('specimen-modal-context');
+    if (contextEl) {
+        contextEl.innerHTML = contextRows.map(([label, value]) => {
+            const text = (value === null || value === undefined || value === '' || value === 'N/D') ? 'N/D' : String(value);
+            return `<div class="specimen-context-row"><span class="specimen-context-label">${label}</span><span class="specimen-context-value" title="${escapeSpecimenHtml(text)}">${escapeSpecimenHtml(text)}</span></div>`;
+        }).join('');
+    }
+
+    if (typeof modal.showModal === 'function') modal.showModal();
+}
+
+function initSpecimenModal() {
+    const modal = document.getElementById('specimen-modal');
+    if (!modal) return;
+    const closeBtn = document.getElementById('close-specimen-modal');
+    if (closeBtn) closeBtn.addEventListener('click', () => modal.close());
+    if (typeof HTMLDialogElement !== 'undefined' && !('closedBy' in HTMLDialogElement.prototype)) {
+        modal.addEventListener('click', (event) => {
+            if (event.target !== modal) return;
+            const rect = modal.getBoundingClientRect();
+            const inside = event.clientY >= rect.top && event.clientY <= rect.bottom &&
+                event.clientX >= rect.left && event.clientX <= rect.right;
+            if (!inside) modal.close();
+        });
+    }
 }
 
 // Get Mobile distribution counts
@@ -3085,134 +3543,6 @@ function getStorageDistribution(data) {
     return { labels: sorted.map(e => e[0]), counts: sorted.map(e => e[1]) };
 }
 
-function getHottestGPU(data, limit = 10, minSamples = 2) {
-    const groups = {};
-    data.forEach(r => {
-        const temp = r.gpuMaxTemp;
-        if (temp === null || temp === undefined || isNaN(temp)) return;
-        const gpu = normalizeGPU(r.gpu);
-        if (!gpu || gpu === 'N/D' || gpu === 'Unknown GPU') return;
-        if (!groups[gpu]) groups[gpu] = [];
-        groups[gpu].push(temp);
-    });
-    const entries = Object.entries(groups)
-        .filter(([, temps]) => temps.length >= minSamples)
-        .map(([gpu, temps]) => ({ gpu, avg: temps.reduce((s, t) => s + t, 0) / temps.length }))
-        .sort((a, b) => b.avg - a.avg)
-        .slice(0, limit);
-    return { labels: entries.map(e => e.gpu), data: entries.map(e => Math.round(e.avg * 10) / 10) };
-}
-
-function getBestCooling(data, limit = 10, minSamples = 2) {
-    const groups = {};
-    data.forEach(r => {
-        const delta = r.gpuTempDelta;
-        if (delta === null || delta === undefined || isNaN(delta)) return;
-        const gpu = normalizeGPU(r.gpu);
-        if (!gpu || gpu === 'N/D' || gpu === 'Unknown GPU') return;
-        if (!groups[gpu]) groups[gpu] = [];
-        groups[gpu].push(delta);
-    });
-    const entries = Object.entries(groups)
-        .filter(([, deltas]) => deltas.length >= minSamples)
-        .map(([gpu, deltas]) => ({ gpu, avg: deltas.reduce((s, d) => s + d, 0) / deltas.length }))
-        .sort((a, b) => a.avg - b.avg)
-        .slice(0, limit);
-    return { labels: entries.map(e => e.gpu), data: entries.map(e => Math.round(e.avg * 10) / 10) };
-}
-
-function getVendorHottestRuns(data, vendor, limit = 10, excludeMobile) {
-    const vendorTest = {
-        amd: gpu => /^(AMD|Radeon|RX)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
-        nvidia: gpu => /^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu),
-        intel: gpu => /^(Intel|Arc)\b/i.test(gpu) || /^UHD\b/i.test(gpu) || /^Iris\b/i.test(gpu) || /\b(Intel|Arc)\b/i.test(gpu)
-    };
-    const test = vendorTest[vendor];
-    if (!test) return { labels: [], data: [], clientIds: [] };
-    const runs = data
-        .filter(r => {
-            const rawGpu = r.gpu || '';
-            if (!test(rawGpu) || r.gpuMaxTemp === null || isNaN(r.gpuMaxTemp)) return false;
-            if (!excludeMobile) return true;
-            const lower = rawGpu.toLowerCase();
-            if (lower.includes('laptop') || lower.includes('mobile') || lower.includes('max-q')) return false;
-            const cat = classifyDevice(r);
-            if (cat === 'Handheld' || cat === 'SBC' || cat === 'Notebook') return false;
-            return true;
-        })
-        .map(r => ({
-            gpu: normalizeGPU(r.gpu || ''),
-            temp: r.gpuMaxTemp,
-            gpuFreq: r.gpuMaxFreq,
-            display: getDisplayName(r)
-        }))
-        .sort((a, b) => b.temp - a.temp)
-        .slice(0, limit);
-    return {
-        labels: runs.map(r => r.gpu),
-        data: runs.map(r => r.temp),
-        clientIds: runs.map(r => r.display),
-        gpuFreqs: runs.map(r => r.gpuFreq || null)
-    };
-}
-
-function getCategoryHottestRuns(data, category, limit) {
-    const isDesktopGpu = (name) => {
-        const lower = name.toLowerCase();
-        const desktopModels = ['9070','9060','4090','5070','7900','7800xt','7800 xt','6900','6800','6700','6750','7700','7600','4060','4080','3090','3080','3070','3060','arc a7','arc a5','arc a3'];
-        return desktopModels.some(m => lower.includes(m)) && !lower.includes('laptop') && !lower.includes('mobile');
-    };
-    const categories = category === 'Mobile' ? ['Notebook', 'SBC'] : [category];
-    const portableData = data.filter(r => categories.includes(classifyDevice(r)));
-    const runs = portableData
-        .filter(r => r.gpuMaxTemp !== null && !isNaN(r.gpuMaxTemp))
-        .filter(r => !isDesktopGpu(r.gpu || ''))
-        .map(r => ({
-            gpu: normalizeGPU(r.gpu || ''),
-            temp: r.gpuMaxTemp,
-            gpuFreq: r.gpuMaxFreq,
-            display: getDisplayName(r)
-        }))
-        .sort((a, b) => b.temp - a.temp)
-        .slice(0, limit);
-    return {
-        labels: runs.map(r => r.gpu),
-        data: runs.map(r => r.temp),
-        clientIds: runs.map(r => r.display),
-        gpuFreqs: runs.map(r => r.gpuFreq || null)
-    };
-}
-
-function getVendorBestCooling(data, vendor, limit) {
-    const vendorTest = {
-        amd: gpu => /^(AMD|Radeon|RX)\b/i.test(gpu) || /\b(Radeon|Vega)\b/i.test(gpu),
-        nvidia: gpu => /^(RTX|GTX|NVIDIA|GeForce|TITAN|Quadro)\b/i.test(gpu) || /\bNVIDIA\b/i.test(gpu),
-        intel: gpu => /^(Intel|Arc)\b/i.test(gpu) || /^UHD\b/i.test(gpu) || /^Iris\b/i.test(gpu) || /\b(Intel|Arc)\b/i.test(gpu)
-    };
-    const test = vendorTest[vendor];
-    if (!test) return { labels: [], data: [], clientIds: [], gpuFreqs: [] };
-    const bestPerUser = {};
-    data.forEach(r => {
-        const rawGpu = r.gpu || '';
-        if (!test(rawGpu) || r.gpuTempDelta === null || isNaN(r.gpuTempDelta)) return;
-        const gpu = normalizeGPU(rawGpu);
-        const id = r.clientId || 'N/D';
-        const key = id + '|' + gpu;
-        if (!bestPerUser[key] || r.gpuTempDelta < bestPerUser[key].delta) {
-            bestPerUser[key] = { gpu, delta: r.gpuTempDelta, gpuFreq: r.gpuMaxFreq, display: getDisplayName(r) };
-        }
-    });
-    const sorted = Object.values(bestPerUser)
-        .sort((a, b) => a.delta - b.delta)
-        .slice(0, limit);
-    return {
-        labels: sorted.map(r => r.gpu),
-        data: sorted.map(r => r.delta),
-        clientIds: sorted.map(r => r.display),
-        gpuFreqs: sorted.map(r => r.gpuFreq || null)
-    };
-}
-
 function renderSystemCharts() {
     const hasChart = id => document.getElementById(id);
 
@@ -3293,129 +3623,6 @@ function renderSystemCharts() {
         }
     }
 
-    // ── Thermal Performance Bars ──
-
-    function renderVendorChart(canvasId, vendor, bgColor, borderColor) {
-        if (!hasChart(canvasId)) return;
-        const d = getVendorHottestRuns(bm, vendor, 999, true);
-        if (d.labels.length === 0) return;
-        const VIS = 10;
-        const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
-        const fixedMax = Math.max(...allD) + 5;
-        renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
-        const chart = chartInstances[canvasId];
-        if (!chart) return;
-        chart.data.datasets[0].dataLabelUnit = '°C';
-        chart.data.datasets[0].rankOneIcon = '🔥';
-        chart.data.datasets[0].rankOneLocalIdx = 0;
-        chart.data.datasets[0].startIndex = 0;
-        chart.options.scales.x.max = fixedMax;
-        if (allL.length <= VIS) return;
-        const parent = chart.canvas.parentElement;
-        parent.style.position = 'relative';
-        const overlay = document.createElement('div');
-        overlay.className = 'chart-scroll-overlay';
-        const spacer = document.createElement('div');
-        spacer.style.height = `${320 + (allL.length - VIS) * 18}px`;
-        overlay.appendChild(spacer);
-        parent.appendChild(overlay);
-        let lastIdx = 0;
-        overlay.onscroll = () => {
-            const pct = overlay.scrollHeight > overlay.clientHeight ? overlay.scrollTop / (overlay.scrollHeight - overlay.clientHeight) : 0;
-            const maxStart = allL.length - VIS;
-            const idx = Math.min(maxStart, Math.round(pct * maxStart));
-            if (idx === lastIdx) return;
-            lastIdx = idx;
-            chart.data.labels = allL.slice(idx, idx + VIS);
-            chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
-            chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
-            chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
-            chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
-            chart.data.datasets[0].startIndex = idx;
-            chart.options.scales.x.max = fixedMax;
-            chart.update('none');
-        };
-        parent.addEventListener('wheel', e => {
-            e.preventDefault();
-            const dir = e.deltaY > 0 ? 1 : -1;
-            const maxStart = allL.length - VIS;
-            const newIdx = Math.min(maxStart, Math.max(0, lastIdx + dir));
-            if (newIdx === lastIdx) return;
-            lastIdx = newIdx;
-            const pct = maxStart > 0 ? lastIdx / maxStart : 0;
-            overlay.scrollTop = pct * (overlay.scrollHeight - overlay.clientHeight);
-            chart.data.labels = allL.slice(lastIdx, lastIdx + VIS);
-            chart.data.datasets[0].data = allD.slice(lastIdx, lastIdx + VIS);
-            chart.data.datasets[0].clientIds = allC.slice(lastIdx, lastIdx + VIS);
-            chart.data.datasets[0].gpuFreqs = allF.slice(lastIdx, lastIdx + VIS);
-            chart.data.datasets[0].rankOneLocalIdx = lastIdx === 0 ? 0 : -1;
-            chart.data.datasets[0].startIndex = lastIdx;
-            chart.options.scales.x.max = fixedMax;
-            chart.update('none');
-        }, { passive: false });
-        chart.update('none');
-    }
-
-    renderVendorChart('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444');
-    renderVendorChart('hottestNvidiaChart', 'nvidia', 'rgba(16, 185, 129, 0.8)', '#34d399');
-    renderVendorChart('hottestIntelChart', 'intel', 'rgba(99, 102, 241, 0.8)', '#818cf8');
-
-    function renderCatChart(canvasId, category, bgColor, borderColor) {
-        if (!hasChart(canvasId)) return;
-        const d = getCategoryHottestRuns(bm, category, 999);
-        if (d.labels.length === 0) return;
-        const VIS = 10;
-        const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
-        const fixedMax = Math.max(...allD) + 5;
-        renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-            bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
-        const chart = chartInstances[canvasId];
-        if (!chart) return;
-        chart.data.datasets[0].dataLabelUnit = '°C';
-        chart.data.datasets[0].rankOneIcon = '🔥';
-        chart.data.datasets[0].rankOneLocalIdx = 0;
-        chart.data.datasets[0].startIndex = 0;
-        if (allL.length <= VIS) return;
-        const parent = chart.canvas.parentElement;
-        parent.style.position = 'relative';
-        const overlay = document.createElement('div');
-        overlay.className = 'chart-scroll-overlay';
-        const spacer = document.createElement('div');
-        spacer.style.height = `${320 + (allL.length - VIS) * 18}px`;
-        overlay.appendChild(spacer);
-        parent.appendChild(overlay);
-        let lastIdx = 0;
-        function updateCatChart(idx) {
-            lastIdx = idx;
-            chart.data.labels = allL.slice(idx, idx + VIS);
-            chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
-            chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
-            chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
-            chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
-            chart.data.datasets[0].startIndex = idx;
-            chart.options.scales.x.max = fixedMax;
-            chart.update('none');
-        }
-        overlay.onscroll = () => {
-            const pct = overlay.scrollHeight > overlay.clientHeight ? overlay.scrollTop / (overlay.scrollHeight - overlay.clientHeight) : 0;
-            const maxStart = allL.length - VIS;
-            updateCatChart(Math.min(maxStart, Math.round(pct * maxStart)));
-        };
-        parent.addEventListener('wheel', e => {
-            e.preventDefault();
-            const dir = e.deltaY > 0 ? 1 : -1;
-            const maxStart = allL.length - VIS;
-            const newIdx = Math.min(maxStart, Math.max(0, lastIdx + dir));
-            if (newIdx === lastIdx) return;
-            overlay.scrollTop = maxStart > 0 ? (newIdx / maxStart) * (overlay.scrollHeight - overlay.clientHeight) : 0;
-            updateCatChart(newIdx);
-        }, { passive: false });
-        chart.update('none');
-    }
-
-    renderCatChart('portableNoteChart', 'Mobile', 'rgba(245, 158, 11, 0.8)', '#fbbf24');
-    renderCatChart('portableHandChart', 'Handheld', 'rgba(249, 115, 22, 0.8)', '#f97316');
 }
 
 // Helper to get top contributors by number of benchmark submissions
@@ -4066,51 +4273,7 @@ function renderCharts() {
         true
     );
 
-    // 5b. Rarest CPUs Chart (<= 3 entries in spreadsheet)
-    const rareCPUs = getRarestHardware(benchmarkData, 'cpu', 3);
-    makeChartScrollable(
-        'cpuRareChart',
-        rareCPUs.map(c => c.name),
-        rareCPUs.map(c => c.count),
-        'Count',
-        SCORE_COLORS.rare.bg,
-        SCORE_COLORS.rare.border,
-        10,
-        undefined,
-        undefined,
-        undefined,
-        true,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        { rankOneIcon: '', rankOneLocalIdx: -1 }
-    );
-
-    // 5c. Rarest GPUs Chart (<= 3 entries in spreadsheet)
-    const rareGPUs = getRarestHardware(benchmarkData, 'gpu', 3);
-    makeChartScrollable(
-        'gpuRareChart',
-        rareGPUs.map(g => g.name),
-        rareGPUs.map(g => g.count),
-        'Count',
-        SCORE_COLORS.rare.bg,
-        SCORE_COLORS.rare.border,
-        10,
-        undefined,
-        undefined,
-        undefined,
-        true,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        { rankOneIcon: '', rankOneLocalIdx: -1 }
-    );
+    // 5b. Specimens gallery lives in the Curiosity pill and renders on pill activation.
 
     // 6. Pie/Doughnut OS Distribution Chart
     const osDist = getOSDistribution(getUniqueClientRuns(benchmarkData));
@@ -5236,7 +5399,7 @@ function renderCharts() {
     if (window.switchTab) window.switchTab('hardware');
 
     PILL_STATE.rendered.performance = true;
-    renderStats('performance');
+    renderStats(PILL_STATE.active || 'performance');
 }
 
 // ── Efficiency Chart Computations ──
@@ -5767,111 +5930,6 @@ function renderTopCpuBottlenecks(data, canvasId = 'topCpuBottleneckChart', xMax)
     })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
     const contributors = runs.map(r => r.contributor);
     buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors, xMax);
-}
-
-function renderThermalsCharts() {
-    const bm = filteredData.length ? filteredData : benchmarkData;
-
-    // Vendor temp charts (re-use existing helper functions)
-    if (document.getElementById('hottestAmdChart')) renderVendorChartClosure('hottestAmdChart', 'amd', 'rgba(239, 68, 68, 0.8)', '#ef4444', bm);
-    if (document.getElementById('hottestNvidiaChart')) renderVendorChartClosure('hottestNvidiaChart', 'nvidia', 'rgba(16, 185, 129, 0.8)', '#34d399', bm);
-    if (document.getElementById('hottestIntelChart')) renderVendorChartClosure('hottestIntelChart', 'intel', 'rgba(99, 102, 241, 0.8)', '#818cf8', bm);
-
-    // Portable thermal charts
-    if (document.getElementById('portableNoteChart')) renderCatChartClosure('portableNoteChart', 'Mobile', 'rgba(245, 158, 11, 0.8)', '#fbbf24', bm);
-    if (document.getElementById('portableHandChart')) renderCatChartClosure('portableHandChart', 'Handheld', 'rgba(249, 115, 22, 0.8)', '#f97316', bm);
-}
-
-function renderVendorChartClosure(canvasId, vendor, bgColor, borderColor, data) {
-    if (!data) data = benchmarkData;
-    if (!document.getElementById(canvasId)) return;
-    const d = getVendorHottestRuns(data, vendor, 999, true);
-    if (d.labels.length === 0) return;
-    const VIS = 10;
-    const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
-    const fixedMax = Math.max(...allD) + 5;
-    renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-        bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
-    const chart = chartInstances[canvasId];
-    if (!chart) return;
-    chart.data.datasets[0].dataLabelUnit = '°C';
-    chart.data.datasets[0].rankOneIcon = '🔥';
-    chart.data.datasets[0].rankOneLocalIdx = 0;
-    chart.data.datasets[0].startIndex = 0;
-    if (allL.length <= VIS) return;
-    const parent = chart.canvas.parentElement;
-    parent.style.position = 'relative';
-    const overlay = document.createElement('div');
-    overlay.className = 'chart-scroll-overlay';
-    const spacer = document.createElement('div');
-    spacer.style.height = `${320 + (allL.length - VIS) * 18}px`;
-    overlay.appendChild(spacer);
-    parent.appendChild(overlay);
-    let lastIdx = 0;
-    function updateChart(idx) {
-        lastIdx = idx;
-        chart.data.labels = allL.slice(idx, idx + VIS);
-        chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
-        chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
-        chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
-        chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
-        chart.data.datasets[0].startIndex = idx;
-        chart.options.scales.x.max = fixedMax;
-        chart.update('none');
-    }
-    overlay.onscroll = () => {
-        const maxScroll = spacer.offsetHeight - overlay.clientHeight;
-        const ratio = maxScroll > 0 ? overlay.scrollTop / maxScroll : 0;
-        const newIdx = Math.round(ratio * (allL.length - VIS));
-        if (newIdx !== lastIdx) updateChart(newIdx);
-    };
-    chart.update('none');
-}
-
-function renderCatChartClosure(canvasId, category, bgColor, borderColor, data) {
-    if (!data) data = benchmarkData;
-    if (!document.getElementById(canvasId)) return;
-    const d = getCategoryHottestRuns(benchmarkData, category, 999);
-    if (d.labels.length === 0) return;
-    const VIS = 10;
-    const allL = d.labels, allD = d.data, allC = d.clientIds, allF = d.gpuFreqs;
-    const fixedMax = Math.max(...allD) + 5;
-    renderHorizontalBarChart(canvasId, allL.slice(0, VIS), allD.slice(0, VIS), 'Max Temp °C',
-        bgColor, borderColor, fixedMax, 0, allC.slice(0, VIS), null, null, null, null, allF.slice(0, VIS), null, null, null, null, true);
-    const chart = chartInstances[canvasId];
-    if (!chart) return;
-    chart.data.datasets[0].dataLabelUnit = '°C';
-    chart.data.datasets[0].rankOneIcon = '🔥';
-    chart.data.datasets[0].rankOneLocalIdx = 0;
-    chart.data.datasets[0].startIndex = 0;
-    if (allL.length <= VIS) return;
-    const parent = chart.canvas.parentElement;
-    parent.style.position = 'relative';
-    const overlay = document.createElement('div');
-    overlay.className = 'chart-scroll-overlay';
-    const spacer = document.createElement('div');
-    spacer.style.height = `${320 + (allL.length - VIS) * 18}px`;
-    overlay.appendChild(spacer);
-    parent.appendChild(overlay);
-    let lastIdx = 0;
-    function updateChart(idx) {
-        lastIdx = idx;
-        chart.data.labels = allL.slice(idx, idx + VIS);
-        chart.data.datasets[0].data = allD.slice(idx, idx + VIS);
-        chart.data.datasets[0].clientIds = allC.slice(idx, idx + VIS);
-        chart.data.datasets[0].gpuFreqs = allF.slice(idx, idx + VIS);
-        chart.data.datasets[0].rankOneLocalIdx = idx === 0 ? 0 : -1;
-        chart.data.datasets[0].startIndex = idx;
-        chart.options.scales.x.max = fixedMax;
-        chart.update('none');
-    }
-    overlay.onscroll = () => {
-        const maxScroll = spacer.offsetHeight - overlay.clientHeight;
-        const ratio = maxScroll > 0 ? overlay.scrollTop / maxScroll : 0;
-        const newIdx = Math.round(ratio * (allL.length - VIS));
-        if (newIdx !== lastIdx) updateChart(newIdx);
-    };
-    chart.update('none');
 }
 
 const CHART_PAGE_MAP = { osHardwareScatterChart: 'os', mesaDriverScatterChart: 'mesa', nvidiaDriverScatterChart: 'nvidia', kernelScatterChart: 'kernel' };
@@ -7063,9 +7121,20 @@ function showError(message) {
 }
 
 // Animated Counter — animates a stat value from 0 to target
+const counterFrames = {};
+
+// Cancel an in-flight counter animation so it cannot overwrite a value written later.
+function cancelCounter(elementId) {
+    if (counterFrames[elementId]) {
+        cancelAnimationFrame(counterFrames[elementId]);
+        delete counterFrames[elementId];
+    }
+}
+
 function animateCounter(elementId, targetValue, useLocaleFormat = false) {
     const el = document.getElementById(elementId);
     if (!el) return '';
+    cancelCounter(elementId);
     if (targetValue === 0 || targetValue === null || targetValue === undefined) {
         el.textContent = '-';
         return '-';
@@ -7087,13 +7156,14 @@ function animateCounter(elementId, targetValue, useLocaleFormat = false) {
         const val = Math.floor(current + (targetValue - current) * eased);
         el.textContent = useLocaleFormat ? val.toLocaleString() : val;
         if (progress < 1) {
-            requestAnimationFrame(step);
+            counterFrames[elementId] = requestAnimationFrame(step);
         } else {
             el.textContent = useLocaleFormat ? targetValue.toLocaleString() : targetValue;
+            delete counterFrames[elementId];
         }
     }
 
-    requestAnimationFrame(step);
+    counterFrames[elementId] = requestAnimationFrame(step);
     return useLocaleFormat ? targetValue.toLocaleString() : targetValue;
 }
 
