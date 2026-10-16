@@ -1835,6 +1835,21 @@ function openLeaderboardForUser(name) {
     document.body.classList.add('modal-open');
 }
 
+// Build the lowercased text blob a leaderboard row is searched against. Includes the
+// raw fields, the canonical (normalized) hardware names, and console aliases so short
+// forms like "PS4"/"PS5" match rows whose raw values are "Jaguar"/"BC-250".
+function leaderboardSearchBlob(row) {
+    const parts = [
+        row.cpu, row.gpu, row.os, row.kernel, row.user, row.clientId,
+        normalizeCPU(row.cpu), normalizeGPU(row.gpu)
+    ];
+    const hw = `${row.cpu || ''} ${row.gpu || ''}`;
+    if (/bc-?250|ps5|playstation\s*5/i.test(hw)) parts.push('ps5 playstation 5');
+    if (/dg\d{3,}|liverpool|jaguar|ps4|playstation\s*4/i.test(hw)) parts.push('ps4 playstation 4');
+    if (/xbox|durango|scarlett/i.test(hw)) parts.push('xbox');
+    return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
 function handleFilterChange(updateUrl = true) {
     const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
     const osSelection = document.getElementById('os-filter').value;
@@ -1845,14 +1860,8 @@ function handleFilterChange(updateUrl = true) {
     const kernelSelection = document.getElementById('kernel-filter').value;
     
     filteredData = benchmarkData.filter(row => {
-        // Search filter
-        const matchesSearch = !searchQuery || 
-            row.cpu.toLowerCase().includes(searchQuery) ||
-            row.gpu.toLowerCase().includes(searchQuery) ||
-            row.os.toLowerCase().includes(searchQuery) ||
-            row.kernel.toLowerCase().includes(searchQuery) ||
-            row.user.toLowerCase().includes(searchQuery) ||
-            (row.clientId && row.clientId.toLowerCase().includes(searchQuery));
+        // Search filter — raw fields + canonical names + console aliases
+        const matchesSearch = !searchQuery || leaderboardSearchBlob(row).includes(searchQuery);
             
         // Dropdown filters
         const matchesOs = !osSelection || row.os === osSelection;
