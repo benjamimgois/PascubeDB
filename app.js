@@ -190,8 +190,13 @@ function switchPill(name) {
     const oldName = PILL_STATE.active;
     PILL_STATE.active = name;
 
-    // Update tabs
-    document.querySelectorAll('.hw-tab').forEach(t => t.classList.toggle('active', t.dataset.pill === name));
+    // Update tabs (visual + ARIA state stay in sync)
+    document.querySelectorAll('.hw-tab').forEach(t => {
+        const isActive = t.dataset.pill === name;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        t.tabIndex = isActive ? 0 : -1;
+    });
 
     // Update underline position
     const activeTab = document.querySelector('.hw-tab.active');
@@ -240,12 +245,31 @@ function initPillNav() {
     const initialPill = (subtab === 'efficiency' || subtab === 'curiosity') ? subtab : 'performance';
     PILL_STATE.active = initialPill;
 
-    document.querySelectorAll('.hw-tab').forEach(btn => {
+    const pillTabs = Array.prototype.slice.call(document.querySelectorAll('.hw-tab'));
+    pillTabs.forEach((btn, i) => {
         btn.addEventListener('click', () => switchPill(btn.dataset.pill));
+        btn.addEventListener('keydown', e => {
+            const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End'];
+            if (keys.indexOf(e.key) === -1) return;
+            e.preventDefault();
+            let next = i;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (i + 1) % pillTabs.length;
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (i - 1 + pillTabs.length) % pillTabs.length;
+            else if (e.key === 'Home') next = 0;
+            else if (e.key === 'End') next = pillTabs.length - 1;
+            const target = pillTabs[next];
+            target.focus();
+            switchPill(target.dataset.pill);
+        });
     });
 
     document.querySelectorAll('.pill-content').forEach(c => c.classList.toggle('active', c.dataset.pill === initialPill));
-    document.querySelectorAll('.hw-tab').forEach(t => t.classList.toggle('active', t.dataset.pill === initialPill));
+    document.querySelectorAll('.hw-tab').forEach(t => {
+        const isActive = t.dataset.pill === initialPill;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        t.tabIndex = isActive ? 0 : -1;
+    });
 
     // Position underline for initial tab
     const activeTab = document.querySelector('.hw-tab.active');
@@ -290,6 +314,37 @@ function initVizTooltips() {
     });
 }
 
+// Respect reduced-motion preference for chart animations too.
+if (window.Chart && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    Chart.defaults.animation = false;
+}
+
+// Global Chart.js plugin: overlay an empty state whenever a chart has no data.
+if (window.Chart) {
+    Chart.register({
+        id: 'emptyStateOverlay',
+        afterUpdate(chart) {
+            const datasets = chart.data.datasets || [];
+            const total = datasets.reduce((n, ds) => n + ((ds.data && ds.data.length) || 0), 0);
+            const area = chart.canvas && chart.canvas.parentElement;
+            if (!area) return;
+            let box = area.querySelector('.chart-empty');
+            if (total === 0) {
+                if (!box) {
+                    box = document.createElement('div');
+                    box.className = 'chart-empty';
+                    box.setAttribute('role', 'status');
+                    box.textContent = 'No data for current selection.';
+                    area.appendChild(box);
+                }
+                box.hidden = false;
+            } else if (box) {
+                box.hidden = true;
+            }
+        }
+    });
+}
+
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
@@ -304,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPillNav();
     initSpecimenModal();
     initVizTooltips();
+    initFeedbackUI();
     fetchData();
     trackPage('tab:hardware');
 });
@@ -325,12 +381,14 @@ function setupTabNavigation() {
         const activeContents = document.querySelectorAll(`.tab-content[data-tab="${target}"]`);
 
         const updateUI = () => {
-            tabs.forEach(t => t.classList.remove('active'));
+            tabs.forEach(t => {
+                const isActive = t === activeTab;
+                t.classList.toggle('active', isActive);
+                t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                t.tabIndex = isActive ? 0 : -1;
+            });
             contents.forEach(c => c.style.display = 'none');
-            if (activeTab) {
-                activeTab.classList.add('active');
-                updateUnderline(activeTab);
-            }
+            if (activeTab) updateUnderline(activeTab);
             activeContents.forEach(c => c.style.display = 'block');
         };
 
@@ -348,8 +406,22 @@ function setupTabNavigation() {
         }, 50);
     };
 
-    tabs.forEach(tab => {
+    const tabArr = Array.prototype.slice.call(tabs);
+    tabArr.forEach((tab, i) => {
         tab.addEventListener('click', () => window.switchTab(tab.getAttribute('data-tab')));
+        tab.addEventListener('keydown', e => {
+            const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End'];
+            if (keys.indexOf(e.key) === -1) return;
+            e.preventDefault();
+            let next = i;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (i + 1) % tabArr.length;
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (i - 1 + tabArr.length) % tabArr.length;
+            else if (e.key === 'Home') next = 0;
+            else if (e.key === 'End') next = tabArr.length - 1;
+            const target = tabArr[next];
+            target.focus();
+            window.switchTab(target.getAttribute('data-tab'));
+        });
     });
 
     const initialActive = document.querySelector('.tab-btn.active');
@@ -1075,6 +1147,7 @@ function processGvizData(jsonResponse) {
             gpu: gpuVal,
             vram: getVal(4) || 'N/D',
             driver: getVal(5) || 'N/D',
+            vulkanDriver: getVal(21) || 'N/D',
             kernel: getVal(6) || 'N/D',
             os: getVal(7) || 'Linux',
             mainScore: mainScore,
@@ -1122,10 +1195,12 @@ async function fetchData() {
         const data = await fetchGoogleSheetDataJSONP();
         processGvizData(data);
         setSyncStatus('success', 'Synced (Real-time)');
+        hideStatusBanner();
     } catch (e) {
         console.error("Direct JSONP fetch failed, using fallback static data...", e);
         processCSVData(FALLBACK_CSV);
         setSyncStatus('warning', 'Using Fallback Data');
+        showStatusBanner('Live data is unavailable right now — showing a cached dataset.', 'warning');
     }
 }
 
@@ -1176,6 +1251,40 @@ function setSyncStatus(type, message) {
     }
     
     lucide.createIcons();
+}
+
+// ─── Feedback: status banner & toast ───
+
+function showStatusBanner(message, level) {
+    const banner = document.getElementById('status-banner');
+    const text = document.getElementById('status-banner-text');
+    if (!banner || !text) return;
+    text.textContent = message;
+    banner.classList.remove('warning', 'info');
+    banner.classList.add(level || 'warning');
+    banner.hidden = false;
+    if (window.lucide) lucide.createIcons();
+}
+
+function hideStatusBanner() {
+    const banner = document.getElementById('status-banner');
+    if (banner) banner.hidden = true;
+}
+
+let toastTimer = null;
+function showToast(message, level) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove('success', 'error', 'warning');
+    toast.classList.add(level || 'success', 'visible');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('visible'), 4000);
+}
+
+function initFeedbackUI() {
+    const close = document.getElementById('status-banner-close');
+    if (close) close.addEventListener('click', hideStatusBanner);
 }
 
 // Show loader in table using animated skeletons
@@ -1267,6 +1376,7 @@ function processCSVData(csvText) {
             gpu: gpuVal,
             vram: row[4] || 'N/D',
             driver: row[5] || 'N/D',
+            vulkanDriver: row[21] || 'N/D',
             kernel: row[6] || 'N/D',
             os: row[7] || 'Linux',
             mainScore: cleanNumber(row[8]),
@@ -1692,13 +1802,13 @@ function renderStats(pill) {
         const gpuEff = computeGpuEfficiency(effData);
         document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? `${(Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
         document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? cpuEff[0].name : '-';
-        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `2º ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `3º ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '3º -';
+        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `#2 ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#2 -';
+        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `#3 ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#3 -';
 
         document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? `${(Math.trunc(gpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
         document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? gpuEff[0].name : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `2º ${gpuEff[1].name} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `3º ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '3º -';
+        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `#2 ${gpuEff[1].name} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#2 -';
+        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `#3 ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#3 -';
 
         const bneck = effData
             .filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0)
@@ -1707,15 +1817,15 @@ function renderStats(pill) {
             .sort((a, b) => a.ratio - b.ratio);
         document.getElementById('stat-top-gpu').textContent = bneck.length > 0 ? bneck[0].ratio.toFixed(3) : '-';
         document.getElementById('stat-top-gpu-sub').textContent = bneck.length > 0 ? `${bneck[0].cpu} + ${bneck[0].gpu}` : '-';
-        document.getElementById('stat-gpu-second').textContent = bneck[1] ? `2º ${bneck[1].cpu} + ${bneck[1].gpu} — ${bneck[1].ratio.toFixed(3)}` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = bneck[2] ? `3º ${bneck[2].cpu} + ${bneck[2].gpu} — ${bneck[2].ratio.toFixed(3)}` : '3º -';
+        document.getElementById('stat-gpu-second').textContent = bneck[1] ? `#2 ${bneck[1].cpu} + ${bneck[1].gpu} — ${bneck[1].ratio.toFixed(3)}` : '#2 -';
+        document.getElementById('stat-gpu-third').textContent = bneck[2] ? `#3 ${bneck[2].cpu} + ${bneck[2].gpu} — ${bneck[2].ratio.toFixed(3)}` : '#3 -';
 
         // Card 4: Best Thermal GPU
         const gpuThermalSorted = computeThermalEfficiency(effData);
         document.getElementById('stat-most-humble-score').textContent = gpuThermalSorted.length > 0 ? `${(Math.trunc(gpuThermalSorted[0].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '-';
         document.getElementById('stat-most-humble-hardware').textContent = gpuThermalSorted.length > 0 ? gpuThermalSorted[0].name : '-';
-        document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `2º ${gpuThermalSorted[1].name} — ${(Math.trunc(gpuThermalSorted[1].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '2º -';
-        document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `3º ${gpuThermalSorted[2].name} — ${(Math.trunc(gpuThermalSorted[2].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '3º -';
+        document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `#2 ${gpuThermalSorted[1].name} — ${(Math.trunc(gpuThermalSorted[1].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '#2 -';
+        document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `#3 ${gpuThermalSorted[2].name} — ${(Math.trunc(gpuThermalSorted[2].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '#3 -';
     } else if (pill === 'curiosity') {
         const data = collectSpecimenData();
         const tierOrder = { S: 0, A: 1, B: 2, C: 3 };
@@ -1736,8 +1846,8 @@ function renderStats(pill) {
         );
         document.getElementById('stat-top-cpu-single').textContent = byTier[0] ? byTier[0].specimen.tier : '-';
         document.getElementById('stat-top-cpu-single-sub').textContent = byTier[0] ? `${normalizeCPU(byTier[0].row.cpu)} + ${normalizeGPU(byTier[0].row.gpu)}` : '-';
-        document.getElementById('stat-cpu-single-second').textContent = byTier[1] ? `2º ${normalizeCPU(byTier[1].row.cpu)} — tier ${byTier[1].specimen.tier}` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = byTier[2] ? `3º ${normalizeCPU(byTier[2].row.cpu)} — tier ${byTier[2].specimen.tier}` : '3º -';
+        document.getElementById('stat-cpu-single-second').textContent = byTier[1] ? `#2 ${normalizeCPU(byTier[1].row.cpu)} — tier ${byTier[1].specimen.tier}` : '#2 -';
+        document.getElementById('stat-cpu-single-third').textContent = byTier[2] ? `#3 ${normalizeCPU(byTier[2].row.cpu)} — tier ${byTier[2].specimen.tier}` : '#3 -';
 
         // Card 2: Oldest CPU (lowest curated CPU year, unique model)
         const cpuWithYear = uniqueBy(
@@ -1747,8 +1857,8 @@ function renderStats(pill) {
         );
         document.getElementById('stat-top-cpu-multi').textContent = cpuWithYear[0] ? String(cpuWithYear[0].specimen.cpuYear) : '-';
         document.getElementById('stat-top-cpu-multi-sub').textContent = cpuWithYear[0] ? normalizeCPU(cpuWithYear[0].row.cpu) : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = cpuWithYear[1] ? `2º ${normalizeCPU(cpuWithYear[1].row.cpu)} — ${cpuWithYear[1].specimen.cpuYear}` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = cpuWithYear[2] ? `3º ${normalizeCPU(cpuWithYear[2].row.cpu)} — ${cpuWithYear[2].specimen.cpuYear}` : '3º -';
+        document.getElementById('stat-cpu-multi-second').textContent = cpuWithYear[1] ? `#2 ${normalizeCPU(cpuWithYear[1].row.cpu)} — ${cpuWithYear[1].specimen.cpuYear}` : '#2 -';
+        document.getElementById('stat-cpu-multi-third').textContent = cpuWithYear[2] ? `#3 ${normalizeCPU(cpuWithYear[2].row.cpu)} — ${cpuWithYear[2].specimen.cpuYear}` : '#3 -';
 
         // Card 3: Oldest GPU (lowest curated GPU year, unique model)
         const gpuWithYear = uniqueBy(
@@ -1758,8 +1868,8 @@ function renderStats(pill) {
         );
         document.getElementById('stat-top-gpu').textContent = gpuWithYear[0] ? String(gpuWithYear[0].specimen.gpuYear) : '-';
         document.getElementById('stat-top-gpu-sub').textContent = gpuWithYear[0] ? normalizeGPU(gpuWithYear[0].row.gpu) : '-';
-        document.getElementById('stat-gpu-second').textContent = gpuWithYear[1] ? `2º ${normalizeGPU(gpuWithYear[1].row.gpu)} — ${gpuWithYear[1].specimen.gpuYear}` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = gpuWithYear[2] ? `3º ${normalizeGPU(gpuWithYear[2].row.gpu)} — ${gpuWithYear[2].specimen.gpuYear}` : '3º -';
+        document.getElementById('stat-gpu-second').textContent = gpuWithYear[1] ? `#2 ${normalizeGPU(gpuWithYear[1].row.gpu)} — ${gpuWithYear[1].specimen.gpuYear}` : '#2 -';
+        document.getElementById('stat-gpu-third').textContent = gpuWithYear[2] ? `#3 ${normalizeGPU(gpuWithYear[2].row.gpu)} — ${gpuWithYear[2].specimen.gpuYear}` : '#3 -';
 
         // Card 4: Console APU (most-submitted console-derived APU, unique model)
         const consoleCounts = {};
@@ -1773,8 +1883,8 @@ function renderStats(pill) {
             .sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name));
         document.getElementById('stat-most-humble-score').textContent = consoles[0] ? String(consoles[0].count) : '-';
         document.getElementById('stat-most-humble-hardware').textContent = consoles[0] ? consoles[0].name : '-';
-        document.getElementById('stat-humble-second').textContent = consoles[1] ? `2º ${consoles[1].name} — ${consoles[1].count} ×` : '2º -';
-        document.getElementById('stat-humble-third').textContent = consoles[2] ? `3º ${consoles[2].name} — ${consoles[2].count} ×` : '3º -';
+        document.getElementById('stat-humble-second').textContent = consoles[1] ? `#2 ${consoles[1].name} — ${consoles[1].count} ×` : '#2 -';
+        document.getElementById('stat-humble-third').textContent = consoles[2] ? `#3 ${consoles[2].name} — ${consoles[2].count} ×` : '#3 -';
     }
 
     // Update help tooltips
@@ -1798,24 +1908,24 @@ function renderOverviewStatsImpl() {
     if (singleTop[0]) {
         document.getElementById('stat-top-cpu-single').textContent = animateCounter('stat-top-cpu-single', singleTop[0].cpuSingle || 0);
         document.getElementById('stat-top-cpu-single-sub').textContent = trunc(normalizeCPU(singleTop[0].cpu));
-        document.getElementById('stat-cpu-single-second').textContent = singleTop[1] ? `2º ${trunc(normalizeCPU(singleTop[1].cpu))} — ${singleTop[1].cpuSingle.toLocaleString()}` : '2º -';
-        document.getElementById('stat-cpu-single-third').textContent = singleTop[2] ? `3º ${trunc(normalizeCPU(singleTop[2].cpu))} — ${singleTop[2].cpuSingle.toLocaleString()}` : '3º -';
+        document.getElementById('stat-cpu-single-second').textContent = singleTop[1] ? `#2 ${trunc(normalizeCPU(singleTop[1].cpu))} — ${singleTop[1].cpuSingle.toLocaleString()}` : '#2 -';
+        document.getElementById('stat-cpu-single-third').textContent = singleTop[2] ? `#3 ${trunc(normalizeCPU(singleTop[2].cpu))} — ${singleTop[2].cpuSingle.toLocaleString()}` : '#3 -';
     }
 
     const multiTop = bestPerModel(benchmarkData, 'cpuMulti', r => normalizeCPU(r.cpu), 'Unknown CPU');
     if (multiTop[0]) {
         document.getElementById('stat-top-cpu-multi').textContent = animateCounter('stat-top-cpu-multi', multiTop[0].cpuMulti || 0, true);
         document.getElementById('stat-top-cpu-multi-sub').textContent = trunc(normalizeCPU(multiTop[0].cpu));
-        document.getElementById('stat-cpu-multi-second').textContent = multiTop[1] ? `2º ${trunc(normalizeCPU(multiTop[1].cpu))} — ${multiTop[1].cpuMulti.toLocaleString()}` : '2º -';
-        document.getElementById('stat-cpu-multi-third').textContent = multiTop[2] ? `3º ${trunc(normalizeCPU(multiTop[2].cpu))} — ${multiTop[2].cpuMulti.toLocaleString()}` : '3º -';
+        document.getElementById('stat-cpu-multi-second').textContent = multiTop[1] ? `#2 ${trunc(normalizeCPU(multiTop[1].cpu))} — ${multiTop[1].cpuMulti.toLocaleString()}` : '#2 -';
+        document.getElementById('stat-cpu-multi-third').textContent = multiTop[2] ? `#3 ${trunc(normalizeCPU(multiTop[2].cpu))} — ${multiTop[2].cpuMulti.toLocaleString()}` : '#3 -';
     }
 
     const gpuTop = bestPerModel(benchmarkData, 'gpuScore', r => normalizeGPU(r.gpu), 'Unknown GPU');
     if (gpuTop[0]) {
         document.getElementById('stat-top-gpu').textContent = animateCounter('stat-top-gpu', gpuTop[0].gpuScore || 0, true);
         document.getElementById('stat-top-gpu-sub').textContent = trunc(normalizeGPU(gpuTop[0].gpu));
-        document.getElementById('stat-gpu-second').textContent = gpuTop[1] ? `2º ${trunc(normalizeGPU(gpuTop[1].gpu))} — ${gpuTop[1].gpuScore.toLocaleString()}` : '2º -';
-        document.getElementById('stat-gpu-third').textContent = gpuTop[2] ? `3º ${trunc(normalizeGPU(gpuTop[2].gpu))} — ${gpuTop[2].gpuScore.toLocaleString()}` : '3º -';
+        document.getElementById('stat-gpu-second').textContent = gpuTop[1] ? `#2 ${trunc(normalizeGPU(gpuTop[1].gpu))} — ${gpuTop[1].gpuScore.toLocaleString()}` : '#2 -';
+        document.getElementById('stat-gpu-third').textContent = gpuTop[2] ? `#3 ${trunc(normalizeGPU(gpuTop[2].gpu))} — ${gpuTop[2].gpuScore.toLocaleString()}` : '#3 -';
     }
 
     const humbles = [...benchmarkData]
@@ -1825,8 +1935,8 @@ function renderOverviewStatsImpl() {
     if (humbles[0]) {
         document.getElementById('stat-most-humble-score').textContent = animateCounter('stat-most-humble-score', humbles[0].mainScore);
         document.getElementById('stat-most-humble-hardware').textContent = trunc(normalizeCPU(humbles[0].cpu) + ' + ' + normalizeGPU(humbles[0].gpu));
-        document.getElementById('stat-humble-second').textContent = humbles[1] ? `2º ${trunc(normalizeCPU(humbles[1].cpu) + ' + ' + normalizeGPU(humbles[1].gpu))} — ${humbles[1].mainScore.toLocaleString()}` : '2º -';
-        document.getElementById('stat-humble-third').textContent = humbles[2] ? `3º ${trunc(normalizeCPU(humbles[2].cpu) + ' + ' + normalizeGPU(humbles[2].gpu))} — ${humbles[2].mainScore.toLocaleString()}` : '3º -';
+        document.getElementById('stat-humble-second').textContent = humbles[1] ? `#2 ${trunc(normalizeCPU(humbles[1].cpu) + ' + ' + normalizeGPU(humbles[1].gpu))} — ${humbles[1].mainScore.toLocaleString()}` : '#2 -';
+        document.getElementById('stat-humble-third').textContent = humbles[2] ? `#3 ${trunc(normalizeCPU(humbles[2].cpu) + ' + ' + normalizeGPU(humbles[2].gpu))} — ${humbles[2].mainScore.toLocaleString()}` : '#3 -';
     }
 }
 
@@ -1968,7 +2078,12 @@ function highlightText(text, query) {
 function renderTable() {
     const tbody = document.getElementById('leaderboard-body');
     const searchQuery = document.getElementById('search-input')?.value?.trim() || '';
-    
+
+    const countEl = document.getElementById('leaderboard-count');
+    if (countEl) {
+        countEl.textContent = `${filteredData.length} ${filteredData.length === 1 ? 'result' : 'results'}`;
+    }
+
     if (filteredData.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -2058,6 +2173,7 @@ window.copyToClipboard = function(text, element) {
             showCopyFeedback(element);
         } catch (err) {
             console.error('Fallback copy failed', err);
+            showToast('Could not copy to clipboard', 'error');
         }
         document.body.removeChild(textarea);
         return;
@@ -2067,6 +2183,7 @@ window.copyToClipboard = function(text, element) {
         showCopyFeedback(element);
     }).catch(err => {
         console.error('Failed to copy text: ', err);
+        showToast('Could not copy to clipboard', 'error');
     });
 };
 
@@ -2077,6 +2194,7 @@ function showCopyFeedback(element) {
     
     textEl.textContent = 'Copied!';
     element.classList.add('copied');
+    showToast('Copied to clipboard', 'success');
     
     // Temporarily replace copy icon with check icon
     if (icon && window.lucide) {
@@ -3164,29 +3282,67 @@ function getCPUBrandDistribution(data) {
     return brands;
 }
 
+// Centralized GPU vendor detection. Prefers the GPU name; falls back to the
+// kernel driver / Vulkan driver for generic or unrecognized names, so newly
+// added GPUs are still attributed to the right brand.
+function detectGPUBrand(gpuName, opts = {}) {
+    const gpu = String(gpuName || '').toLowerCase();
+    const arch = String(opts.architecture || '').toLowerCase();
+    const driver = String(opts.driver || '').toLowerCase();
+    const vk = String(opts.vulkanDriver || '').toLowerCase();
+
+    // Software / virtualized renderers
+    if (/\b(llvmpipe|softpipe|swrast|zink|virgl|virtio|virglrenderer)\b/.test(gpu)) return 'llvmpipe';
+
+    // NVIDIA
+    if (/\b(nvidia|geforce|quadro|nvk|nvs|tesla|titan)\b/.test(gpu) ||
+        /\b(rtx|gtx|gts)\s*\d/.test(gpu) ||
+        /\bgt\s+\d/.test(gpu) ||
+        /\bmx\s*\d{3}\b/.test(gpu)) return 'NVIDIA';
+
+    // Broadcom / Raspberry Pi
+    if (/\b(broadcom|videocore|vc4|v3d)\b/.test(gpu)) return 'Broadcom';
+
+    // Intel
+    if (/\b(intel|iris|uhd|arc|xe)\b/.test(gpu) || /\bhd graphics\b/.test(gpu)) return 'Intel';
+
+    // AMD (Radeon, FirePro, Instinct, APUs, legacy ATI)
+    if (/\b(amd|ati|radeon|firepro|instinct)\b/.test(gpu) ||
+        /\brx\s*\d/.test(gpu) || /\bvega\b/.test(gpu) ||
+        /\br[3579]\s*(m|series|\d)/.test(gpu) ||
+        /\b(pro\s*(?:w|v|duo)|wx)\d*/.test(gpu) ||
+        /\bmi\d{2,3}\b/.test(gpu) ||
+        /\bhd\s*\d{3,4}\b/.test(gpu) ||
+        /\bw[57]\d{3}\b/.test(gpu) ||
+        /\b\d{3,4}[mx]\b/.test(gpu) || /\b\d{4}s\b/.test(gpu) ||
+        /\b(bc-?250|custom gpu|steam deck|deck|z1 extreme|liverpool|jaguar|dg\d{3})\b/.test(gpu) ||
+        /\bseries\b/.test(gpu) ||
+        (/\bgraphics\b/.test(gpu) && !/\b(intel|arc|iris|uhd|xe)\b/.test(gpu))) return 'AMD';
+
+    // ARM ecosystem (Mali, Adreno, PowerVR, Apple silicon, SoCs)
+    if (/\b(arm|mali|adreno|qualcomm|rk3588|panfrost|panthor|powervr|imagination|apple|asahi)\b/.test(gpu)) return 'ARM';
+
+    // Non-x86 platforms default to ARM
+    if (arch === 'aarch64') return 'ARM';
+
+    // Fallbacks: kernel driver + Vulkan driver
+    if (/\bnvrm\b|\bnvidia\b/.test(driver) || /\bnvk\b/.test(vk)) return 'NVIDIA';
+    if (/\bradv\b|\bamdvlk\b|\bamdgpu\b/.test(vk) || /\bradv\b|\bamdvlk\b/.test(driver)) return 'AMD';
+    if (/\banv\b/.test(vk)) return 'Intel';
+
+    return 'Other';
+}
+
 // Helper to get GPU Brand distribution
 function getGPUBrandDistribution(data) {
     const brands = { NVIDIA: 0, AMD: 0, Intel: 0, ARM: 0, llvmpipe: 0, Broadcom: 0, Other: 0 };
     data.forEach(r => {
-        const gpu = (r.gpu || '').toLowerCase();
-        const arch = (r.architecture || '').toLowerCase();
-        if (arch === 'aarch64') {
-            brands.ARM++;
-        } else if (gpu.includes('nvidia') || gpu.includes('rtx') || gpu.includes('gtx') || gpu.includes('geforce') || gpu.includes('quadro') || gpu.includes('nvk') || gpu.includes('gt ') || gpu.includes('mx')) {
-            brands.NVIDIA++;
-        } else if (gpu.includes('broadcom') || gpu.includes('videocore') || gpu.includes('vc4') || gpu.includes('v3d')) {
-            brands.Broadcom++;
-        } else if (gpu.includes('arm') || gpu.includes('mali') || gpu.includes('rk3588')) {
-            brands.ARM++;
-        } else if (gpu.includes('amd') || gpu.includes('radeon') || gpu.includes('rx') || gpu.includes('r9') || gpu.includes('r7') || gpu.includes('r5') || gpu.includes('vii') || gpu.includes('wx') || gpu.includes('z1 extreme') || gpu.includes('deck') || gpu.includes('660m') || gpu.includes('610m') || gpu.includes('680m') || gpu.includes('550x') || gpu.includes('w5500') || gpu.includes('hd 8') || gpu.includes('hd 7') || gpu.includes('hd 6') || gpu.includes('pro v') || gpu.includes('radeon pro') || gpu.includes(' series') || (gpu.includes('graphics') && !gpu.includes('intel'))) {
-            brands.AMD++;
-        } else if (gpu.includes('intel') || gpu.includes('arc') || gpu.includes('uhd') || gpu.includes('hd graphics')) {
-            brands.Intel++;
-        } else if (gpu.includes('llvmpipe')) {
-            brands.llvmpipe++;
-        } else {
-            brands.Other++;
-        }
+        const brand = detectGPUBrand(r.gpu, {
+            architecture: r.architecture,
+            driver: r.driver,
+            vulkanDriver: r.vulkanDriver
+        });
+        brands[brand]++;
     });
     return brands;
 }
@@ -3560,8 +3716,8 @@ function renderSystemCharts() {
         const el = id => document.getElementById(prefix + '-' + id);
         if (el('name')) el('name').textContent = get(0) ? get(0).name : '-';
         if (el('stat')) el('stat').textContent = get(0) ? pct(get(0)) + ' of submissions' : '-';
-        if (el('second')) el('second').textContent = get(1) ? `2º ${get(1).name} — ${pct(get(1))}` : '2º -';
-        if (el('third')) el('third').textContent = get(2) ? `3º ${get(2).name} — ${pct(get(2))}` : '3º -';
+        if (el('second')) el('second').textContent = get(1) ? `#2 ${get(1).name} — ${pct(get(1))}` : '#2 -';
+        if (el('third')) el('third').textContent = get(2) ? `#3 ${get(2).name} — ${pct(get(2))}` : '#3 -';
     }
 
     const osRaw = getOSDistribution(bm);
@@ -4353,12 +4509,13 @@ function renderCharts() {
         'Other': { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' }
     };
     const gpuLabels = Object.keys(gpuBrandDist);
+    const gpuFallbackColor = { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' };
     renderDoughnutChart(
         'gpuBrandDistChart',
         gpuLabels,
         Object.values(gpuBrandDist),
-        gpuLabels.map(label => gpuBrandColors[label].bg),
-        gpuLabels.map(label => gpuBrandColors[label].border)
+        gpuLabels.map(label => (gpuBrandColors[label] || gpuFallbackColor).bg),
+        gpuLabels.map(label => (gpuBrandColors[label] || gpuFallbackColor).border)
     );
 
     // 8b. Pie/Doughnut RAM Capacity Distribution Chart
@@ -5301,13 +5458,13 @@ function renderCharts() {
             nameEl.textContent = result.winner.name;
             let text = `${result.winner.wins}/${result.totalCompared} hw wins at ${result.winner.avg.toLocaleString()} avg`;
             statEl.textContent = text;
-            if (secondEl) secondEl.textContent = result.second ? `2º ${result.second.name}` : '2º -';
-            if (thirdEl) thirdEl.textContent = result.third ? `3º ${result.third.name}` : '3º -';
+            if (secondEl) secondEl.textContent = result.second ? `#2 ${result.second.name}` : '#2 -';
+            if (thirdEl) thirdEl.textContent = result.third ? `#3 ${result.third.name}` : '#3 -';
         } else {
             nameEl.textContent = 'Insufficient data';
             statEl.textContent = '';
-            if (secondEl) secondEl.textContent = '2º -';
-            if (thirdEl) thirdEl.textContent = '3º -';
+            if (secondEl) secondEl.textContent = '#2 -';
+            if (thirdEl) thirdEl.textContent = '#3 -';
         }
     }
 
