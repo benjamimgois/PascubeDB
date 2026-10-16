@@ -144,6 +144,8 @@ const SCORE_COLORS = {
 // State Variables
 let benchmarkData = [];
 let filteredData = [];
+let leaderboardHardwareFilter = null; // { cpu, gpu } normalized combo set by a chart-bar drilldown
+let leaderboardUserFilter = null;     // username string set by a username click
 let chartInstances = {};
 let chartNorm = {};
 let tabsInitialized = false;
@@ -1035,6 +1037,12 @@ function setupEventListeners() {
     if (modal) {
         modal.addEventListener('close', () => {
             document.body.classList.remove('modal-open');
+            // Clear a chart-drilldown hardware filter so the next open is unfiltered
+            if (leaderboardHardwareFilter || leaderboardUserFilter) {
+                leaderboardHardwareFilter = null;
+                leaderboardUserFilter = null;
+                handleFilterChange(false);
+            }
             // Collapse filters on close so they reset on next open
             if (filtersWrapper) {
                 filtersWrapper.classList.remove('filters-expanded');
@@ -1745,6 +1753,16 @@ function renderActiveFilterChips() {
     const active = LEADERBOARD_FILTER_FIELDS
         .map(f => ({ ...f, value: (document.getElementById(f.id)?.value || '').trim() }))
         .filter(f => f.value);
+    if (leaderboardHardwareFilter) {
+        active.push({
+            id: 'hardware-filter',
+            label: 'Hardware',
+            value: `${leaderboardHardwareFilter.cpu} + ${leaderboardHardwareFilter.gpu}`
+        });
+    }
+    if (leaderboardUserFilter) {
+        active.push({ id: 'user-filter', label: 'User', value: leaderboardUserFilter });
+    }
     if (active.length === 0) {
         wrap.hidden = true;
         box.innerHTML = '';
@@ -1762,8 +1780,15 @@ function renderActiveFilterChips() {
     )).join('');
     box.querySelectorAll('.filter-chip-remove').forEach(btn => {
         btn.addEventListener('click', () => {
-            const el = document.getElementById(btn.getAttribute('data-filter-id'));
-            if (el) el.value = '';
+            const id = btn.getAttribute('data-filter-id');
+            if (id === 'hardware-filter') {
+                leaderboardHardwareFilter = null;
+            } else if (id === 'user-filter') {
+                leaderboardUserFilter = null;
+            } else {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            }
             handleFilterChange();
         });
     });
@@ -1775,7 +1800,39 @@ function clearAllLeaderboardFilters() {
         const el = document.getElementById(f.id);
         if (el) el.value = '';
     });
+    leaderboardHardwareFilter = null;
+    leaderboardUserFilter = null;
     handleFilterChange();
+}
+
+// Open the leaderboard filtered to a single run's exact hardware (normalized CPU + GPU).
+// Used by the chart-bar drilldown.
+function openLeaderboardForHardware(row) {
+    if (!row) return;
+    leaderboardUserFilter = null;
+    leaderboardHardwareFilter = { cpu: normalizeCPU(row.cpu), gpu: normalizeGPU(row.gpu) };
+    handleFilterChange(false);
+    const modal = document.getElementById('leaderboard-modal');
+    if (!modal) return;
+    if (typeof modal.showModal === 'function') modal.showModal();
+    else modal.setAttribute('open', '');
+    document.body.classList.add('modal-open');
+}
+
+// Open the leaderboard filtered to a single username's runs.
+// Used by username clicks (leaderboard badge + Top Contributors chart).
+function openLeaderboardForUser(name) {
+    if (!name || name === 'Anonymous') return;
+    leaderboardHardwareFilter = null;
+    leaderboardUserFilter = name;
+    handleFilterChange(false);
+    const modal = document.getElementById('leaderboard-modal');
+    if (!modal) return;
+    if (!modal.open) {
+        if (typeof modal.showModal === 'function') modal.showModal();
+        else modal.setAttribute('open', '');
+    }
+    document.body.classList.add('modal-open');
 }
 
 function handleFilterChange(updateUrl = true) {
@@ -1808,8 +1865,17 @@ function handleFilterChange(updateUrl = true) {
             const match = row.kernel.match(/^(\d+\.\d+)/);
             if (match) matchesKernel = match[1] === kernelSelection;
         }
-        
-        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel;
+
+        // Hardware-combo drilldown filter (set by a chart-bar click) — normalized CPU+GPU
+        const hw = leaderboardHardwareFilter;
+        const matchesHardware = !hw ||
+            (normalizeCPU(row.cpu) === hw.cpu && normalizeGPU(row.gpu) === hw.gpu);
+
+        // User drilldown filter (set by a username click) — case-insensitive username equality
+        const matchesUser = !leaderboardUserFilter ||
+            (row.user || '').toLowerCase() === leaderboardUserFilter.toLowerCase();
+
+        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel && matchesHardware && matchesUser;
     });
 
 
@@ -2300,17 +2366,22 @@ function renderTable() {
         
         const displayName = getDisplayName(row);
         const isNamed = row.user && row.user.toLowerCase() !== 'anonymous';
-        const title = isNamed ? `Username: ${row.user}` : `Full ID: ${row.clientId} (Click to copy)`;
-        const copyValue = displayName;
-            
+
         let clientIdHtml = '';
         if (row.clientId === 'N/D') {
             clientIdHtml = '<span class="nd-cell">N/D</span>';
+        } else if (isNamed) {
+            clientIdHtml = `
+                <div class="client-id-badge clickable" role="button" tabindex="0"
+                     title="Show all tests from ${escapeFilterHtml(row.user)}"
+                     data-user="${escapeFilterHtml(row.user)}">
+                    <span class="client-id-text">${highlightText(displayName, searchQuery)}</span>
+                </div>
+            `;
         } else {
             clientIdHtml = `
-                <div class="client-id-badge" title="${title}" onclick="copyToClipboard('${copyValue}', this)">
+                <div class="client-id-badge">
                     <span class="client-id-text">${highlightText(displayName, searchQuery)}</span>
-                    <i data-lucide="copy" class="copy-icon"></i>
                 </div>
             `;
         }
@@ -2335,66 +2406,21 @@ function renderTable() {
             <td style="font-size: 0.8rem; color: var(--text-secondary)">${row.dateTime}</td>
         `;
         
+        const userBadge = tr.querySelector('.client-id-badge.clickable');
+        if (userBadge) {
+            const name = userBadge.getAttribute('data-user');
+            userBadge.addEventListener('click', (e) => { e.stopPropagation(); openLeaderboardForUser(name); });
+            userBadge.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLeaderboardForUser(name); }
+            });
+        }
+
         tbody.appendChild(tr);
     });
 
     if (window.lucide) {
         lucide.createIcons();
     }
-}
-
-// Copy to Clipboard Helper
-window.copyToClipboard = function(text, element) {
-    if (!navigator.clipboard) {
-        // Fallback for older browsers or non-HTTPS contexts
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            showCopyFeedback(element);
-        } catch (err) {
-            console.error('Fallback copy failed', err);
-            showToast('Could not copy to clipboard', 'error');
-        }
-        document.body.removeChild(textarea);
-        return;
-    }
-    
-    navigator.clipboard.writeText(text).then(() => {
-        showCopyFeedback(element);
-    }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        showToast('Could not copy to clipboard', 'error');
-    });
-};
-
-function showCopyFeedback(element) {
-    const icon = element.querySelector('.copy-icon');
-    const textEl = element.querySelector('.client-id-text');
-    const originalText = textEl.textContent;
-    
-    textEl.textContent = 'Copied!';
-    element.classList.add('copied');
-    showToast('Copied to clipboard', 'success');
-    
-    // Temporarily replace copy icon with check icon
-    if (icon && window.lucide) {
-        icon.setAttribute('data-lucide', 'check');
-        lucide.createIcons();
-    }
-    
-    setTimeout(() => {
-        textEl.textContent = originalText;
-        element.classList.remove('copied');
-        if (icon && window.lucide) {
-            icon.setAttribute('data-lucide', 'copy');
-            lucide.createIcons();
-        }
-    }, 1500);
 }
 
 // Helper to parse dates in format DD/MM/YYYY HH:MM:SS or YYYY-MM-DD HH:MM:SS
@@ -3386,6 +3412,7 @@ function getTopHandheldRuns(data, limit = 10) {
             score: r.mainScore,
             cpuMaxFreq: r.cpuMaxFreq,
             cpuMaxPower: r.cpuMaxPower,
+            row: r,
             userName: r.user && r.user !== 'Anonymous' ? r.user : null
         }));
 }
@@ -3402,6 +3429,7 @@ function getTopMobileRuns(data, limit = 10) {
             score: r.mainScore,
             cpuMaxFreq: r.cpuMaxFreq,
             cpuMaxPower: r.cpuMaxPower,
+            row: r,
             userName: r.user && r.user !== 'Anonymous' ? r.user : null
         }));
 }
@@ -3434,7 +3462,7 @@ function getTopMobileCPUs(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.cpuSingle - a.cpuSingle)
         .slice(0, limit)
-        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower, row: r }));
 }
 
 // Get top Mobile GPUs (Notebook + SBC combined) by average GPU score
@@ -3468,7 +3496,7 @@ function getTopMobileGPUs(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.gpuScore - a.gpuScore)
         .slice(0, limit)
-        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower, row: r }));
 }
 
 // Get top Mobile GPUs (Notebook + SBC combined) by best GPU RT score
@@ -3502,7 +3530,7 @@ function getTopMobileGPUsRT(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.gpuRt - a.gpuRt)
         .slice(0, limit)
-        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuRt, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuRt, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower, row: r }));
 }
 
 // Get top Handheld CPUs by best CPU Single score
@@ -3521,7 +3549,7 @@ function getTopHandheldCPUs(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.cpuSingle - a.cpuSingle)
         .slice(0, limit)
-        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower, row: r }));
 }
 
 // Get top Mobile CPUs (Notebook + SBC combined) by best CPU Multi score
@@ -3540,7 +3568,7 @@ function getTopMobileCPUMulti(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.cpuMulti - a.cpuMulti)
         .slice(0, limit)
-        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower, row: r }));
 }
 
 // Get top Handheld CPUs by best CPU Multi score
@@ -3559,7 +3587,7 @@ function getTopHandheldCPUMulti(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.cpuMulti - a.cpuMulti)
         .slice(0, limit)
-        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuMulti, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower, row: r }));
 }
 
 // Get top Handheld GPUs by best GPU score (excludes discrete mobile GPUs via eGPU)
@@ -3579,7 +3607,7 @@ function getTopHandheldGPUs(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.gpuScore - a.gpuScore)
         .slice(0, limit)
-        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower, row: r }));
 }
 
 // Get top Handheld GPUs by best GPU RT score (excludes discrete mobile GPUs via eGPU)
@@ -3599,7 +3627,7 @@ function getTopHandheldGPUsRT(data, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.gpuRt - a.gpuRt)
         .slice(0, limit)
-        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuRt, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuRt, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower, row: r }));
 }
 
 // Get top CPUs by category (Notebook/Handheld/SBC) by average CPU Single score
@@ -3618,7 +3646,7 @@ function getTopCategoryCPUs(data, category, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.cpuSingle - a.cpuSingle)
         .slice(0, limit)
-        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower }));
+        .map(r => ({ name: normalizeCPU(r.cpu), score: r.cpuSingle, displayName: getDisplayName(r), cpuMaxFreq: r.cpuMaxFreq, cpuMaxPower: r.cpuMaxPower, row: r }));
 }
 
 // Get top GPUs by category (Notebook/Handheld/SBC) by average GPU score
@@ -3651,7 +3679,7 @@ function getTopCategoryGPUs(data, category, limit = 10) {
     return Object.values(best)
         .sort((a, b) => b.gpuScore - a.gpuScore)
         .slice(0, limit)
-        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower }));
+        .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower, row: r }));
 }
 
 // Helper to get CPU Brand distribution
@@ -4576,7 +4604,11 @@ function renderCharts() {
         mainRuns.map(r => r.gpuMaxPower),
         undefined,
         chartNorm['mainOverallChart'],
-        true
+        true,
+        undefined,
+        undefined,
+        undefined,
+        mainRuns
     );
     const cpuSingleBest = {};
     benchmarkData.filter(r => r.cpuSingle !== null).forEach(r => {
@@ -4611,7 +4643,11 @@ function renderCharts() {
         null,
         undefined,
         chartNorm['cpuSingleChart'],
-        true
+        true,
+        undefined,
+        undefined,
+        undefined,
+        cpuSingleRuns
     );
 
     // 2. CPU Multi Thread Top 10 Chart
@@ -4648,7 +4684,11 @@ function renderCharts() {
         null,
         undefined,
         chartNorm['cpuMultiChart'],
-        true
+        true,
+        undefined,
+        undefined,
+        undefined,
+        cpuMultiRuns
     );
 
     // 3. GPU Performance Top 10 Chart
@@ -4684,7 +4724,11 @@ function renderCharts() {
         gpuRuns.map(r => r.gpuMaxPower),
         undefined,
         chartNorm['gpuChart'],
-        true
+        true,
+        undefined,
+        undefined,
+        undefined,
+        gpuRuns
     );
 
     // 3b. GPU Raytracing Performance Top 10 Chart
@@ -4720,7 +4764,11 @@ function renderCharts() {
         gpuRtRuns.map(r => r.gpuMaxPower),
         undefined,
         chartNorm['gpuRtChart'],
-        true
+        true,
+        undefined,
+        undefined,
+        undefined,
+        gpuRtRuns
     );
 
     // 4. Top 10 CPU - Most Used Chart
@@ -5124,7 +5172,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm[runsChartId],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            runsData.map(h => h.row)
         );
 
         // OS distribution
@@ -5167,7 +5219,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm[cpuChartId],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            cpuData.map(c => c.row)
         );
 
         const gpuData = category === 'Mobile' ? getTopMobileGPUs(benchmarkData, 10) : getTopCategoryGPUs(benchmarkData, category, 10);
@@ -5196,7 +5252,11 @@ function renderCharts() {
             gpuData.map(g => g.gpuMaxPower),
             undefined,
             chartNorm[gpuChartId],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            gpuData.map(g => g.row)
         );
     }
 
@@ -5222,7 +5282,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm['notebookRunsChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            mobileRunsData.map(r => r.row)
         );
     }
 
@@ -5248,7 +5312,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm['handheldRunsChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            handheldRunsData.map(r => r.row)
         );
     }
 
@@ -5290,7 +5358,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm['mobileCpuSingChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            mobileCpuSingData.map(d => d.row)
         );
     }
 
@@ -5318,7 +5390,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm['handheldCpuSingChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            handheldCpuSingData.map(d => d.row)
         );
     }
 
@@ -5346,7 +5422,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm['mobileCpuMultiChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            mobileCpuMultiData.map(d => d.row)
         );
     }
 
@@ -5374,7 +5454,11 @@ function renderCharts() {
             null,
             undefined,
             chartNorm['handheldCpuMultiChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            handheldCpuMultiData.map(d => d.row)
         );
     }
 
@@ -5402,7 +5486,11 @@ function renderCharts() {
             mobileGpuData.map(d => d.gpuMaxPower),
             undefined,
             chartNorm['mobileGpuChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            mobileGpuData.map(d => d.row)
         );
     }
 
@@ -5430,7 +5518,11 @@ function renderCharts() {
             handheldGpuData.map(d => d.gpuMaxPower),
             undefined,
             chartNorm['handheldGpuChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            handheldGpuData.map(d => d.row)
         );
     }
 
@@ -5458,7 +5550,11 @@ function renderCharts() {
             mobileGpuRtData.map(d => d.gpuMaxPower),
             undefined,
             chartNorm['mobileGpuRtChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            mobileGpuRtData.map(d => d.row)
         );
     }
 
@@ -5486,7 +5582,11 @@ function renderCharts() {
             handheldGpuRtData.map(d => d.gpuMaxPower),
             undefined,
             chartNorm['handheldGpuRtChart'],
-            true
+            true,
+            undefined,
+            undefined,
+            undefined,
+            handheldGpuRtData.map(d => d.row)
         );
     }
 
@@ -5666,7 +5766,9 @@ function renderCharts() {
                 true,
                 undefined,
                 undefined,
-                { tooltipClientIds: contributors.clientIds }
+                { tooltipClientIds: contributors.clientIds },
+                undefined,
+                contributors.labels.map(l => l === 'Anonymous' ? null : l)
             );
         }
 
@@ -6970,7 +7072,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
 }
 
 // Horizontal Bar Chart Renderer
-function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, power, gpuPower, percentages, normalize, showDataLabels, centerScore, barClientIds, datasetProps) {
+function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor, borderColor, xMax, xMin, clientIds, cpus, gpus, freqs, freqLabel, gpuFreqs, power, gpuPower, percentages, normalize, showDataLabels, centerScore, barClientIds, datasetProps, clickRows, clickUsers) {
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -7091,6 +7193,26 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         }
                     }
                 }
+            },
+            // Chart-bar drilldown: clickUsers (username bars) takes precedence over clickRows
+            // (hardware bars). Only charts built with one of them are interactive.
+            onClick: (event, elements, chart) => {
+                if (!elements || !elements.length) return;
+                const startIndex = chart.data.datasets[0].startIndex || 0;
+                const idx = startIndex + elements[0].index;
+                if (clickUsers && clickUsers[idx]) { openLeaderboardForUser(clickUsers[idx]); return; }
+                if (clickRows && clickRows[idx]) openLeaderboardForHardware(clickRows[idx]);
+            },
+            onHover: (event, elements, chart) => {
+                const target = event && event.native ? event.native.target : null;
+                if (!target) return;
+                let clickable = false;
+                if (elements && elements.length) {
+                    const startIndex = (chart && chart.data && chart.data.datasets[0].startIndex) || 0;
+                    const idx = startIndex + elements[0].index;
+                    clickable = !!((clickUsers && clickUsers[idx]) || (clickRows && clickRows[idx]));
+                }
+                target.style.cursor = clickable ? 'pointer' : 'default';
             },
             scales: {
                 x: {
@@ -7373,7 +7495,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
 }
 
 // Make a Horizontal Bar Chart scrollable by dynamically swapping visible data on scroll
-function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels, freqs, freqLabel, centerScore, barClientIds, power, gpuPower, extraDataProps) {
+function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColor, borderColor, visibleCount = 10, normalize, clientIds, gpuFreqs, showDataLabels, freqs, freqLabel, centerScore, barClientIds, power, gpuPower, extraDataProps, clickRows, clickUsers) {
     // Pre-normalize data upfront so scroll updates use same scaled values
     if (normalize && allData.length > 0) {
         const maxVal = Math.max(...allData);
@@ -7389,7 +7511,7 @@ function makeChartScrollable(canvasId, allLabels, allData, datasetLabel, barColo
     // Find the maximum value in the entire dataset to lock the X-axis scale
     const xMax = allData.length > 0 ? Math.max(...allData) : undefined;
     
-    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, power, gpuPower, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds, extraDataProps);
+    renderHorizontalBarChart(canvasId, initialLabels, initialData, datasetLabel, barColor, borderColor, xMax, undefined, clientIds, undefined, undefined, freqs, freqLabel, gpuFreqs, power, gpuPower, normalize ? initialData : undefined, undefined, showDataLabels, centerScore, barClientIds, extraDataProps, clickRows, clickUsers);
     
     const chart = chartInstances[canvasId];
     if (!chart) return;
