@@ -1765,6 +1765,24 @@ const STAT_TOOLTIPS = {
     ]
 };
 
+// Expose the full value behind any stat value that is visually truncated
+// (.stat-value uses ellipsis); counter-animated values prefer their target.
+function applyStatValueTitles() {
+    document.querySelectorAll('.stat-value').forEach(el => {
+        const target = el.dataset.counterTarget;
+        const full = (target !== undefined && target !== '')
+            ? Number(target).toLocaleString()
+            : (el.textContent || '').trim();
+        if (!full || full === '-' || full === 'NaN') {
+            el.removeAttribute('title');
+            el.removeAttribute('aria-label');
+            return;
+        }
+        el.title = full;
+        el.setAttribute('aria-label', full);
+    });
+}
+
 function renderStats(pill) {
     const pills = ['performance', 'efficiency', 'curiosity'];
     const idx = pills.indexOf(pill);
@@ -1788,6 +1806,7 @@ function renderStats(pill) {
         renderOverviewStatsImpl();
         const perfTips = document.querySelectorAll('#stats-grid .stat-card .winner-info-tooltip');
         STAT_TOOLTIPS.performance.forEach((t, i) => { if (perfTips[i]) perfTips[i].textContent = t; });
+        applyStatValueTitles();
         return;
     }
 
@@ -1890,6 +1909,7 @@ function renderStats(pill) {
     // Update help tooltips
     const tips = document.querySelectorAll('#stats-grid .stat-card .winner-info-tooltip');
     STAT_TOOLTIPS[pill].forEach((t, i) => { if (tips[i]) tips[i].textContent = t; });
+    applyStatValueTitles();
 }
 
 function renderOverviewStatsImpl() {
@@ -3718,6 +3738,7 @@ function renderSystemCharts() {
         if (el('stat')) el('stat').textContent = get(0) ? pct(get(0)) + ' of submissions' : '-';
         if (el('second')) el('second').textContent = get(1) ? `#2 ${get(1).name} — ${pct(get(1))}` : '#2 -';
         if (el('third')) el('third').textContent = get(2) ? `#3 ${get(2).name} — ${pct(get(2))}` : '#3 -';
+        applyStatValueTitles();
     }
 
     const osRaw = getOSDistribution(bm);
@@ -5466,6 +5487,7 @@ function renderCharts() {
             if (secondEl) secondEl.textContent = '#2 -';
             if (thirdEl) thirdEl.textContent = '#3 -';
         }
+        applyStatValueTitles();
     }
 
     const osScatterData = getOSvsHardwareScatterData(benchmarkData);

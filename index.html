@@ -59,21 +59,25 @@
 
             <!-- Tab Navigation -->
             <nav id="tab-nav" class="tab-nav" role="tablist" aria-label="Dashboard sections">
-                <button id="tab-btn-hardware" class="tab-btn active" data-tab="hardware" role="tab" aria-selected="true" aria-controls="tab-hardware">
+                <button id="tab-btn-hardware" class="tab-btn active" data-tab="hardware" role="tab" aria-selected="true" aria-controls="tab-hardware" aria-label="Hardware Benchmark">
                     <i data-lucide="cpu" aria-hidden="true"></i>
-                    <span>Hardware Benchmark</span>
+                    <span class="tab-label-full">Hardware Benchmark</span>
+                    <span class="tab-label-short" aria-hidden="true">Hardware</span>
                 </button>
-                <button id="tab-btn-software" class="tab-btn" data-tab="software" role="tab" aria-selected="false" aria-controls="tab-software" tabindex="-1">
+                <button id="tab-btn-software" class="tab-btn" data-tab="software" role="tab" aria-selected="false" aria-controls="tab-software" tabindex="-1" aria-label="Software Benchmark">
                     <i data-lucide="git-compare" aria-hidden="true"></i>
-                    <span>Software Benchmark</span>
+                    <span class="tab-label-full">Software Benchmark</span>
+                    <span class="tab-label-short" aria-hidden="true">Software</span>
                 </button>
-                <button id="tab-btn-system" class="tab-btn" data-tab="system" role="tab" aria-selected="false" aria-controls="tab-system" tabindex="-1">
+                <button id="tab-btn-system" class="tab-btn" data-tab="system" role="tab" aria-selected="false" aria-controls="tab-system" tabindex="-1" aria-label="Desktop Landscape">
                     <i data-lucide="monitor" aria-hidden="true"></i>
-                    <span>Desktop Landscape</span>
+                    <span class="tab-label-full">Desktop Landscape</span>
+                    <span class="tab-label-short" aria-hidden="true">Desktop</span>
                 </button>
-                <button id="tab-btn-community" class="tab-btn" data-tab="community" role="tab" aria-selected="false" aria-controls="tab-community" tabindex="-1">
+                <button id="tab-btn-community" class="tab-btn" data-tab="community" role="tab" aria-selected="false" aria-controls="tab-community" tabindex="-1" aria-label="Community Insights">
                     <i data-lucide="users" aria-hidden="true"></i>
-                    <span>Community Insights</span>
+                    <span class="tab-label-full">Community Insights</span>
+                    <span class="tab-label-short" aria-hidden="true">Community</span>
                 </button>
                 <div class="tab-nav-underline" aria-hidden="true"></div>
             </nav>
