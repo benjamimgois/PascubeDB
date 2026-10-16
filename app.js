@@ -1839,7 +1839,7 @@ function renderOverviewStats() {
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Lowest Main Score'],
     efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'TOP CPU Bottleneck', 'Best Thermal GPU'],
-    curiosity: ['Rarest Specimen', 'Oldest CPU', 'Oldest GPU', 'Console APU']
+    curiosity: ['Rarest CPU', 'Oldest CPU', 'Oldest GPU', 'Rarest GPU']
 };
 
 const STATS_ICONS = { cpu: 'cpu', binary: 'binary', zap: 'zap', sprout: 'sprout' };
@@ -1858,10 +1858,10 @@ const STAT_TOOLTIPS = {
         'GPU model with the best gpuScore per gpuTempDelta. Higher ratios mean more performance per °C.'
     ],
     curiosity: [
-        'The rarest curiosity present, ranked by tier (S is rarest). Tier S covers engineering samples, console APUs, and exotic architectures. Unique hardware only.',
+        'The rarest CPU on the platform by curated rarity — hand-picked unusual silicon (engineering samples, console APUs, embedded boards, HEDT). Hardware present in the database only.',
         'The oldest CPU model on the platform by curated release year — hardware still running Linux after more than a decade. Unique models only.',
         'The oldest GPU model on the platform by curated release year. Unique models only.',
-        'The most-submitted console-derived APU on the platform — e.g. the PS5-derived BC-250 or the PlayStation 4 Jaguar/Liverpool. Unique models only.'
+        'The rarest GPU on the platform by curated rarity — hand-picked unusual graphics (TITANs, Radeon Pro/Quadro workstation, embedded, legacy flagships). Hardware present in the database only.'
     ]
 };
 
@@ -1911,6 +1911,16 @@ function renderStats(pill) {
     const pills = ['performance', 'efficiency', 'curiosity'];
     const idx = pills.indexOf(pill);
     if (idx === -1) return;
+
+    // Visual card order: the four stat cards are shared across pills, so reorder via CSS
+    // `order` on the grid items (DOM stays put). Curiosity pairs Rarest CPU/GPU, then
+    // Oldest CPU/GPU; other pills keep the natural order.
+    // DOM order is [cpu-single, cpu-multi, gpu, humble]; index -> visual rank.
+    const statCards = document.querySelectorAll('#stats-grid .stat-card');
+    const curiosityOrder = [1, 3, 4, 2];
+    statCards.forEach((card, i) => {
+        card.style.order = pill === 'curiosity' ? String(curiosityOrder[i]) : '';
+    });
 
     // Stop in-flight counter animations so they cannot overwrite the values set below
     // (e.g. the Performance pill's animated GPU score bleeding into the Curiosity pill).
@@ -1977,7 +1987,6 @@ function renderStats(pill) {
         setPodiumGap(effCards[3], gpuThermalSorted[0]?.ratio, gpuThermalSorted[1]?.ratio);
     } else if (pill === 'curiosity') {
         const data = collectSpecimenData();
-        const tierOrder = { S: 0, A: 1, B: 2, C: 3 };
         const uniqueBy = (arr, keyFn) => {
             const seen = new Set();
             return arr.filter(item => {
@@ -1988,15 +1997,12 @@ function renderStats(pill) {
             });
         };
 
-        // Card 1: Rarest Specimen (highest tier, unique hardware)
-        const byTier = uniqueBy(
-            data.specimens.slice().sort((a, b) => tierOrder[a.specimen.tier] - tierOrder[b.specimen.tier]),
-            a => normalizeCPU(a.row.cpu)
-        );
-        document.getElementById('stat-top-cpu-single').textContent = byTier[0] ? byTier[0].specimen.tier : '-';
-        document.getElementById('stat-top-cpu-single-sub').textContent = byTier[0] ? `${normalizeCPU(byTier[0].row.cpu)} + ${normalizeGPU(byTier[0].row.gpu)}` : '-';
-        document.getElementById('stat-cpu-single-second').textContent = byTier[1] ? `#2 ${normalizeCPU(byTier[1].row.cpu)} — tier ${byTier[1].specimen.tier}` : '#2 -';
-        document.getElementById('stat-cpu-single-third').textContent = byTier[2] ? `#3 ${normalizeCPU(byTier[2].row.cpu)} — tier ${byTier[2].specimen.tier}` : '#3 -';
+        // Card 1: Rarest CPU (highest-ranked curated rare CPU present)
+        const rareCpus = resolveCuratedPodium(RARE_CPUS, data.annotated, r => r.cpu, normalizeCPU);
+        document.getElementById('stat-top-cpu-single').textContent = rareCpus[0] ? rareCpus[0].name : '-';
+        document.getElementById('stat-top-cpu-single-sub').textContent = rareCpus[0] ? rareCpus[0].reason : '-';
+        document.getElementById('stat-cpu-single-second').textContent = rareCpus[1] ? `#2 ${rareCpus[1].name} — ${rareCpus[1].reason}` : '#2 -';
+        document.getElementById('stat-cpu-single-third').textContent = rareCpus[2] ? `#3 ${rareCpus[2].name} — ${rareCpus[2].reason}` : '#3 -';
 
         // Deterministic tie-break for the "oldest" podiums: ascending sample count (rarest
         // first), then normalized key. Rarest-first fits the Curiosity theme and avoids a
@@ -2039,20 +2045,12 @@ function renderStats(pill) {
         document.getElementById('stat-gpu-second').textContent = gpuWithYear[1] ? `#2 ${normalizeGPU(gpuWithYear[1].row.gpu)} — ${gpuWithYear[1].specimen.gpuYear}` : '#2 -';
         document.getElementById('stat-gpu-third').textContent = gpuWithYear[2] ? `#3 ${normalizeGPU(gpuWithYear[2].row.gpu)} — ${gpuWithYear[2].specimen.gpuYear}` : '#3 -';
 
-        // Card 4: Console APU (most-submitted console-derived APU, unique model)
-        const consoleCounts = {};
-        data.annotated.forEach(({ row, specimen }) => {
-            if (!specimen.tags.includes('console')) return;
-            const name = normalizeCPU(row.cpu);
-            consoleCounts[name] = (consoleCounts[name] || 0) + 1;
-        });
-        const consoles = Object.entries(consoleCounts)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name));
-        document.getElementById('stat-most-humble-score').textContent = consoles[0] ? String(consoles[0].count) : '-';
-        document.getElementById('stat-most-humble-hardware').textContent = consoles[0] ? consoles[0].name : '-';
-        document.getElementById('stat-humble-second').textContent = consoles[1] ? `#2 ${consoles[1].name} — ${consoles[1].count} ×` : '#2 -';
-        document.getElementById('stat-humble-third').textContent = consoles[2] ? `#3 ${consoles[2].name} — ${consoles[2].count} ×` : '#3 -';
+        // Card 4: Rarest GPU (highest-ranked curated rare GPU present)
+        const rareGpus = resolveCuratedPodium(RARE_GPUS, data.annotated, r => r.gpu, normalizeGPU);
+        document.getElementById('stat-most-humble-score').textContent = rareGpus[0] ? rareGpus[0].name : '-';
+        document.getElementById('stat-most-humble-hardware').textContent = rareGpus[0] ? rareGpus[0].reason : '-';
+        document.getElementById('stat-humble-second').textContent = rareGpus[1] ? `#2 ${rareGpus[1].name} — ${rareGpus[1].reason}` : '#2 -';
+        document.getElementById('stat-humble-third').textContent = rareGpus[2] ? `#3 ${rareGpus[2].name} — ${rareGpus[2].reason}` : '#3 -';
         clearPodiumGaps();
     }
 
@@ -2912,6 +2910,66 @@ const GPU_YEARS = [
     { match: /\bR9700\b/i, year: 2025 },
     { match: /Mali-?G\d+/i, year: 2022 },
 ];
+
+// Curated rare-hardware rankings for the Rarest CPU / Rarest GPU curiosity cards.
+// Ordered by editorial rarity (highest first), NOT by sample count — sample count
+// alone leaves hundreds of models tied at one submission. Each entry matches a
+// family by raw model string and carries the reason shown as the card sub-label.
+// Only hardware present in the dataset is surfaced; absent entries are skipped.
+const RARE_CPUS = [
+    { match: /eng\s*sample|genuine intel 0000|100-0000/i, reason: 'Engineering sample' },
+    { match: /liverpool|jaguar/i,                         reason: 'PlayStation 4 APU' },
+    { match: /custom apu 0932|custom apu 0405/i,          reason: 'Handheld APU' },
+    { match: /cortex-a53|rk3588|oryon/i,                  reason: 'Non-x86 silicon' },
+    { match: /xeon gold|epyc/i,                           reason: 'Datacenter silicon' },
+    { match: /threadripper pro/i,                         reason: 'Workstation HEDT' },
+    { match: /gx-420ca/i,                                 reason: 'Embedded AMD SoC' },
+    { match: /a10-9700|a6-9500/i,                         reason: 'Bristol Ridge APU' },
+    { match: /a6-5200|a8-7410/i,                          reason: 'Kabini / Beema APU' },
+    { match: /phenom ii x6 1100t/i,                       reason: 'Last pre-FX hexacore' },
+    { match: /fx-8350|fx-6300/i,                          reason: 'Final FX flagship' },
+    { match: /x5450|x3440|x5675|x5690/i,                  reason: 'Harpertown / Westmere Xeon' },
+];
+
+const RARE_GPUS = [
+    { match: /100-000000891/i,                            reason: 'Engineering sample' },
+    { match: /dg1501/i,                                   reason: 'Console GPU part' },
+    { match: /liverpool/i,                                reason: 'PlayStation 4 GPU' },
+    { match: /adreno x1|mali-g/i,                         reason: 'ARM SoC graphics' },
+    { match: /titan xp|titan rtx/i,                       reason: 'NVIDIA TITAN' },
+    { match: /pro vii|pro v620|pro w5500|pro w7500|pro wx/i, reason: 'Radeon Pro workstation' },
+    { match: /e9170|embedded radeon/i,                    reason: 'Embedded Polaris' },
+    { match: /r9 200|r9 3\d\d|hd 7900/i,                  reason: 'Legacy GCN flagship' },
+    { match: /quadro k|quadro p|rtx a\d{4}/i,             reason: 'Quadro workstation' },
+    { match: /\bvii\b|r9700/i,                            reason: 'Halo flagship' },
+    { match: /6750 gre|7650 gre/i,                        reason: 'China-only GRE SKU' },
+    { match: /rx 6\d{3}m|rx 7\d{3}s/i,                    reason: 'Rare mobile RDNA' },
+];
+
+// Resolve a curated podium: walk entries in rank order, take the first entry whose
+// hardware is present, choosing the rarest (fewest submissions) present model within
+// the entry. Dedupe by normalized model and cap at three.
+function resolveCuratedPodium(entries, annotated, rawOf, normOf) {
+    const podium = [];
+    const seen = new Set();
+    for (const entry of entries) {
+        const counts = new Map();
+        for (const { row } of annotated) {
+            const raw = rawOf(row);
+            if (!raw || !entry.match.test(raw)) continue;
+            const key = normOf(raw);
+            counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        const ranked = [...counts.entries()]
+            .sort((a, b) => (a[1] - b[1]) || a[0].localeCompare(b[0]));
+        const pick = ranked.find(([name]) => !seen.has(name));
+        if (!pick) continue;
+        seen.add(pick[0]);
+        podium.push({ name: pick[0], reason: entry.reason });
+        if (podium.length === 3) break;
+    }
+    return podium;
+}
 
 // Tag metadata: tier drives ordering + color, label is shown in chips
 const SPECIMEN_TAG_META = {
