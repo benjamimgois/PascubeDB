@@ -319,6 +319,18 @@ if (window.Chart && window.matchMedia && window.matchMedia('(prefers-reduced-mot
     Chart.defaults.animation = false;
 }
 
+// Single source of truth for Chart.js tooltip styling (goverlay-theme spec).
+const CHART_TOOLTIP_STYLE = {
+    backgroundColor: 'rgba(17, 22, 34, 0.98)',
+    borderColor: 'rgba(14, 165, 233, 0.5)',
+    borderWidth: 1.5,
+    padding: 12,
+    cornerRadius: 10,
+    displayColors: false,
+    titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
+    bodyFont: { family: "'Inter', sans-serif", size: 13 }
+};
+
 // Global Chart.js plugin: overlay an empty state whenever a chart has no data.
 if (window.Chart) {
     Chart.register({
@@ -965,6 +977,8 @@ function setupEventListeners() {
     document.getElementById('ram-filter').addEventListener('change', handleFilterChange);
     document.getElementById('vram-filter').addEventListener('change', handleFilterChange);
     document.getElementById('kernel-filter').addEventListener('change', handleFilterChange);
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+    if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', clearAllLeaderboardFilters);
     
     // Sort columns
     const headers = document.querySelectorAll('#leaderboard-table th.sortable');
@@ -1680,6 +1694,63 @@ function initUrlFilters() {
 }
 
 // Handle Filters
+// ─── Leaderboard active-filter indicators ───
+const LEADERBOARD_FILTER_FIELDS = [
+    { id: 'search-input', label: 'Search' },
+    { id: 'os-filter', label: 'OS' },
+    { id: 'cpu-filter', label: 'CPU' },
+    { id: 'gpu-filter', label: 'GPU' },
+    { id: 'ram-filter', label: 'RAM' },
+    { id: 'vram-filter', label: 'VRAM' },
+    { id: 'kernel-filter', label: 'Kernel' },
+];
+
+function escapeFilterHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
+function renderActiveFilterChips() {
+    const wrap = document.getElementById('active-filters');
+    const box = document.getElementById('active-filter-chips');
+    if (!wrap || !box) return;
+    const active = LEADERBOARD_FILTER_FIELDS
+        .map(f => ({ ...f, value: (document.getElementById(f.id)?.value || '').trim() }))
+        .filter(f => f.value);
+    if (active.length === 0) {
+        wrap.hidden = true;
+        box.innerHTML = '';
+        return;
+    }
+    wrap.hidden = false;
+    box.innerHTML = active.map(f => (
+        `<span class="filter-chip">` +
+        `<span class="filter-chip-label">${escapeFilterHtml(f.label)}</span>` +
+        `<span class="filter-chip-value">${escapeFilterHtml(f.value)}</span>` +
+        `<button type="button" class="filter-chip-remove" data-filter-id="${escapeFilterHtml(f.id)}" ` +
+        `aria-label="Remove ${escapeFilterHtml(f.label)} filter">` +
+        `<i data-lucide="x" aria-hidden="true"></i></button>` +
+        `</span>`
+    )).join('');
+    box.querySelectorAll('.filter-chip-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const el = document.getElementById(btn.getAttribute('data-filter-id'));
+            if (el) el.value = '';
+            handleFilterChange();
+        });
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+function clearAllLeaderboardFilters() {
+    LEADERBOARD_FILTER_FIELDS.forEach(f => {
+        const el = document.getElementById(f.id);
+        if (el) el.value = '';
+    });
+    handleFilterChange();
+}
+
 function handleFilterChange(updateUrl = true) {
     const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
     const osSelection = document.getElementById('os-filter').value;
@@ -1729,6 +1800,8 @@ function handleFilterChange(updateUrl = true) {
     // Invalidate lazy-rendered pills so they re-render on next activation
     PILL_STATE.rendered.efficiency = false;
     PILL_STATE.rendered.curiosity = false;
+
+    renderActiveFilterChips();
 }
 
 // Render Overview Statistics
@@ -1737,7 +1810,7 @@ function renderOverviewStats() {
 }
 
 const STATS_PILL_LABELS = {
-    performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Most Humble'],
+    performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Lowest Main Score'],
     efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'TOP CPU Bottleneck', 'Best Thermal GPU'],
     curiosity: ['Rarest Specimen', 'Oldest CPU', 'Oldest GPU', 'Console APU']
 };
@@ -2095,9 +2168,20 @@ function highlightText(text, query) {
 }
 
 // Render Table Rows
+function updatePinnedColumnWidth() {
+    const table = document.getElementById('leaderboard-table');
+    if (!table) return;
+    const firstCol = table.querySelector('thead th:nth-child(1)');
+    if (!firstCol) return;
+    const w = firstCol.getBoundingClientRect().width;
+    if (w > 0) table.style.setProperty('--pin-col1-width', w + 'px');
+}
+
 function renderTable() {
     const tbody = document.getElementById('leaderboard-body');
     const searchQuery = document.getElementById('search-input')?.value?.trim() || '';
+
+    updatePinnedColumnWidth();
 
     const countEl = document.getElementById('leaderboard-count');
     if (countEl) {
@@ -3930,21 +4014,7 @@ function renderVerticalBarChart(canvasId, labels, data, datasetLabel, barColor, 
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: {
-                        family: "'Outfit', sans-serif",
-                        size: 13,
-                        weight: 'bold'
-                    },
-                    bodyFont: {
-                        family: "'Inter', sans-serif",
-                        size: 13
-                    },
-                    padding: 12,
-                    borderColor: 'rgba(14, 165, 233, 0.5)',
-                    borderWidth: 1.5,
-                    cornerRadius: 10,
-                    displayColors: false,
+                    ...CHART_TOOLTIP_STYLE,
                     callbacks: {
                         label: function(context) {
                             return `${context.dataset.label}: ${context.parsed.y}${isPercentage ? '%' : ''}`;
@@ -4026,20 +4096,7 @@ function renderDoughnutChart(canvasId, labels, data, colors, borderColors) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: {
-                        family: "'Outfit', sans-serif",
-                        size: 13,
-                        weight: 'bold'
-                    },
-                    bodyFont: {
-                        family: "'Inter', sans-serif",
-                        size: 13
-                    },
-                    padding: 12,
-                    borderColor: 'rgba(14, 165, 233, 0.5)',
-                    borderWidth: 1.5,
-                    cornerRadius: 10,
+                    ...CHART_TOOLTIP_STYLE,
                     callbacks: {
                         label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -4130,13 +4187,7 @@ function renderOSHardwareScatterChart(canvasId, data) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
-                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
-                    padding: 12,
-                    borderColor: 'rgba(14, 165, 233, 0.5)',
-                    borderWidth: 1.5,
-                    cornerRadius: 10,
+                    ...CHART_TOOLTIP_STYLE,
                     callbacks: {
                         title: function(items) {
                             const p = items[0];
@@ -5267,15 +5318,8 @@ function renderCharts() {
             plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                            titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
-                            bodyFont: { family: "'Inter', sans-serif", size: 13 },
-                            padding: 12,
-                            borderColor: 'rgba(14, 165, 233, 0.5)',
-                            borderWidth: 1.5,
-                            cornerRadius: 10,
-                            displayColors: false,
-                    callbacks: {
+                            ...CHART_TOOLTIP_STYLE,
+                            callbacks: {
                         title: function(context) {
                             return context[0]?.dataset?.label || '';
                         },
@@ -5996,14 +6040,7 @@ function buildBottleneckChart(canvasId, allItems, prefix, contributors, xMaxOver
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                        titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
-                        bodyFont: { family: "'Inter', sans-serif", size: 13 },
-                        padding: 12,
-                        borderColor: 'rgba(14, 165, 233, 0.5)',
-                        borderWidth: 1.5,
-                        cornerRadius: 10,
-                        displayColors: false,
+                        ...CHART_TOOLTIP_STYLE,
                         callbacks: {
                             title: tooltipItems => {
                                 const d = allItems[startIdx + tooltipItems[0].dataIndex];
@@ -6246,14 +6283,13 @@ function renderHardwareComparisonBars(canvasId, scatterData) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)', titleFont: { family: "'Outfit', sans-serif", size: 12 }, bodyFont: { family: "'Inter', sans-serif", size: 12 },
-                    padding: 10, borderColor: 'rgba(14, 165, 233, 0.5)', borderWidth: 1.5, cornerRadius: 10, displayColors: true,
+                    ...CHART_TOOLTIP_STYLE,
+                    displayColors: true,
                     callbacks: {
                         label: function(context) {
                             const samples = context.dataset.sampleCounts ? context.dataset.sampleCounts[context.dataIndex] : 0;
                             const lines = [`${context.dataset.label}: ${context.parsed.x.toLocaleString()}`, `Samples: ${samples || 0}`];
                             if (samples > 0 && samples < 10) lines.push('⚠ low confidence');
-
                             const family = context.chart.data.labels[context.dataIndex];
                             const version = context.dataset.label;
                             const map = context.chart.__familyModelMap;
@@ -6599,13 +6635,7 @@ function renderDriverScatterChart(canvasId, data, title, yLabel = 'GPU Score') {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
-                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
-                    padding: 12,
-                    borderColor: 'rgba(14, 165, 233, 0.5)',
-                    borderWidth: 1.5,
-                    cornerRadius: 10,
+                    ...CHART_TOOLTIP_STYLE,
                     callbacks: {
                         title: function(items) {
                             const p = items[0];
@@ -6747,21 +6777,7 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: {
-                        family: "'Outfit', sans-serif",
-                        size: 13,
-                        weight: 'bold'
-                    },
-                    bodyFont: {
-                        family: "'Inter', sans-serif",
-                        size: 13
-                    },
-                    padding: 12,
-                    borderColor: 'rgba(14, 165, 233, 0.5)',
-                    borderWidth: 1.5,
-                    cornerRadius: 10,
-                    displayColors: false,
+                    ...CHART_TOOLTIP_STYLE,
                     callbacks: {
                         label: function(context) {
                             const val = context.parsed.x;
@@ -7265,20 +7281,7 @@ function renderGroupedBarChart(canvasId, labels, datasets) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: {
-                        family: "'Outfit', sans-serif",
-                        size: 13,
-                        weight: 'bold'
-                    },
-                    bodyFont: {
-                        family: "'Inter', sans-serif",
-                        size: 13
-                    },
-                    padding: 12,
-                    borderColor: 'rgba(14, 165, 233, 0.5)',
-                    borderWidth: 1.5,
-                    cornerRadius: 10
+                    ...CHART_TOOLTIP_STYLE
                 }
             }
         }
@@ -7608,13 +7611,7 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
                     labels: { color: '#9ca3af', font: { family: "'Inter', sans-serif", size: 10 }, padding: 10, boxWidth: 10, usePointStyle: true }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 34, 0.98)',
-                    titleFont: { family: "'Outfit', sans-serif", size: 13, weight: 'bold' },
-                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
-                    padding: 12,
-                    borderColor: 'rgba(255,255,255,0.15)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
+                    ...CHART_TOOLTIP_STYLE,
                     callbacks: {
                         label: function(context) {
                             const orig = context.dataset._origData[context.dataIndex];

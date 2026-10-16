@@ -2335,7 +2335,7 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
 .modal-dialog table th:nth-child(2),
 .modal-dialog table td:nth-child(2) {
     position: sticky;
-    left: 42px;
+    left: var(--pin-col1-width, 42px);
     background: #0b0f19;
     z-index: 5;
 }
@@ -3292,4 +3292,100 @@ summary:focus-visible,
 
 .chart-empty[hidden] {
     display: none;
+}
+
+/* ─── Leaderboard active-filter chips ─── */
+.active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.active-filters[hidden] {
+    display: none;
+}
+
+.active-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(14, 165, 233, 0.35);
+    color: var(--text-primary);
+    border-radius: 999px;
+    padding: 0.22rem 0.28rem 0.22rem 0.7rem;
+    font-size: 0.75rem;
+    max-width: 100%;
+}
+
+.filter-chip-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.66rem;
+}
+
+.filter-chip-value {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40ch;
+}
+
+.filter-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.filter-chip-remove:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ef4444;
+}
+
+.filter-chip-remove i {
+    width: 12px;
+    height: 12px;
+}
+
+.btn-clear-filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-clear-filters:hover {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.btn-clear-filters i {
+    width: 14px;
+    height: 14px;
 }

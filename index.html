@@ -162,7 +162,7 @@
                 <i data-lucide="help-circle" class="winner-info-trigger"></i>
                 <div class="winner-info-tooltip">—</div>
                 <div class="stat-info">
-                    <span class="stat-label" id="stat-label-4">Most Humble</span>
+                    <span class="stat-label" id="stat-label-4">Lowest Main Score</span>
                     <h3 id="stat-most-humble-score" class="stat-value">-</h3>
                     <p id="stat-most-humble-hardware" class="stat-sub">-</p>
                     <p class="stat-sub podium-sub" id="stat-humble-second">#2 -</p>
@@ -1372,6 +1372,13 @@
                         <option value="">ALL Kernel</option>
                     </select>
                 </div>
+            </div>
+            <div id="active-filters" class="active-filters" hidden>
+                <span id="active-filter-chips" class="active-filter-chips"></span>
+                <button id="clear-filters-btn" type="button" class="btn-clear-filters">
+                    <i data-lucide="x" aria-hidden="true"></i>
+                    <span>Clear all</span>
+                </button>
             </div>
 
             <p id="leaderboard-count" class="result-count" aria-live="polite"></p>
