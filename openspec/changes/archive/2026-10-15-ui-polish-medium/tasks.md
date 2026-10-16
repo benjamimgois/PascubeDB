@@ -12,7 +12,7 @@
 
 - [x] 2.1 Replace the hardcoded `left: 42px` rule in `style.css` with `left: var(--pin-col1-width, 42px)`; verify the default still renders correctly before JS runs
 - [x] 2.2 In `app.js`, measure the first pinned cell after `renderTable()` and set `--pin-col1-width`; verify rank + contributor stay flush with no gap/overlap at desktop and mobile widths
-- [ ] 2.3 Verify horizontal scrolling keeps both pinned columns aligned
+- [x] 2.3 Verify horizontal scrolling keeps both pinned columns aligned
 
 ## 3. Shared chart tooltip style
 
@@ -26,4 +26,4 @@
 
 ## 5. Integration verification
 
-- [ ] 5.1 Full manual pass: add/remove several filters and use Clear all, scroll the table horizontally, hover tooltips on at least three different charts, and check the renamed stat card
+- [x] 5.1 Full manual pass: add/remove several filters and use Clear all, scroll the table horizontally, hover tooltips on at least three different charts, and check the renamed stat card
