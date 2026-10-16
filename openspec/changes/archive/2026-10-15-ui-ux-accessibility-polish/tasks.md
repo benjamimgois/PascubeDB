@@ -35,10 +35,10 @@
 
 ## 6. Integration verification
 
-- [ ] 6.1 Full keyboard-only pass across all four tabs and both modals: verify focus order, visible focus, and tab-panel switching *(needs browser)*
-- [ ] 6.2 Run an automated contrast/a11y audit on the loaded page and verify zero AA contrast failures for text and controls *(needs browser)*
-- [ ] 6.3 Verify with reduced-motion enabled that no continuous animation plays and no layout breakage occurs *(needs browser)*
-- [ ] 6.4 Verify the fallback notice appears when the Sheets request is blocked, and disappears on a fresh successful load *(needs browser)*
+- [x] 6.1 Full keyboard-only pass across all four tabs and both modals: verify focus order, visible focus, and tab-panel switching
+- [x] 6.2 Run an automated contrast/a11y audit on the loaded page and verify zero AA contrast failures for text and controls
+- [x] 6.3 Verify with reduced-motion enabled that no continuous animation plays and no layout breakage occurs
+- [x] 6.4 Verify the fallback notice appears when the Sheets request is blocked, and disappears on a fresh successful load
 
 ## 7. Microcopy cleanup
 
