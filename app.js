@@ -2438,6 +2438,32 @@ function normalizeGPU(name) {
     return clean;
 }
 
+// Helper to normalize OS / distribution names to a canonical family.
+// Collapses version/edition/variant suffixes (e.g. "Fedora Linux 44 (KDE
+// Plasma Desktop Edition)", "Fedora 44 KDE", "Fedora Linux 44 (Forty Four)")
+// into a single "Fedora" series so charts don't explode into near-duplicates.
+function normalizeOSName(os) {
+    const raw = (os || '').trim();
+    if (!raw || raw === 'N/D') return 'Other';
+    const o = raw.toLowerCase();
+    if (o.includes('cachyos') || o.includes('cachy os')) return 'CachyOS';
+    if (o.includes('arch')) return 'Arch Linux';
+    if (o.includes('endeavouros') || o.includes('endeavour os')) return 'EndeavourOS';
+    if (o.includes('manjaro')) return 'Manjaro';
+    if (o.includes('garuda')) return 'Garuda';
+    if (o.includes('pikaos') || o.includes('pika os')) return 'PikaOS';
+    if (o.includes('steamos')) return 'SteamOS';
+    if (o.includes('bazzite')) return 'Bazzite';
+    if (o.includes('nobara')) return 'Nobara';
+    if (o.includes('mint')) return 'Linux Mint';
+    if (o.includes('pop!_os') || o.includes('pop_os')) return 'Pop!_OS';
+    if (o.includes('zorin')) return 'Zorin OS';
+    if (o.includes('ubuntu')) return 'Ubuntu';
+    if (o.includes('fedora')) return 'Fedora';
+    if (o.includes('debian')) return 'Debian';
+    return raw.split(' ')[0];
+}
+
 // Normalize GOverlay version strings: Google Sheets can interpret the build
 // number as a year (e.g., "1.8.2007" -> "1.8.7", "1.9.2001" -> "1.9.1").
 function normalizeGoverlayVersion(v) {
@@ -2581,21 +2607,7 @@ function getTopHardware(data, type, limit = 10, order = 'desc') {
 function getOSDistribution(data) {
     const osMap = {};
     data.forEach(r => {
-        const os = r.os || 'Unknown OS';
-        let osClean = os.split(' ')[0];
-        if (os.toLowerCase().includes('arch')) osClean = 'Arch Linux';
-        else if (os.toLowerCase().includes('fedora')) osClean = 'Fedora';
-        else if (os.toLowerCase().includes('ubuntu')) osClean = 'Ubuntu';
-        else if (os.toLowerCase().includes('cachyos') || os.toLowerCase().includes('cachy os')) osClean = 'CachyOS';
-        else if (os.toLowerCase().includes('bazzite')) osClean = 'Bazzite';
-        else if (os.toLowerCase().includes('mint')) osClean = 'Linux Mint';
-        else if (os.toLowerCase().includes('nobara')) osClean = 'Nobara';
-        else if (os.toLowerCase().includes('pop!_os') || os.toLowerCase().includes('pop_os')) osClean = 'Pop!_OS';
-        else if (os.toLowerCase().includes('zorin')) osClean = 'Zorin OS';
-        else if (os.toLowerCase().includes('steamos')) osClean = 'SteamOS';
-        else if (os.toLowerCase().includes('garuda')) osClean = 'Garuda';
-        else if (osClean === 'N/D' || osClean.trim() === '') osClean = 'Other';
-        
+        const osClean = normalizeOSName(r.os || 'Unknown OS') || 'Other';
         osMap[osClean] = (osMap[osClean] || 0) + 1;
     });
 
@@ -3703,22 +3715,7 @@ function getSoftwareWinner(data, type, maxHardware = 12) {
         if (type === 'os') {
             hwKey = `${normalizeCPU(r.cpu)} + ${normalizeGPU(r.gpu)}`;
             score = r.mainScore;
-            const os = r.os || 'N/D';
-            let osClean = os.split(' ')[0];
-            if (os.toLowerCase().includes('arch')) osClean = 'Arch Linux';
-            else if (os.toLowerCase().includes('fedora')) osClean = 'Fedora';
-            else if (os.toLowerCase().includes('ubuntu')) osClean = 'Ubuntu';
-            else if (os.toLowerCase().includes('cachyos') || os.toLowerCase().includes('cachy os')) osClean = 'CachyOS';
-            else if (os.toLowerCase().includes('bazzite')) osClean = 'Bazzite';
-            else if (os.toLowerCase().includes('mint')) osClean = 'Linux Mint';
-            else if (os.toLowerCase().includes('nobara')) osClean = 'Nobara';
-            else if (os.toLowerCase().includes('pop!_os') || os.toLowerCase().includes('pop_os')) osClean = 'Pop!_OS';
-            else if (os.toLowerCase().includes('zorin')) osClean = 'Zorin OS';
-            else if (os.toLowerCase().includes('steamos')) osClean = 'SteamOS';
-            else if (os.toLowerCase().includes('garuda')) osClean = 'Garuda';
-            else if (os.toLowerCase().includes('manjaro')) osClean = 'Manjaro';
-            else if (os.toLowerCase().includes('endeavouros')) osClean = 'EndeavourOS';
-            version = osClean;
+            version = normalizeOSName(r.os);
         } else if (type === 'mesa') {
             hwKey = normalizeGPU(r.gpu);
             score = r.gpuScore;
@@ -5465,23 +5462,7 @@ function renderCharts() {
     // Software Comparison Charts + Winners
     try {
     function cleanOSName(os) {
-        if (!os) return 'Other';
-        const o = os.toLowerCase();
-        if (o.includes('arch')) return 'Arch Linux';
-        if (o.includes('fedora')) return 'Fedora';
-        if (o.includes('ubuntu')) return 'Ubuntu';
-        if (o.includes('cachyos') || o.includes('cachy os')) return 'CachyOS';
-        if (o.includes('bazzite')) return 'Bazzite';
-        if (o.includes('mint')) return 'Linux Mint';
-        if (o.includes('nobara')) return 'Nobara';
-        if (o.includes('pop!_os') || o.includes('pop_os')) return 'Pop!_OS';
-        if (o.includes('zorin')) return 'Zorin OS';
-        if (o.includes('steamos')) return 'SteamOS';
-        if (o.includes('garuda')) return 'Garuda';
-        if (o.includes('manjaro')) return 'Manjaro';
-        if (o.includes('endeavouros')) return 'EndeavourOS';
-        if (o.includes('pikaos') || o.includes('pika os')) return 'PikaOS';
-        return os.split(' ')[0];
+        return normalizeOSName(os);
     }
 
     function getAbsoluteWinners(data, type) {
@@ -6430,7 +6411,7 @@ function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
     const sorted = Object.entries(groups)
         .filter(([, runs]) => {
             if (runs.length < minSamples) return false;
-            const osSet = new Set(runs.map(r => r.os));
+            const osSet = new Set(runs.map(r => normalizeOSName(r.os)));
             return osSet.size >= 2;
         })
         .sort((a, b) => {
@@ -6446,7 +6427,7 @@ function getOSvsHardwareScatterData(data, maxHardware = 40, minSamples = 3) {
         runs.forEach(r => {
             const score = cleanNumber(r.mainScore);
             if (score === null) return;
-            const osKey = r.os || 'Other';
+            const osKey = normalizeOSName(r.os);
             if (!osGroups[osKey]) osGroups[osKey] = [];
             osGroups[osKey].push({ score, run: r });
         });
@@ -7649,15 +7630,23 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
         return na - nb;
     });
 
+    // Distinct color per version/OS so bars and legend stay unambiguous
+    // (Chart.js's built-in palette repeats after ~7 series otherwise).
+    const colorMap = generateDistinctColors(allLabels);
+
     const datasets = allLabels.map(lbl => {
         const pts = hwEntries.map(([hw, hwPts]) => {
             const match = hwPts.find(p => p.label === lbl);
             return match ? match.y : NaN;
         });
         const isBaseline = lbl === (data.baselineLabel || '');
+        const color = colorMap[lbl] || { bg: 'rgba(148, 163, 184, 0.75)', border: '#94a3b8' };
         return { 
             label: lbl, 
             data: pts, 
+            backgroundColor: color.bg,
+            borderColor: color.border,
+            borderWidth: 1,
             _origData: hwEntries.map(([hw, hwPts]) => hwPts.find(p => p.label === lbl) || null),
             minBarLength: isBaseline ? 0 : 6
         };
@@ -7711,29 +7700,6 @@ function renderDivergingBarChart(canvasId, data, isNormalized) {
             }
         },
         plugins: [{
-            id: 'deltaColors',
-            beforeRender: function(chart) {
-                try {
-                    const ds = chart.data.datasets;
-                    console.log("Diverging Bar Chart datasets:", JSON.stringify(ds.map(d => ({ label: d.label, data: d.data, minBarLength: d.minBarLength })), null, 2));
-                    ds.forEach(d => {
-                        const colors = d.data.map(v => {
-                            if (isNaN(v)) return 'transparent';
-                            return v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
-                        });
-                        d.backgroundColor = colors;
-                        const borders = d.data.map(v => {
-                            if (isNaN(v)) return 'transparent';
-                            return v >= 0 ? '#10b981' : '#ef4444';
-                        });
-                        d.borderColor = borders;
-                        if (d.borderWidth === undefined) d.borderWidth = 1;
-                    });
-                } catch (e) {
-                    console.error("Error in deltaColors plugin:", e);
-                }
-            }
-        }, {
             id: 'baselineLine',
             afterDraw: function(chart) {
                 try {
