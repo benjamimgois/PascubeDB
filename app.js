@@ -1998,10 +1998,24 @@ function renderStats(pill) {
         document.getElementById('stat-cpu-single-second').textContent = byTier[1] ? `#2 ${normalizeCPU(byTier[1].row.cpu)} — tier ${byTier[1].specimen.tier}` : '#2 -';
         document.getElementById('stat-cpu-single-third').textContent = byTier[2] ? `#3 ${normalizeCPU(byTier[2].row.cpu)} — tier ${byTier[2].specimen.tier}` : '#3 -';
 
+        // Deterministic tie-break for the "oldest" podiums: ascending sample count (rarest
+        // first), then normalized key. Rarest-first fits the Curiosity theme and avoids a
+        // ubiquitous integrated GPU dominating same-year podiums; alphabetical alone would
+        // let name ordering decide the oldest model.
+        const cpuSamples = {};
+        data.annotated.forEach(a => { const k = normalizeCPU(a.row.cpu); cpuSamples[k] = (cpuSamples[k] || 0) + 1; });
+        const gpuSamples = {};
+        data.annotated.forEach(a => { const k = normalizeGPU(a.row.gpu); gpuSamples[k] = (gpuSamples[k] || 0) + 1; });
+
         // Card 2: Oldest CPU (lowest curated CPU year, unique model)
         const cpuWithYear = uniqueBy(
             data.annotated.filter(a => a.specimen.cpuYear)
-                .sort((a, b) => (a.specimen.cpuYear - b.specimen.cpuYear) || normalizeCPU(a.row.cpu).localeCompare(normalizeCPU(b.row.cpu))),
+                .sort((a, b) => {
+                    const yearDiff = a.specimen.cpuYear - b.specimen.cpuYear;
+                    if (yearDiff) return yearDiff;
+                    const ka = normalizeCPU(a.row.cpu), kb = normalizeCPU(b.row.cpu);
+                    return ((cpuSamples[ka] || 0) - (cpuSamples[kb] || 0)) || ka.localeCompare(kb);
+                }),
             a => normalizeCPU(a.row.cpu)
         );
         document.getElementById('stat-top-cpu-multi').textContent = cpuWithYear[0] ? String(cpuWithYear[0].specimen.cpuYear) : '-';
@@ -2012,7 +2026,12 @@ function renderStats(pill) {
         // Card 3: Oldest GPU (lowest curated GPU year, unique model)
         const gpuWithYear = uniqueBy(
             data.annotated.filter(a => a.specimen.gpuYear)
-                .sort((a, b) => (a.specimen.gpuYear - b.specimen.gpuYear) || normalizeGPU(a.row.gpu).localeCompare(normalizeGPU(b.row.gpu))),
+                .sort((a, b) => {
+                    const yearDiff = a.specimen.gpuYear - b.specimen.gpuYear;
+                    if (yearDiff) return yearDiff;
+                    const ka = normalizeGPU(a.row.gpu), kb = normalizeGPU(b.row.gpu);
+                    return ((gpuSamples[ka] || 0) - (gpuSamples[kb] || 0)) || ka.localeCompare(kb);
+                }),
             a => normalizeGPU(a.row.gpu)
         );
         document.getElementById('stat-top-gpu').textContent = gpuWithYear[0] ? String(gpuWithYear[0].specimen.gpuYear) : '-';
@@ -2700,8 +2719,45 @@ function classifyDevice(r) {
 // Rarest first — used to pick a row's overall tier from its tags
 const SPECIMEN_TIER_ORDER = { S: 0, A: 1, B: 2, C: 3 };
 
-// Curated release-year tables (raw model signatures -> year). Unknown models skip year-based tags.
+// Curated release-year tables (raw model signatures -> year). Unknown models skip
+// year-based tags. Entries are matched top-down (first match wins): specific and legacy
+// entries come before broad generation ranges so a model is never dated by a newer family.
 const CPU_YEARS = [
+    // --- Legacy CPUs (pre-2011) ---
+    { match: /Xeon\s+X5450/i, year: 2007 },
+    { match: /Core2 Quad.*Q9550|Q9550/i, year: 2008 },
+    { match: /\bi7\s+950\b/i, year: 2008 },
+    { match: /Pentium Dual-Core.*T4200|T4200/i, year: 2009 },
+    { match: /Xeon\s+X3440/i, year: 2009 },
+    { match: /Phenom II X6 1100T/i, year: 2010 },
+    { match: /Xeon\s+X567[05]|Xeon\s+X5690/i, year: 2010 },
+
+    // --- 2011-2015 gap families ---
+    { match: /Celeron 29\d{2}U/i, year: 2013 },
+    { match: /Celeron\s+N2840/i, year: 2014 },
+    { match: /Pentium G32[45]0/i, year: 2014 },
+    { match: /Pentium\s+N3700/i, year: 2015 },
+    { match: /i7-5775[CR]/i, year: 2015 },
+    { match: /m[357]-6Y\d{2}/i, year: 2015 },
+    { match: /A6-5200|GX-420CA/i, year: 2013 },
+    { match: /A8-7410|Athlon X4 870K/i, year: 2015 },
+    { match: /A9-9420/i, year: 2016 },
+    { match: /A6-9500|A10-9700/i, year: 2017 },
+    { match: /Xeon.*E3-\d{4}M?\s*[vV]2/i, year: 2012 },
+    { match: /Xeon.*E3-\d{4}M?\s*[vV]3/i, year: 2014 },
+    { match: /Xeon.*E3-\d{4}M?\s*[vV]5/i, year: 2015 },
+    { match: /Xeon.*E3-\d{4}M?\s*[vV]6/i, year: 2017 },
+    { match: /Xeon.*E5-\d+[A-Z]?\s+0\b/i, year: 2012 },
+    { match: /Xeon.*E5-\d+[A-Z]?\s+[vV]2/i, year: 2013 },
+    { match: /Xeon.*E5-\d+[A-Z]?\s+[vV]4/i, year: 2016 },
+    { match: /Athlon 3000G/i, year: 2019 },
+    { match: /Athlon Gold 3150U/i, year: 2020 },
+    { match: /Pentium GOLD 6500Y/i, year: 2019 },
+    { match: /Celeron 6305|Pentium Gold 7505|Pentium Silver N6000/i, year: 2020 },
+    { match: /Pentium Gold 8505/i, year: 2022 },
+    { match: /N(95|97|100|150|200|355)\b|i3-N30\d/i, year: 2023 },
+
+    // --- Curated anchors (pre-existing) ---
     { match: /i7-2600K/i, year: 2011 },
     { match: /i5-3470|i7-3770/i, year: 2012 },
     { match: /i7-4770/i, year: 2013 },
@@ -2720,21 +2776,87 @@ const CPU_YEARS = [
     { match: /Core Ultra|14th Gen/i, year: 2024 },
     { match: /Xeon.*E5-\d+ v3/i, year: 2014 },
     { match: /Xeon.*E5-\d+ v4/i, year: 2016 },
-    { match: /FX-\d{4}/i, year: 2011 },
+    { match: /Xeon.*E-2\d{3}/i, year: 2018 },
+    { match: /Xeon.*(Gold|W-\d{4})/i, year: 2017 },
+    { match: /Threadripper PRO (5|7)\d{3}/i, year: 2023 },
+    { match: /FX(\(tm\))?-\d{4}/i, year: 2011 },
     { match: /Ryzen 7 3800XT|Ryzen 9 3900X|Ryzen 5 3600/i, year: 2019 },
     { match: /Ryzen 5 5600|Ryzen 7 5800X3D/i, year: 2020 },
     { match: /Ryzen 5 7600X|Ryzen 7 7800X3D|Ryzen 9 7950X3D/i, year: 2022 },
     { match: /Ryzen 9 9950X3D|Ryzen 7 9800X3D|Ryzen 9 9900X3D/i, year: 2024 },
     { match: /Ryzen AI 9 HX 370/i, year: 2024 },
-    { match: /RYZEN AI MAX\+ 395/i, year: 2025 },
+    { match: /RYZEN AI MAX/i, year: 2025 },
     { match: /Ryzen Z1 Extreme/i, year: 2023 },
+    { match: /Ryzen Z1\b/i, year: 2023 },
+    { match: /Ryzen Z2|Ryzen AI Z2/i, year: 2025 },
     { match: /Steam Deck OLED/i, year: 2023 },
     { match: /Steam Deck$/i, year: 2022 },
     { match: /Threadripper/i, year: 2017 },
     { match: /EPYC/i, year: 2017 },
+
+    // --- Generation ranges (fallback; specific entries above win) ---
+    { match: /\bi[3579]-2\d{3}/i, year: 2011 },
+    { match: /\bi[3579]-3\d{3}/i, year: 2012 },
+    { match: /\bi[3579]-4\d{3}/i, year: 2013 },
+    { match: /\bi[3579]-5\d{3}/i, year: 2015 },
+    { match: /\bi[3579]-6\d{3}/i, year: 2015 },
+    { match: /\bi[3579]-7\d{3}/i, year: 2017 },
+    { match: /\bi[3579]-8\d{3}/i, year: 2017 },
+    { match: /\bi[3579]-9\d{3}/i, year: 2018 },
+    { match: /\bi[3579]-10\d{2}/i, year: 2020 },
+    { match: /\bi[3579]-11\d{2}/i, year: 2021 },
+    { match: /\bi[3579]-12\d{2}/i, year: 2022 },
+    { match: /\bi[3579]-13\d{2}/i, year: 2023 },
+    { match: /\bi[3579]-14\d{2}/i, year: 2024 },
+    { match: /\bUltra X?[3579] 1\d{2}/i, year: 2024 },
+    { match: /\bUltra X?[3579] 2\d{2}/i, year: 2025 },
+    { match: /\bUltra X?[3579] 3\d{2}/i, year: 2025 },
+    { match: /\b5 1\d{2}U\b|\b5 2\d{2}H\b|\b5 320\b/i, year: 2024 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+1\d{3}/i, year: 2017 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+2\d{3}/i, year: 2018 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+3\d{3}/i, year: 2019 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+4\d{3}/i, year: 2020 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+5\d{3}/i, year: 2020 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+6\d{3}/i, year: 2022 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+7\d{3}/i, year: 2022 },
+    { match: /Ryzen\s+[3579]\s+PRO\s+8\d{3}/i, year: 2024 },
+    { match: /Ryzen\s+[3579]\s+1\d{3}/i, year: 2017 },
+    { match: /Ryzen\s+[3579]\s+2\d{3}/i, year: 2018 },
+    { match: /Ryzen\s+[3579]\s+3\d{3}/i, year: 2019 },
+    { match: /Ryzen\s+[3579]\s+4\d{3}/i, year: 2020 },
+    { match: /Ryzen\s+[3579]\s+5\d{3}/i, year: 2020 },
+    { match: /Ryzen\s+[3579]\s+6\d{3}/i, year: 2022 },
+    { match: /Ryzen\s+[3579]\s+7\d{3}/i, year: 2022 },
+    { match: /Ryzen\s+[3579]\s+8\d{3}/i, year: 2024 },
+    { match: /Ryzen\s+[3579]\s+9\d{3}/i, year: 2024 },
+    { match: /Ryzen\s+[3579]\s+H?\s*\d{3}\b/i, year: 2024 },
+    { match: /Ryzen AI/i, year: 2024 },
 ];
 
 const GPU_YEARS = [
+    // --- Legacy GPUs (pre-2015) ---
+    { match: /R9 200 \/ HD 7900|R9 200 Series/i, year: 2012 },
+    { match: /\bHD 77\d{2}\b/i, year: 2012 },
+    { match: /GTX 650\b/i, year: 2012 },
+    { match: /R7 200 Series/i, year: 2013 },
+    { match: /HD 85\d{2}M/i, year: 2013 },
+    { match: /Quadro K620|Quadro K1100M/i, year: 2013 },
+    { match: /GT 730\b/i, year: 2014 },
+    { match: /GTX 750 Ti/i, year: 2014 },
+    { match: /GTX 850M/i, year: 2014 },
+    { match: /HD 8400 \/ R3/i, year: 2014 },
+    { match: /R7 370|R9 M370X/i, year: 2015 },
+    { match: /R5 M330|R5 M445|R5 M465/i, year: 2015 },
+    { match: /940MX/i, year: 2016 },
+    // Legacy Intel HD Graphics (generation-accurate years)
+    { match: /HD Graphics 4000/i, year: 2012 },
+    { match: /HD Graphics 4[46]00/i, year: 2013 },
+    { match: /HD Graphics 5000/i, year: 2013 },
+    { match: /HD Graphics 5[35]00/i, year: 2015 },
+    { match: /HD Graphics 6000/i, year: 2015 },
+    { match: /HD Graphics 405/i, year: 2015 },
+
+    // --- Curated anchors (pre-existing) ---
     { match: /R9 3\d\d/i, year: 2015 },
     { match: /HD Graphics [2-6]\d{3}/i, year: 2015 },
     { match: /GTX 9\d\d/i, year: 2015 },
@@ -2756,6 +2878,39 @@ const GPU_YEARS = [
     { match: /Arc B\d{3}/i, year: 2024 },
     { match: /RTX 50\d\d/i, year: 2025 },
     { match: /RX 9\d{3}/i, year: 2025 },
+
+    // --- Identifiable post-2015 gaps ---
+    { match: /GTX 6\d{2}|GTX 7\d{2}/i, year: 2012 },
+    { match: /GT 6\d{2}|GT 7\d{2}/i, year: 2013 },
+    { match: /GTX 8\d{2}M|GT 8\d{2}M/i, year: 2014 },
+    { match: /RX (460|470|480)/i, year: 2016 },
+    { match: /RX (5500|5600|5700)|Radeon VII|Pro VII|\bVII\b/i, year: 2019 },
+    { match: /RX (550|560|570)/i, year: 2017 },
+    { match: /RX Vega|Vega \d|Vega Graphics/i, year: 2017 },
+    { match: /RTX A\d{4}|RTX \d000 Ada/i, year: 2022 },
+    { match: /RTX 20\d\d/i, year: 2018 },
+    { match: /TITAN Xp/i, year: 2017 },
+    { match: /TITAN RTX/i, year: 2018 },
+    { match: /MX110|MX130/i, year: 2016 },
+    { match: /MX150|MX230|MX250/i, year: 2018 },
+    { match: /MX330|MX350|MX450/i, year: 2020 },
+    { match: /MX550/i, year: 2022 },
+    { match: /Quadro P\d{3,4}/i, year: 2017 },
+    { match: /Quadro M\d{4}M/i, year: 2015 },
+    { match: /\bT[56]00\b/i, year: 2020 },
+    { match: /RTX A\d{4}|RTX \d000 Ada/i, year: 2022 },
+    { match: /Pro W\d{3,4}|Pro V\d{3,4}/i, year: 2020 },
+    { match: /HD Graphics 5(15|20|30)/i, year: 2015 },
+    { match: /HD Graphics 6(20|30)/i, year: 2016 },
+    { match: /UHD Graphics 7(30|70)/i, year: 2022 },
+    { match: /Iris Plus/i, year: 2019 },
+    { match: /Iris Pro/i, year: 2015 },
+    { match: /Iris Xe/i, year: 2020 },
+    { match: /Adreno X1/i, year: 2024 },
+    { match: /\bArc\b.*\b[AB]\d{3}/i, year: 2022 },
+    { match: /Radeon E9\d{3}/i, year: 2017 },
+    { match: /\bR9700\b/i, year: 2025 },
+    { match: /Mali-?G\d+/i, year: 2022 },
 ];
 
 // Tag metadata: tier drives ordering + color, label is shown in chips
@@ -2828,7 +2983,7 @@ function classifySpecimen(row) {
     if (cpuYear && (now - cpuYear) >= 10) tags.push('fossil');
     if (cpuYear && gpuYear && (gpuYear - cpuYear) >= 8) tags.push('anachronism');
 
-    if (/^\s*(r9|r7|r5)\b|radeon hd|hd graphics [2-6]|uhd graphics 6\d{2}|geforce gt \d|gtx (6|7|9)\d{2}/i.test(gpuRaw)) tags.push('exotic-gpu');
+    if (/^\s*(r[579])\b|radeon hd|\bhd \d{4}\b|\bhd graphics [2-6]|uhd graphics 6\d{2}|geforce (gt|gtx) \d|\bgtx? [6-9]\d{2}|\bgt [6-8]\d{2}\b|\b\d{3}mx\b/i.test(gpuRaw)) tags.push('exotic-gpu');
 
     let tier = null;
     tags.forEach(tag => {
