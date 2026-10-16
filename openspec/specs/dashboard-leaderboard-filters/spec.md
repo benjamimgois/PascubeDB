@@ -3,6 +3,7 @@
 ## Purpose
 TBD - created by archiving change add-more-leaderboard-filters. Update Purpose after archive.
 ## Requirements
+
 ### Requirement: Leaderboard CPU Model Filter
 The system SHALL display a CPU Model select dropdown in the leaderboard filters.
 - Selecting a specific CPU Model SHALL display only benchmark runs matching that CPU.
@@ -48,3 +49,13 @@ The system SHALL combine all active filters (search text query, OS filter, CPU f
 - **WHEN** multiple filters are active at the same time
 - **THEN** only benchmark runs satisfying all selected conditions are displayed
 
+### Requirement: Stable Filter Control Sizing
+Gaining focus SHALL NOT change the rendered size of a leaderboard filter control or shift the position of adjacent controls.
+
+#### Scenario: Focusing the search input
+- **WHEN** the user focuses the leaderboard search input
+- **THEN** the input keeps the same width and the other filter controls do not move
+
+#### Scenario: Blurring the search input
+- **WHEN** the search input loses focus
+- **THEN** the filter row layout is unchanged
