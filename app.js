@@ -979,6 +979,32 @@ function setupEventListeners() {
     document.getElementById('kernel-filter').addEventListener('change', handleFilterChange);
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', clearAllLeaderboardFilters);
+
+    // Global normalize: drives every chart, per-chart toggles still override afterwards.
+    const normalizeAllCb = document.getElementById('normalize-all-cb');
+    if (normalizeAllCb) {
+        normalizeAllCb.addEventListener('change', () => {
+            const on = normalizeAllCb.checked;
+            document.querySelectorAll('.chart-toggle-wrap[data-chart] .chart-toggle-cb').forEach(cb => {
+                cb.checked = on;
+                const wrap = cb.closest('.chart-toggle-wrap');
+                if (wrap && wrap.dataset.chart) chartNorm[wrap.dataset.chart] = on;
+            });
+            Object.keys(chartVizState).forEach(type => {
+                chartVizState[type].normalize = on;
+                const toggle = document.getElementById(VIZ_CHART_IDS[type]?.toggle);
+                const cb = toggle?.querySelector('.chart-toggle-cb');
+                if (cb) cb.checked = on;
+            });
+            renderCharts();
+            PILL_STATE.rendered.performance = true;
+            if (document.getElementById('osHardwareScatterChart')) renderSoftwareCharts();
+            ['cpuAverage', 'gpuAverage'].forEach(t => {
+                const cfg = typeof AVERAGE_CHART_CONFIG !== 'undefined' && AVERAGE_CHART_CONFIG[t];
+                if (cfg && document.getElementById(cfg.chartId)) renderAverageChart(t);
+            });
+        });
+    }
     
     // Sort columns
     const headers = document.querySelectorAll('#leaderboard-table th.sortable');
@@ -1840,6 +1866,30 @@ const STAT_TOOLTIPS = {
 
 // Expose the full value behind any stat value that is visually truncated
 // (.stat-value uses ellipsis); counter-animated values prefer their target.
+// Relative indicator behind the stat-card podium: how far the winner leads #2.
+function setPodiumGap(card, top, second, lowerIsBetter) {
+    if (!card) return;
+    let bar = card.querySelector('.podium-gap');
+    if (!bar) {
+        bar = document.createElement('span');
+        bar.className = 'podium-gap';
+        bar.setAttribute('aria-hidden', 'true');
+        card.appendChild(bar);
+    }
+    let pct = 0;
+    if (typeof top === 'number' && typeof second === 'number' && top !== 0 && second !== 0) {
+        pct = lowerIsBetter ? (1 - top / second) : (1 - second / top);
+        pct = Math.max(0, Math.min(1, pct)) * 100;
+    }
+    bar.style.setProperty('--podium-fill', pct.toFixed(1) + '%');
+}
+
+function clearPodiumGaps() {
+    document.querySelectorAll('#stats-grid .stat-card .podium-gap').forEach(bar => {
+        bar.style.setProperty('--podium-fill', '0%');
+    });
+}
+
 function applyStatValueTitles() {
     document.querySelectorAll('.stat-value').forEach(el => {
         const target = el.dataset.counterTarget;
@@ -1918,6 +1968,12 @@ function renderStats(pill) {
         document.getElementById('stat-most-humble-hardware').textContent = gpuThermalSorted.length > 0 ? gpuThermalSorted[0].name : '-';
         document.getElementById('stat-humble-second').textContent = gpuThermalSorted[1] ? `#2 ${gpuThermalSorted[1].name} — ${(Math.trunc(gpuThermalSorted[1].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '#2 -';
         document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `#3 ${gpuThermalSorted[2].name} — ${(Math.trunc(gpuThermalSorted[2].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '#3 -';
+
+        const effCards = document.querySelectorAll('#stats-grid .stat-card');
+        setPodiumGap(effCards[0], cpuEff[0]?.ratio, cpuEff[1]?.ratio);
+        setPodiumGap(effCards[1], gpuEff[0]?.ratio, gpuEff[1]?.ratio);
+        setPodiumGap(effCards[2], bneck[0]?.ratio, bneck[1]?.ratio, true);
+        setPodiumGap(effCards[3], gpuThermalSorted[0]?.ratio, gpuThermalSorted[1]?.ratio);
     } else if (pill === 'curiosity') {
         const data = collectSpecimenData();
         const tierOrder = { S: 0, A: 1, B: 2, C: 3 };
@@ -1977,6 +2033,7 @@ function renderStats(pill) {
         document.getElementById('stat-most-humble-hardware').textContent = consoles[0] ? consoles[0].name : '-';
         document.getElementById('stat-humble-second').textContent = consoles[1] ? `#2 ${consoles[1].name} — ${consoles[1].count} ×` : '#2 -';
         document.getElementById('stat-humble-third').textContent = consoles[2] ? `#3 ${consoles[2].name} — ${consoles[2].count} ×` : '#3 -';
+        clearPodiumGaps();
     }
 
     // Update help tooltips
@@ -2031,6 +2088,12 @@ function renderOverviewStatsImpl() {
         document.getElementById('stat-humble-second').textContent = humbles[1] ? `#2 ${trunc(normalizeCPU(humbles[1].cpu) + ' + ' + normalizeGPU(humbles[1].gpu))} — ${humbles[1].mainScore.toLocaleString()}` : '#2 -';
         document.getElementById('stat-humble-third').textContent = humbles[2] ? `#3 ${trunc(normalizeCPU(humbles[2].cpu) + ' + ' + normalizeGPU(humbles[2].gpu))} — ${humbles[2].mainScore.toLocaleString()}` : '#3 -';
     }
+
+    const perfCards = document.querySelectorAll('#stats-grid .stat-card');
+    setPodiumGap(perfCards[0], singleTop[0]?.cpuSingle, singleTop[1]?.cpuSingle);
+    setPodiumGap(perfCards[1], multiTop[0]?.cpuMulti, multiTop[1]?.cpuMulti);
+    setPodiumGap(perfCards[2], gpuTop[0]?.gpuScore, gpuTop[1]?.gpuScore);
+    setPodiumGap(perfCards[3], humbles[0]?.mainScore, humbles[1]?.mainScore);
 }
 
 const TRUNC = 30;
