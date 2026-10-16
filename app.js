@@ -146,6 +146,7 @@ let benchmarkData = [];
 let filteredData = [];
 let chartInstances = {};
 let chartNorm = {};
+let tabsInitialized = false;
 let currentSort = { column: 'mainScore', direction: 'desc' };
 let chartVizState = {
     mesa:    { mode: 'absolute', normalize: true, familyMode: true },
@@ -5681,8 +5682,13 @@ function renderCharts() {
     // Remove skeleton loaders after charts are rendered
     removeSkeletonLoading();
 
-    // Initial tab state: show hardware after all charts rendered
-    if (window.switchTab) window.switchTab('hardware');
+    // Initial tab state: show hardware once, after the first charts render.
+    // Re-running switchTab on later re-renders (e.g. toggling "Normalize")
+    // hides/shows the whole content and resets the page scroll.
+    if (!tabsInitialized && window.switchTab) {
+        window.switchTab('hardware');
+        tabsInitialized = true;
+    }
 
     PILL_STATE.rendered.performance = true;
     renderStats(PILL_STATE.active || 'performance');
