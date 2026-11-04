@@ -1936,7 +1936,7 @@ const STAT_TOOLTIPS = {
         'The rarest CPU present by curated real rarity, exotica first — engineering samples, console/custom APUs, exotic architectures, embedded and server silicon. Mainstream handhelds are excluded; only hardware present in the database is shown.',
         'The oldest CPU model on the platform by curated release year — hardware still running Linux after more than a decade. Unique models only.',
         'The oldest GPU model on the platform by curated release year. Unique models only.',
-        'The rarest GPU present by curated real rarity, exotica first — engineering samples, console APUs, workstation and professional graphics, legacy flagships and rare SKUs. Mainstream handhelds are excluded; only hardware present in the database is shown.'
+        'The rarest discrete/professional GPU present by curated real rarity — TITAN, Radeon Pro/AI Pro, Quadro/RTX Ada, Arc Pro, legacy flagships and rare SKUs. APUs and console parts are covered by Rarest CPU; mainstream handhelds are excluded.'
     ]
 };
 
@@ -3000,24 +3000,17 @@ const RARE_CPUS = [
 ];
 
 const RARE_GPUS = [
-    { match: /100-000000891/i,                            reason: 'Engineering sample' },
-    { match: /dg1501/i,                                   reason: 'PS4 Pro APU part' },
-    { match: /liverpool|jaguar/i,                         reason: 'PlayStation 4 GPU' },
-    { match: /custom zen 2/i,                             reason: 'Custom AMD GPU' },
-    { match: /adreno x1/i,                                reason: 'Qualcomm Adreno' },
-    { match: /mali-g610/i,                                reason: 'ARM Mali SBC' },
-    { match: /mali-g31/i,                                 reason: 'ARM Mali SBC' },
-    { match: /titan xp|titan rtx/i,                       reason: 'NVIDIA TITAN' },
     { match: /ai pro r9700/i,                             reason: 'Radeon AI Pro workstation' },
+    { match: /rtx 6000 ada/i,                             reason: 'NVIDIA Ada flagship workstation' },
+    { match: /arc pro b60/i,                              reason: 'Intel Arc Pro workstation' },
+    { match: /titan xp|titan rtx/i,                       reason: 'NVIDIA TITAN' },
     { match: /pro vii|pro v620|pro w5500|pro w7500|pro wx/i, reason: 'Radeon Pro workstation' },
     { match: /^(?:amd\s+)?vii$/i,                         reason: 'Radeon VII halo flagship' },
-    { match: /rtx 6000 ada/i,                             reason: 'NVIDIA Ada flagship workstation' },
     { match: /rtx 4000 ada|rtx 2000 ada/i,                reason: 'NVIDIA Ada mobile workstation' },
     { match: /quadro rtx/i,                               reason: 'Quadro RTX workstation' },
     { match: /rtx a\d{4}/i,                               reason: 'NVIDIA RTX A-series workstation' },
     { match: /quadro [kmp]/i,                             reason: 'Quadro workstation' },
     { match: /\bt[5-9]\d{2}\b/i,                          reason: 'NVIDIA T-series workstation' },
-    { match: /arc pro b60/i,                              reason: 'Intel Arc Pro workstation' },
     { match: /e9170|embedded radeon/i,                    reason: 'Embedded Polaris' },
     { match: /r9 fury/i,                                  reason: 'Legacy GCN Fury' },
     { match: /r9 200|r9 3\d\d|hd 7900/i,                  reason: 'Legacy GCN flagship' },
