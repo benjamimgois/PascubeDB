@@ -10,14 +10,18 @@ Surface genuinely curious Linux hardware — embedded boards, consoles, handheld
 The system SHALL classify each benchmark row into zero or more specimen tags and assign the row the highest (rarest) tier among its tags. Tags and their detection signals SHALL be:
 
 - `es` (Engineering Sample, tier S): CPU or GPU name matches an engineering-sample pattern such as `eng sample`, `genuine intel ... 0000`, a bare `0000` model identifier, or an AMD OPN (`100-0000` followed by digits).
-- `console` (tier S): CPU or GPU name identifies a game-console APU. Detection SHALL recognize a `dg` part number (`dg` followed by at least three digits, e.g. `DG1501SML87LB`), the PS5-derived `BC-250`, and the console codenames `liverpool` and `jaguar` (PlayStation 4), `oberon` and `ariel` (PlayStation 5), `durango` and `scarlett` (Xbox), and `grizzly`, in addition to a curated console name list. A `dg` followed by a single digit (e.g. the Intel Arc `(DG2)` codename) SHALL NOT be treated as a console. Console APU models SHALL be canonicalized: `BC-250` to "PS5 APU (BC-250)" and `Liverpool`/`Jaguar` to "PlayStation 4 APU (AMD)".
+- `console` (tier S): CPU or GPU name identifies a game-console APU. Detection SHALL recognize a `dg` part number (`dg` followed by at least three digits, e.g. `DG1501SML87LB`), the PS5-derived `BC-250`, and the console codenames `liverpool` and `jaguar` (PlayStation 4), `oberon` and `ariel` (PlayStation 5), `durango` and `scarlett` (Xbox), and `grizzly`, in addition to a curated console name list. A `dg` followed by a single digit (e.g. the Intel Arc `(DG2)` codename) SHALL NOT be treated as a console. Console APU models SHALL be canonicalized: `DG1501` to "PS4 Pro APU (AMD)", `BC-250` to "PS5 APU (BC-250)", and `Liverpool`/`Jaguar` to "PlayStation 4 APU (AMD)".
 - `exotic-arch` (tier S): the `architecture` field is a non-x86 architecture other than aarch64 (for example `riscv64`, `ppc64le`, `loongarch`).
+- `custom-apu` (tier A): the CPU or GPU matches a custom APU identifier that is not a recognized console part, such as `Custom Zen 2`.
 - `vm` (tier A): the OS or kernel field indicates virtualization (`vm`, `virtual`, `qemu`, `kvm`).
 - `sbc` (tier A): the `architecture` field is `aarch64`, or the CPU/GPU matches an embedded-board signal (Broadcom `VideoCore`, ARM `Mali`, Rockchip) or a curated board list (Raspberry Pi, Orange Pi, Banana Pi, Rock).
 - `server` (tier B): the CPU name matches Xeon, EPYC, or Threadripper.
+- `embedded` (tier B): the CPU or GPU matches an embedded part such as an AMD GX SoC or embedded Radeon.
+- `workstation` (tier B): the CPU matches a workstation HEDT part, or the GPU matches a professional/workstation family such as Quadro, TITAN, Radeon Pro, FirePro, Instinct, RTX A/Ada, Arc Pro, Tesla, or T-series.
 - `fossil` (tier B): the CPU model's curated release year is at least 10 years before the current year.
 - `anachronism` (tier B): the curated GPU release year minus the curated CPU release year is 8 or more years.
 - `exotic-gpu` (tier C): the GPU matches a curated legacy GPU list.
+- `rare-sku` (tier C): the GPU matches a curated regional, OEM-only, low-power, or low-volume SKU list.
 
 Tags not listed above SHALL NOT be produced. In particular the taxonomy SHALL NOT include a halo/new-release tag, an open-driver tag, or a handheld tag.
 
@@ -53,6 +57,16 @@ Detection SHALL tolerate false positives: a row whose CPU model is unresolvable 
 - **WHEN** a row matches no specimen tag
 - **THEN** the row is excluded from the gallery and receives no leaderboard chips
 
+#### Scenario: PS4 Pro console part is canonicalized
+
+- **WHEN** a row's CPU or GPU contains a `DG1501` part number
+- **THEN** the row receives the `console` tag and the hardware is shown as a PS4 Pro APU
+
+#### Scenario: Custom APU is classified
+
+- **WHEN** a row's CPU or GPU is `Custom Zen 2`
+- **THEN** the row receives the `custom-apu` tag
+
 ### Requirement: Curated hardware release-year lookup
 
 The system SHALL maintain curated `CPU_YEARS` and `GPU_YEARS` lookup tables mapping known hardware families/models to release years, used to compute the `fossil` and `anachronism` tags and the Oldest CPU / Oldest GPU cards. The tables SHALL cover every hardware generation present in the dataset, including legacy CPUs released before 2011 and legacy GPUs released before 2015, so that no datable model is silently excluded from year-based behavior. When a model is absent from a table, year-based tags SHALL NOT be applied for that model.
@@ -69,8 +83,66 @@ The system SHALL maintain curated `CPU_YEARS` and `GPU_YEARS` lookup tables mapp
 
 #### Scenario: Legacy silicon is covered
 
-- **WHEN** the dataset contains a CPU released before 2011 (for example a Xeon X5450 or Core2 Quad Q9550) or a GPU released before 2015 (for example an `R9 200 / HD 7900 Series` or `GT 730`)
+- **WHEN** the dataset contains a CPU released before 2011 (for example a Xeon X5450, Core2 Quad Q9550, i5 750, or Phenom II X4 965) or a GPU released before 2015 (for example an `R9 200 / HD 7900 Series`, `R9 Fury Series`, or `GT 730`)
 - **THEN** the lookup returns that model's curated release year and the model is eligible for its Oldest CPU / Oldest GPU ranking
+
+#### Scenario: Modern rare GPU is dated
+
+- **WHEN** the dataset contains a current low-volume GPU such as an `Arc Pro B60`, `Radeon Pro WX`, or `MX570`
+- **THEN** the lookup returns its curated release year instead of silently skipping year-based behavior
+
+#### Scenario: Console APUs are dated
+
+- **WHEN** the dataset contains a PlayStation 4, PS4 Pro, or PS5-derived APU
+- **THEN** the lookup returns the generation-specific release year for that APU
+
+### Requirement: Curiosity display canonicalization
+
+Curiosity cards and specimen tags SHALL display canonical hardware names. Engineering samples identified only by an OPN SHALL show a human-readable label with the OPN in parentheses. The PS4 Pro `DG1501` part SHALL be shown as a PS4 Pro APU distinct from the Liverpool/Jaguar PlayStation 4 APU, and repeated whitespace in model names SHALL be collapsed.
+
+#### Scenario: OPN engineering sample is readable
+- **WHEN** a rare CPU or GPU is identified only by an AMD OPN such as `100-000000891`
+- **THEN** the Curiosity card shows a human-readable engineering-sample label with that OPN in parentheses
+
+#### Scenario: PS4 Pro is distinct from PS4
+- **WHEN** the dataset contains both `DG1501SML87LB` and `Liverpool`/`Jaguar` hardware
+- **THEN** Curiosity shows the DG1501 hardware as a PS4 Pro APU and does not merge it with the PlayStation 4 APU
+
+#### Scenario: Whitespace is normalized
+- **WHEN** a model name contains repeated spaces such as `Xeon           X3440`
+- **THEN** Curiosity displays it with single spaces
+
+### Requirement: Workstation hardware tag
+
+The system SHALL classify professional and workstation GPUs into a `workstation` specimen tag. Detection SHALL cover Quadro, TITAN, Radeon Pro, FirePro, Instinct, RTX A, RTX Ada, Arc Pro, Tesla, and T-series professional graphics.
+
+#### Scenario: Workstation GPU is tagged
+- **WHEN** a row's GPU is a Quadro, TITAN, Radeon Pro, RTX A/Ada, or Arc Pro model
+- **THEN** the row receives the `workstation` tag
+
+### Requirement: Rare-SKU tag
+
+The system SHALL classify curated regional, OEM-only, low-power, and low-volume GPU variants into a `rare-sku` specimen tag.
+
+#### Scenario: Rare SKU is tagged
+- **WHEN** a row's GPU is a curated regional, OEM-only, low-power, or low-volume SKU
+- **THEN** the row receives the `rare-sku` tag
+
+### Requirement: Custom-APU tag
+
+The system SHALL classify custom APU identifiers that are not recognized console parts into a `custom-apu` specimen tag.
+
+#### Scenario: Custom APU is tagged
+- **WHEN** a row's CPU or GPU identifies a custom APU such as `Custom Zen 2`
+- **THEN** the row receives the `custom-apu` tag
+
+### Requirement: Embedded hardware tag
+
+The system SHALL classify embedded AMD SoCs and embedded Radeon parts into an `embedded` specimen tag.
+
+#### Scenario: Embedded hardware is tagged
+- **WHEN** a row's CPU or GPU is an embedded AMD SoC or embedded Radeon part
+- **THEN** the row receives the `embedded` tag
 
 ### Requirement: Curiosity pill hosts filters and submissions
 
@@ -230,7 +302,7 @@ The system SHALL display a summary line inside the Curiosity pill describing the
 
 ### Requirement: Curated rare-hardware lists
 
-The system SHALL maintain ordered `RARE_CPUS` and `RARE_GPUS` lists of model signatures, each entry carrying a short reason. Signatures SHALL match hardware by family so newly submitted exotic hardware is caught without editing the list. Entries SHALL be ordered by editorial rarity and interest, highest first, not by sample count.
+The system SHALL maintain ordered `RARE_CPUS` and `RARE_GPUS` lists of model signatures, each entry carrying a short reason. Signatures SHALL match hardware by family so newly submitted exotic hardware is caught without editing the list. Entries SHALL be ordered by editorial rarity and interest, highest first, not by sample count. The ranking SHALL be exotica-first: engineering samples, console and custom APUs, exotic architectures, embedded hardware, server/HEDT, then legacy and rare SKUs. Mainstream curiosities such as `BC-250`, `Steam Deck`, and `Steam Deck OLED` SHALL NOT be listed as rare. A family whose members differ materially in rarity SHALL be split into separate entries so ordering is explicit rather than alphabetical.
 
 #### Scenario: Curated lists are ranked
 
@@ -241,6 +313,16 @@ The system SHALL maintain ordered `RARE_CPUS` and `RARE_GPUS` lists of model sig
 
 - **WHEN** a new model belonging to an existing curated family is submitted
 - **THEN** the matching entry resolves to it without editing the list
+
+#### Scenario: Mainstream handhelds are excluded
+
+- **WHEN** the dataset contains `BC-250`, `Steam Deck`, or `Steam Deck OLED`
+- **THEN** those models are not selected by the Rarest CPU or Rarest GPU card
+
+#### Scenario: Compound family is split
+
+- **WHEN** one family contains models with materially different rarity, such as multiple Quadro generations or GRE SKUs
+- **THEN** the curated list separates them into distinct entries so editorial order, not alphabetical tie-breaking, decides the podium
 
 ### Requirement: Rarest CPU and GPU card resolution
 

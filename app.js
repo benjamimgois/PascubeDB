@@ -1933,10 +1933,10 @@ const STAT_TOOLTIPS = {
         'GPU model with the best gpuScore per gpuTempDelta. Higher ratios mean more performance per °C.'
     ],
     curiosity: [
-        'The rarest CPU on the platform by curated rarity — hand-picked unusual silicon (engineering samples, console APUs, embedded boards, HEDT). Hardware present in the database only.',
+        'The rarest CPU present by curated real rarity, exotica first — engineering samples, console/custom APUs, exotic architectures, embedded and server silicon. Mainstream handhelds are excluded; only hardware present in the database is shown.',
         'The oldest CPU model on the platform by curated release year — hardware still running Linux after more than a decade. Unique models only.',
         'The oldest GPU model on the platform by curated release year. Unique models only.',
-        'The rarest GPU on the platform by curated rarity — hand-picked unusual graphics (TITANs, Radeon Pro/Quadro workstation, embedded, legacy flagships). Hardware present in the database only.'
+        'The rarest GPU present by curated real rarity, exotica first — engineering samples, console APUs, workstation and professional graphics, legacy flagships and rare SKUs. Mainstream handhelds are excluded; only hardware present in the database is shown.'
     ]
 };
 
@@ -2467,10 +2467,12 @@ function normalizeCPU(name) {
     clean = clean.replace(/\s+Eight-Core$/i, ''); // strip " Eight-Core"
     clean = clean.replace(/\s+@\s+\d+\.\d+GHz.*/i, ''); // strip "@ 4.00GHz" etc.
     if (/^eng\s*sample/i.test(clean)) return 'AMD Engineering Sample';
+    if (/^100-0000\d+$/i.test(clean)) return `AMD Engineering Sample (${clean})`;
+    if (/^dg1501/i.test(clean)) return 'PS4 Pro APU (AMD)';
     if (/^dg\d{3,}/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     if (/^bc-?250/i.test(clean)) return 'PS5 APU (BC-250)';
     if (/^(liverpool|jaguar)\b/i.test(clean)) return 'PlayStation 4 APU (AMD)';
-    return clean.trim();
+    return clean.replace(/\s+/g, ' ').trim();
 }
 
 // Helper to normalize GPU names for popularity chart
@@ -2484,10 +2486,12 @@ function normalizeGPU(name) {
     clean = clean.replace(/Laptop\s+GPU/gi, 'Mobile');
     clean = clean.trim();
     if (/^AMD\s*Vega|^Vega\s*\d|^Vega$|^Radeon.*Vega|^RX\s*Vega/i.test(clean)) return 'AMD Vega';
+    if (/^100-0000\d+$/i.test(clean)) return `AMD Engineering Sample (${clean})`;
+    if (/^dg1501/i.test(clean)) return 'PS4 Pro APU (AMD)';
     if (/^dg\d{3,}/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     if (/^bc-?250/i.test(clean)) return 'PS5 APU (BC-250)';
     if (/^(liverpool|jaguar)\b/i.test(clean)) return 'PlayStation 4 APU (AMD)';
-    return clean;
+    return clean.replace(/\s+/g, ' ').trim();
 }
 
 // Helper to normalize OS / distribution names to a canonical family.
@@ -2762,6 +2766,8 @@ const CPU_YEARS = [
     { match: /\bi7\s+950\b/i, year: 2008 },
     { match: /Pentium Dual-Core.*T4200|T4200/i, year: 2009 },
     { match: /Xeon\s+X3440/i, year: 2009 },
+    { match: /\bi5[\s-]+750\b/i, year: 2009 },
+    { match: /Phenom II X4 965/i, year: 2009 },
     { match: /Phenom II X6 1100T/i, year: 2010 },
     { match: /Xeon\s+X567[05]|Xeon\s+X5690/i, year: 2010 },
 
@@ -2773,8 +2779,10 @@ const CPU_YEARS = [
     { match: /i7-5775[CR]/i, year: 2015 },
     { match: /m[357]-6Y\d{2}/i, year: 2015 },
     { match: /A6-5200|GX-420CA/i, year: 2013 },
-    { match: /A8-7410|Athlon X4 870K/i, year: 2015 },
+    { match: /Liverpool|Jaguar/i, year: 2013 },
+    { match: /A8-7410|Athlon X4 870K|E2-7110/i, year: 2015 },
     { match: /A9-9420/i, year: 2016 },
+    { match: /DG1501/i, year: 2016 },
     { match: /A6-9500|A10-9700/i, year: 2017 },
     { match: /Xeon.*E3-\d{4}M?\s*[vV]2/i, year: 2012 },
     { match: /Xeon.*E3-\d{4}M?\s*[vV]3/i, year: 2014 },
@@ -2824,6 +2832,9 @@ const CPU_YEARS = [
     { match: /Ryzen Z2|Ryzen AI Z2/i, year: 2025 },
     { match: /Steam Deck OLED/i, year: 2023 },
     { match: /Steam Deck$/i, year: 2022 },
+    { match: /BC-?250/i, year: 2021 },
+    { match: /Oryon/i, year: 2024 },
+    { match: /RK3588/i, year: 2022 },
     { match: /Threadripper/i, year: 2017 },
     { match: /EPYC/i, year: 2017 },
 
@@ -2845,6 +2856,7 @@ const CPU_YEARS = [
     { match: /\bUltra X?[3579] 2\d{2}/i, year: 2025 },
     { match: /\bUltra X?[3579] 3\d{2}/i, year: 2025 },
     { match: /\b5 1\d{2}U\b|\b5 2\d{2}H\b|\b5 320\b/i, year: 2024 },
+    { match: /\b7 2\d{2}H\b/i, year: 2025 },
     { match: /Ryzen\s+[3579]\s+PRO\s+1\d{3}/i, year: 2017 },
     { match: /Ryzen\s+[3579]\s+PRO\s+2\d{3}/i, year: 2018 },
     { match: /Ryzen\s+[3579]\s+PRO\s+3\d{3}/i, year: 2019 },
@@ -2878,9 +2890,11 @@ const GPU_YEARS = [
     { match: /GTX 750 Ti/i, year: 2014 },
     { match: /GTX 850M/i, year: 2014 },
     { match: /HD 8400 \/ R3/i, year: 2014 },
+    { match: /\bR2\b/i, year: 2014 },
     { match: /R7 370|R9 M370X/i, year: 2015 },
     { match: /R5 M330|R5 M445|R5 M465/i, year: 2015 },
     { match: /940MX/i, year: 2016 },
+    { match: /920A\b/i, year: 2016 },
     // Legacy Intel HD Graphics (generation-accurate years)
     { match: /HD Graphics 4000/i, year: 2012 },
     { match: /HD Graphics 4[46]00/i, year: 2013 },
@@ -2890,6 +2904,7 @@ const GPU_YEARS = [
     { match: /HD Graphics 405/i, year: 2015 },
 
     // --- Curated anchors (pre-existing) ---
+    { match: /R9 Fury/i, year: 2015 },
     { match: /R9 3\d\d/i, year: 2015 },
     { match: /HD Graphics [2-6]\d{3}/i, year: 2015 },
     { match: /GTX 9\d\d/i, year: 2015 },
@@ -2908,9 +2923,12 @@ const GPU_YEARS = [
     { match: /RTX 40\d\d/i, year: 2023 },
     { match: /VideoCore VII/i, year: 2023 },
     { match: /RX 7\d{3} XT/i, year: 2023 },
+    { match: /Steam Deck OLED/i, year: 2023 },
     { match: /Arc B\d{3}/i, year: 2024 },
     { match: /RTX 50\d\d/i, year: 2025 },
     { match: /RX 9\d{3}/i, year: 2025 },
+    { match: /Arc Pro B60/i, year: 2025 },
+    { match: /Steam Deck$/i, year: 2022 },
 
     // --- Identifiable post-2015 gaps ---
     { match: /GTX 6\d{2}|GTX 7\d{2}/i, year: 2012 },
@@ -2919,7 +2937,7 @@ const GPU_YEARS = [
     { match: /RX (460|470|480)/i, year: 2016 },
     { match: /RX (5500|5600|5700)|Radeon VII|Pro VII|\bVII\b/i, year: 2019 },
     { match: /RX (550|560|570)/i, year: 2017 },
-    { match: /RX Vega|Vega \d|Vega Graphics/i, year: 2017 },
+    { match: /RX Vega|Vega \d|Vega Graphics|^Radeon\s+Graphics$|^AMD Vega$/i, year: 2017 },
     { match: /RTX A\d{4}|RTX \d000 Ada/i, year: 2022 },
     { match: /RTX 20\d\d/i, year: 2018 },
     { match: /TITAN Xp/i, year: 2017 },
@@ -2927,11 +2945,13 @@ const GPU_YEARS = [
     { match: /MX110|MX130/i, year: 2016 },
     { match: /MX150|MX230|MX250/i, year: 2018 },
     { match: /MX330|MX350|MX450/i, year: 2020 },
-    { match: /MX550/i, year: 2022 },
+    { match: /MX550|MX570/i, year: 2022 },
     { match: /Quadro P\d{3,4}/i, year: 2017 },
     { match: /Quadro M\d{4}M/i, year: 2015 },
-    { match: /\bT[56]00\b/i, year: 2020 },
+    { match: /\bT[56]00\b/i, year: 2021 },
     { match: /RTX A\d{4}|RTX \d000 Ada/i, year: 2022 },
+    { match: /Pro WX 3200/i, year: 2019 },
+    { match: /Pro WX/i, year: 2016 },
     { match: /Pro W\d{3,4}|Pro V\d{3,4}/i, year: 2020 },
     { match: /HD Graphics 5(15|20|30)/i, year: 2015 },
     { match: /HD Graphics 6(20|30)/i, year: 2016 },
@@ -2939,6 +2959,11 @@ const GPU_YEARS = [
     { match: /Iris Plus/i, year: 2019 },
     { match: /Iris Pro/i, year: 2015 },
     { match: /Iris Xe/i, year: 2020 },
+    { match: /Ryzen Z1/i, year: 2023 },
+    { match: /\b8060S\b/i, year: 2025 },
+    { match: /\b(?:840|860|880|890)M Graphics/i, year: 2024 },
+    { match: /\b(?:740|760|780)M Graphics/i, year: 2023 },
+    { match: /\b(?:610|660|680)M\b/i, year: 2022 },
     { match: /Adreno X1/i, year: 2024 },
     { match: /\bArc\b.*\b[AB]\d{3}/i, year: 2022 },
     { match: /Radeon E9\d{3}/i, year: 2017 },
@@ -2952,32 +2977,53 @@ const GPU_YEARS = [
 // family by raw model string and carries the reason shown as the card sub-label.
 // Only hardware present in the dataset is surfaced; absent entries are skipped.
 const RARE_CPUS = [
-    { match: /eng\s*sample|genuine intel 0000|100-0000/i, reason: 'Engineering sample' },
+    { match: /100-0000/i,                                 reason: 'AMD engineering sample (OPN)' },
+    { match: /dg1501/i,                                   reason: 'PS4 Pro APU (part ID)' },
     { match: /liverpool|jaguar/i,                         reason: 'PlayStation 4 APU' },
-    { match: /custom apu 0932|custom apu 0405/i,          reason: 'Handheld APU' },
-    { match: /cortex-a53|rk3588|oryon/i,                  reason: 'Non-x86 silicon' },
+    { match: /eng\s*sample|genuine intel 0000/i,          reason: 'Engineering sample' },
+    { match: /custom zen 2/i,                             reason: 'Custom AMD APU' },
+    { match: /oryon/i,                                    reason: 'ARM Snapdragon (Oryon)' },
+    { match: /rk3588/i,                                   reason: 'ARM SBC (RK3588)' },
+    { match: /cortex-a53/i,                               reason: 'ARM SBC (Cortex-A53)' },
+    { match: /gx-420ca/i,                                 reason: 'Embedded AMD SoC' },
+    { match: /e2-7110/i,                                  reason: 'Low-power AMD APU' },
     { match: /xeon gold|epyc/i,                           reason: 'Datacenter silicon' },
     { match: /threadripper pro/i,                         reason: 'Workstation HEDT' },
-    { match: /gx-420ca/i,                                 reason: 'Embedded AMD SoC' },
     { match: /a10-9700|a6-9500/i,                         reason: 'Bristol Ridge APU' },
     { match: /a6-5200|a8-7410/i,                          reason: 'Kabini / Beema APU' },
     { match: /phenom ii x6 1100t/i,                       reason: 'Last pre-FX hexacore' },
-    { match: /fx-8350|fx-6300/i,                          reason: 'Final FX flagship' },
+    { match: /phenom ii x4 965/i,                         reason: 'Phenom II quad-core' },
+    { match: /fx-8350/i,                                  reason: 'Final FX flagship' },
+    { match: /fx-8120/i,                                  reason: 'Bulldozer FX' },
+    { match: /fx-6300/i,                                  reason: 'Final FX six-core' },
     { match: /x5450|x3440|x5675|x5690/i,                  reason: 'Harpertown / Westmere Xeon' },
 ];
 
 const RARE_GPUS = [
     { match: /100-000000891/i,                            reason: 'Engineering sample' },
-    { match: /dg1501/i,                                   reason: 'Console GPU part' },
-    { match: /liverpool/i,                                reason: 'PlayStation 4 GPU' },
-    { match: /adreno x1|mali-g/i,                         reason: 'ARM SoC graphics' },
+    { match: /dg1501/i,                                   reason: 'PS4 Pro APU part' },
+    { match: /liverpool|jaguar/i,                         reason: 'PlayStation 4 GPU' },
+    { match: /custom zen 2/i,                             reason: 'Custom AMD GPU' },
+    { match: /adreno x1/i,                                reason: 'Qualcomm Adreno' },
+    { match: /mali-g610/i,                                reason: 'ARM Mali SBC' },
+    { match: /mali-g31/i,                                 reason: 'ARM Mali SBC' },
     { match: /titan xp|titan rtx/i,                       reason: 'NVIDIA TITAN' },
+    { match: /ai pro r9700/i,                             reason: 'Radeon AI Pro workstation' },
     { match: /pro vii|pro v620|pro w5500|pro w7500|pro wx/i, reason: 'Radeon Pro workstation' },
+    { match: /^(?:amd\s+)?vii$/i,                         reason: 'Radeon VII halo flagship' },
+    { match: /rtx 6000 ada/i,                             reason: 'NVIDIA Ada flagship workstation' },
+    { match: /rtx 4000 ada|rtx 2000 ada/i,                reason: 'NVIDIA Ada mobile workstation' },
+    { match: /quadro rtx/i,                               reason: 'Quadro RTX workstation' },
+    { match: /rtx a\d{4}/i,                               reason: 'NVIDIA RTX A-series workstation' },
+    { match: /quadro [kmp]/i,                             reason: 'Quadro workstation' },
+    { match: /\bt[5-9]\d{2}\b/i,                          reason: 'NVIDIA T-series workstation' },
+    { match: /arc pro b60/i,                              reason: 'Intel Arc Pro workstation' },
     { match: /e9170|embedded radeon/i,                    reason: 'Embedded Polaris' },
+    { match: /r9 fury/i,                                  reason: 'Legacy GCN Fury' },
     { match: /r9 200|r9 3\d\d|hd 7900/i,                  reason: 'Legacy GCN flagship' },
-    { match: /quadro k|quadro p|rtx a\d{4}/i,             reason: 'Quadro workstation' },
-    { match: /\bvii\b|r9700/i,                            reason: 'Halo flagship' },
-    { match: /6750 gre|7650 gre/i,                        reason: 'China-only GRE SKU' },
+    { match: /rx 7650 gre/i,                              reason: 'China-only GRE SKU' },
+    { match: /rx 6750 gre/i,                              reason: 'China-only GRE SKU' },
+    { match: /9060 xt lp|6600 le|rx 5500(?!\s*(?:xt|m))|5600 oem|3050 oem/i, reason: 'Rare OEM/low-power SKU' },
     { match: /rx 6\d{3}m|rx 7\d{3}s/i,                    reason: 'Rare mobile RDNA' },
 ];
 
@@ -3011,12 +3057,16 @@ const SPECIMEN_TAG_META = {
     'es':          { tier: 'S', label: 'ES' },
     'console':     { tier: 'S', label: 'Console' },
     'exotic-arch': { tier: 'S', label: 'Exotic arch' },
+    'custom-apu':  { tier: 'A', label: 'Custom APU' },
     'vm':          { tier: 'A', label: 'VM' },
     'sbc':         { tier: 'A', label: 'SBC' },
     'server':      { tier: 'B', label: 'Server' },
+    'embedded':    { tier: 'B', label: 'Embedded' },
+    'workstation': { tier: 'B', label: 'Workstation' },
     'fossil':      { tier: 'B', label: 'Fossil' },
     'anachronism': { tier: 'B', label: 'Anachronism' },
     'exotic-gpu':  { tier: 'C', label: 'Legacy GPU' },
+    'rare-sku':    { tier: 'C', label: 'Rare SKU' },
 };
 
 function lookupHardwareYear(name, table) {
@@ -3056,6 +3106,11 @@ function classifySpecimen(row) {
         tags.push('console');
     }
 
+    if (/custom\s+(?:zen|apu|gpu)/i.test(`${cpuRaw} ${gpuRaw}`) &&
+        !/(?:^|\s)dg\d{3,}|bc-?250|liverpool|jaguar|oberon|ariel|durango|scarlett|grizzly/i.test(`${cpuRaw} ${gpuRaw}`)) {
+        tags.push('custom-apu');
+    }
+
     if (hasArch && !['x86_64', 'amd64', 'i386', 'i686', 'aarch64', 'arm64'].includes(archLower)) {
         tags.push('exotic-arch');
     }
@@ -3073,10 +3128,21 @@ function classifySpecimen(row) {
         tags.push('server');
     }
 
+    if (/gx-420ca|embedded radeon|e9170/i.test(`${cpuRaw} ${gpuRaw}`)) {
+        tags.push('embedded');
+    }
+
+    if (/threadripper pro/i.test(cpuRaw) ||
+        /quadro|titan|\bradeon pro\b|\bfirepro\b|\binstinct\b|rtx a\d{4}|rtx \d000 ada|arc pro|\btesla\b|\bt[5-9]\d{2}\b|ai pro r9700|\bpro\s+(?:w|v|vii|wx)/i.test(gpuRaw)) {
+        tags.push('workstation');
+    }
+
     if (cpuYear && (now - cpuYear) >= 10) tags.push('fossil');
     if (cpuYear && gpuYear && (gpuYear - cpuYear) >= 8) tags.push('anachronism');
 
     if (/^\s*(r[579])\b|radeon hd|\bhd \d{4}\b|\bhd graphics [2-6]|uhd graphics 6\d{2}|geforce (gt|gtx) \d|\bgtx? [6-9]\d{2}|\bgt [6-8]\d{2}\b|\b\d{3}mx\b/i.test(gpuRaw)) tags.push('exotic-gpu');
+
+    if (/\bgre\b|\boem\b|\bxt lp\b|\b6600 le\b|\brx 5500(?!\s*(?:xt|m))|\brx [67]\d{3}[ms]\b/i.test(gpuRaw)) tags.push('rare-sku');
 
     let tier = null;
     tags.forEach(tag => {
@@ -3095,12 +3161,16 @@ function classifySpecimen(row) {
             case 'es': return 'Engineering silicon — never sold to the public';
             case 'console': return 'Console APU repurposed for the bench';
             case 'exotic-arch': return `Non-x86 architecture: ${archLabel}`;
+            case 'custom-apu': return 'Custom/unknown APU silicon';
             case 'vm': return `Virtualized on ${os || 'a virtual machine'}`;
             case 'sbc': return `${archLabel} board running Linux as a daily driver`;
             case 'server': return 'Datacenter silicon on the desktop';
+            case 'embedded': return 'Embedded silicon in a daily driver';
+            case 'workstation': return 'Professional/workstation silicon';
             case 'fossil': return `Released ${cpuYear} — ${cpuAge} years of Linux`;
             case 'anachronism': return `${cpuYear} CPU + ${gpuYear} GPU — ${gap} years apart`;
             case 'exotic-gpu': return 'Legacy GPU still alive';
+            case 'rare-sku': return 'Rare OEM/regional SKU';
             default: return '';
         }
     };
@@ -5997,6 +6067,13 @@ function renderCharts() {
 
     PILL_STATE.rendered.performance = true;
     renderStats(PILL_STATE.active || 'performance');
+
+    // Direct ?subtab=curiosity links must render the chips and submissions table,
+    // not only the stat cards, before the user switches pills manually.
+    if (PILL_STATE.active === 'curiosity' && !PILL_STATE.rendered.curiosity) {
+        renderCuriosityCharts();
+        PILL_STATE.rendered.curiosity = true;
+    }
 }
 
 // ── Efficiency Chart Computations ──
