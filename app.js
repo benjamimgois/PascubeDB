@@ -163,6 +163,15 @@ let modelSelection = { cpuAverage: [], gpuAverage: [], mesa: null, nvidia: null,
 let lastSoftwareData = { mesa: null, nvidia: null, kernel: null, os: null, cpuAverage: null, gpuAverage: null };
 let modelSelectorActiveType = null;
 
+const COMPARE_MAX_RUNS = 5;
+const COMPARE_METRICS = [
+    { key: 'mainScore', label: 'Main Score' },
+    { key: 'cpuSingle', label: 'CPU Single' },
+    { key: 'cpuMulti', label: 'CPU Multi' },
+    { key: 'gpuScore', label: 'GPU Score' },
+];
+let compareState = { active: false, selection: [], baseline: null, view: 'leaderboard' };
+
 function getActiveSoftwareData(type) {
     const vs = chartVizState[type];
     if (vs && vs.familyMode === false) {
@@ -368,6 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupChartVizControls();
     setupHardwareListeners();
     setupModelSelectorListeners();
+    setupCompareListeners();
     initSkeletonLoading();
     initScrollObservers();
     initBackToTop();
@@ -1037,11 +1047,15 @@ function setupEventListeners() {
     if (modal) {
         modal.addEventListener('close', () => {
             document.body.classList.remove('modal-open');
+            const hadCompareState = compareState.active || compareState.selection.length > 0;
+            resetCompareState(false);
             // Clear a chart-drilldown hardware filter so the next open is unfiltered
             if (leaderboardHardwareFilter || leaderboardUserFilter) {
                 leaderboardHardwareFilter = null;
                 leaderboardUserFilter = null;
                 handleFilterChange(false);
+            } else if (hadCompareState) {
+                renderTable();
             }
             // Collapse filters on close so they reset on next open
             if (filtersWrapper) {
@@ -1237,6 +1251,7 @@ function processGvizData(jsonResponse) {
 
 // Fetch Google Sheet Data
 async function fetchData() {
+    resetCompareState(false);
     showLoading();
     setSyncStatus('syncing', 'Syncing...');
     
@@ -1835,6 +1850,315 @@ function openLeaderboardForUser(name) {
     document.body.classList.add('modal-open');
 }
 
+// ─── Benchmark comparison ───
+function getCompareRunLabel(row) {
+    const name = getDisplayName(row);
+    const score = (typeof row.mainScore === 'number' && Number.isFinite(row.mainScore))
+        ? row.mainScore.toLocaleString()
+        : 'N/D';
+    return `${name} · ${score}`;
+}
+
+function getCompareShortLabel(row) {
+    const name = getDisplayName(row);
+    return name.length > 18 ? `${name.slice(0, 17)}…` : name;
+}
+
+function isCompareSelected(row) {
+    return compareState.selection.indexOf(row) !== -1;
+}
+
+function getCompareBaseline() {
+    return compareState.baseline || compareState.selection[0] || null;
+}
+
+function updateCompareUI() {
+    const btn = document.getElementById('compare-mode-btn');
+    const bar = document.getElementById('compare-bar');
+    const count = document.getElementById('compare-count');
+    const baselineLabel = document.getElementById('compare-baseline-label');
+    const startBtn = document.getElementById('compare-start-btn');
+
+    if (btn) {
+        btn.classList.toggle('active', compareState.active);
+        btn.setAttribute('aria-pressed', compareState.active ? 'true' : 'false');
+    }
+    if (bar) bar.hidden = !compareState.active;
+
+    const n = compareState.selection.length;
+    if (count) count.textContent = `${n} selected`;
+    if (baselineLabel) {
+        const baseline = getCompareBaseline();
+        baselineLabel.textContent = baseline
+            ? `Baseline: ${getCompareRunLabel(baseline)}`
+            : 'Select 2–5 runs';
+    }
+    if (startBtn) startBtn.disabled = n < 2;
+}
+
+function refreshVisibleCompareRows() {
+    const tbody = document.getElementById('leaderboard-body');
+    if (!tbody) return;
+    const active = compareState.active;
+    const baseline = getCompareBaseline();
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const row = tr.__benchmarkRow;
+        if (!row) return;
+        const selected = active && isCompareSelected(row);
+        tr.classList.toggle('compare-selectable', active);
+        tr.classList.toggle('compare-selected', selected);
+        tr.classList.toggle('compare-baseline', selected && baseline === row);
+        const cb = tr.querySelector('.compare-row-checkbox');
+        if (cb) {
+            cb.checked = selected;
+            cb.setAttribute('aria-label', `Select ${getDisplayName(row)} benchmark run`);
+        }
+    });
+}
+
+function resetCompareState(renderAfter = false) {
+    compareState.active = false;
+    compareState.selection = [];
+    compareState.baseline = null;
+    compareState.view = 'leaderboard';
+
+    const leaderboardView = document.getElementById('leaderboard-view');
+    const compareView = document.getElementById('compare-view');
+    const compareResults = document.getElementById('compare-results');
+    const bar = document.getElementById('compare-bar');
+    const btn = document.getElementById('compare-mode-btn');
+    const table = document.getElementById('leaderboard-table');
+
+    if (leaderboardView) leaderboardView.hidden = false;
+    if (compareView) compareView.hidden = true;
+    if (compareResults) compareResults.innerHTML = '';
+    if (bar) bar.hidden = true;
+    if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+    }
+    if (table) table.classList.remove('compare-mode');
+    updateCompareUI();
+    if (renderAfter && benchmarkData.length) renderTable();
+}
+
+function enterCompareMode() {
+    compareState.active = true;
+    compareState.selection = [];
+    compareState.baseline = null;
+    compareState.view = 'leaderboard';
+    const leaderboardView = document.getElementById('leaderboard-view');
+    const compareView = document.getElementById('compare-view');
+    const table = document.getElementById('leaderboard-table');
+    if (leaderboardView) leaderboardView.hidden = false;
+    if (compareView) compareView.hidden = true;
+    if (table) table.classList.add('compare-mode');
+    renderTable();
+    updateCompareUI();
+    const btn = document.getElementById('compare-mode-btn');
+    if (btn) btn.focus();
+}
+
+function exitCompareMode() {
+    resetCompareState(true);
+    const btn = document.getElementById('compare-mode-btn');
+    if (btn) btn.focus();
+}
+
+function toggleCompareSelection(row) {
+    if (!compareState.active || !row) return;
+    const idx = compareState.selection.indexOf(row);
+    if (idx !== -1) {
+        compareState.selection.splice(idx, 1);
+        if (compareState.baseline === row) {
+            compareState.baseline = compareState.selection[0] || null;
+        }
+    } else {
+        if (compareState.selection.length >= COMPARE_MAX_RUNS) {
+            showToast(`Maximum ${COMPARE_MAX_RUNS} runs for comparison`, 'warning');
+            return;
+        }
+        compareState.selection.push(row);
+        if (!compareState.baseline) compareState.baseline = row;
+    }
+    updateCompareUI();
+    refreshVisibleCompareRows();
+}
+
+function clearCompareSelection() {
+    compareState.selection = [];
+    compareState.baseline = null;
+    updateCompareUI();
+    refreshVisibleCompareRows();
+}
+
+function computeCompareDelta(value, baselineValue) {
+    if (typeof value !== 'number' || typeof baselineValue !== 'number' ||
+        !Number.isFinite(value) || !Number.isFinite(baselineValue) || baselineValue === 0) {
+        return null;
+    }
+    return ((value - baselineValue) / baselineValue) * 100;
+}
+
+function formatCompareValue(value) {
+    return (typeof value === 'number' && Number.isFinite(value)) ? value.toLocaleString() : 'N/D';
+}
+
+function formatCompareDelta(delta) {
+    if (delta === null || !Number.isFinite(delta)) return 'N/D';
+    const rounded = Math.abs(delta) < 0.05 ? 0 : delta;
+    return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}%`;
+}
+
+function compareDeltaClass(delta) {
+    if (delta === null || !Number.isFinite(delta)) return 'delta-na';
+    if (Math.abs(delta) < 0.05) return 'delta-neutral';
+    return delta > 0 ? 'delta-positive' : 'delta-negative';
+}
+
+function buildCompareRankMap() {
+    const sorted = [...benchmarkData].sort((a, b) => (b.mainScore || 0) - (a.mainScore || 0));
+    const rankMap = new Map();
+    sorted.forEach((row, index) => rankMap.set(row, index + 1));
+    return rankMap;
+}
+
+function renderCompareResults() {
+    const container = document.getElementById('compare-results');
+    if (!container) return;
+    const baseline = getCompareBaseline();
+    if (!baseline || compareState.selection.length < 2) return;
+
+    const runs = [baseline, ...compareState.selection.filter(row => row !== baseline)];
+    const rankMap = buildCompareRankMap();
+    const allSameHardware = compareState.selection.every(row =>
+        normalizeCPU(row.cpu) === normalizeCPU(baseline.cpu) &&
+        normalizeGPU(row.gpu) === normalizeGPU(baseline.gpu)
+    );
+
+    const baselineOptions = compareState.selection.map((row, index) =>
+        `<option value="${index}"${row === baseline ? ' selected' : ''}>${escapeFilterHtml(getCompareRunLabel(row))}</option>`
+    ).join('');
+
+    const cards = runs.map(row => {
+        const isBaseline = row === baseline;
+        const rank = rankMap.get(row);
+        return `
+            <div class="compare-run-card${isBaseline ? ' baseline' : ''}">
+                <div class="compare-run-name">
+                    ${escapeFilterHtml(getDisplayName(row))}
+                    ${isBaseline ? '<span class="compare-run-badge">Baseline</span>' : ''}
+                </div>
+                <div class="compare-run-score">${formatCompareValue(row.mainScore)}</div>
+                <div class="compare-run-context">
+                    <span>${escapeFilterHtml(normalizeCPU(row.cpu))}</span>
+                    <span>${escapeFilterHtml(normalizeGPU(row.gpu))}</span>
+                    <span>RAM ${escapeFilterHtml(row.ram || 'N/D')} · VRAM ${escapeFilterHtml(row.vram || 'N/D')}</span>
+                    <span>${escapeFilterHtml(row.os || 'N/D')} · ${escapeFilterHtml(row.kernel || 'N/D')}</span>
+                    <span>Rank #${rank || 'N/D'}</span>
+                </div>
+            </div>`;
+    }).join('');
+
+    const tableRows = COMPARE_METRICS.map(metric => {
+        const cells = runs.map(row => {
+            const isBaseline = row === baseline;
+            const value = row[metric.key];
+            const delta = isBaseline ? null : computeCompareDelta(value, baseline[metric.key]);
+            const deltaHtml = isBaseline
+                ? '<span class="compare-delta delta-neutral">baseline</span>'
+                : `<span class="compare-delta ${compareDeltaClass(delta)}">${formatCompareDelta(delta)}</span>`;
+            return `<td class="compare-cell">
+                <span class="compare-value">${formatCompareValue(value)}</span>
+                ${deltaHtml}
+            </td>`;
+        }).join('');
+        return `<tr><th scope="row">${escapeFilterHtml(metric.label)}</th>${cells}</tr>`;
+    }).join('');
+
+    const tableHeaders = runs.map(row => {
+        const isBaseline = row === baseline;
+        const label = isBaseline
+            ? `Baseline · ${getCompareShortLabel(row)}`
+            : getCompareShortLabel(row);
+        return `<th scope="col" title="${escapeFilterHtml(getCompareRunLabel(row))}">${escapeFilterHtml(label)}</th>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="compare-controls">
+            <label class="compare-baseline-control">
+                <span>Baseline</span>
+                <select id="compare-baseline-select" class="compare-baseline-select" aria-label="Select baseline run">
+                    ${baselineOptions}
+                </select>
+            </label>
+            <span class="compare-hardware-note ${allSameHardware ? 'same' : 'diff'}">
+                <i data-lucide="${allSameHardware ? 'check-circle' : 'alert-triangle'}" aria-hidden="true"></i>
+                ${allSameHardware ? 'Same hardware' : 'Hardware differs — deltas include hardware differences'}
+            </span>
+        </div>
+        <div class="compare-run-grid">${cards}</div>
+        <div class="compare-table-wrap">
+            <table class="compare-table">
+                <caption class="visually-hidden">Benchmark comparison against the selected baseline</caption>
+                <thead><tr><th scope="col">Metric</th>${tableHeaders}</tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        </div>`;
+
+    const baselineSelect = document.getElementById('compare-baseline-select');
+    if (baselineSelect) {
+        baselineSelect.addEventListener('change', () => {
+            const index = Number(baselineSelect.value);
+            compareState.baseline = compareState.selection[index] || compareState.selection[0] || null;
+            renderCompareResults();
+            updateCompareUI();
+            refreshVisibleCompareRows();
+        });
+    }
+    if (window.lucide) lucide.createIcons();
+}
+
+function openCompareView() {
+    if (compareState.selection.length < 2) return;
+    compareState.view = 'results';
+    const leaderboardView = document.getElementById('leaderboard-view');
+    const compareView = document.getElementById('compare-view');
+    if (leaderboardView) leaderboardView.hidden = true;
+    if (compareView) compareView.hidden = false;
+    renderCompareResults();
+    const backBtn = document.getElementById('compare-back-btn');
+    if (backBtn) backBtn.focus();
+}
+
+function backToLeaderboardView() {
+    compareState.view = 'leaderboard';
+    const leaderboardView = document.getElementById('leaderboard-view');
+    const compareView = document.getElementById('compare-view');
+    if (leaderboardView) leaderboardView.hidden = false;
+    if (compareView) compareView.hidden = true;
+    updateCompareUI();
+    refreshVisibleCompareRows();
+    const startBtn = document.getElementById('compare-start-btn');
+    if (startBtn) startBtn.focus();
+}
+
+function setupCompareListeners() {
+    const modeBtn = document.getElementById('compare-mode-btn');
+    if (modeBtn) {
+        modeBtn.addEventListener('click', () => {
+            if (compareState.active) exitCompareMode();
+            else enterCompareMode();
+        });
+    }
+    const clearBtn = document.getElementById('compare-clear-btn');
+    if (clearBtn) clearBtn.addEventListener('click', clearCompareSelection);
+    const startBtn = document.getElementById('compare-start-btn');
+    if (startBtn) startBtn.addEventListener('click', openCompareView);
+    const backBtn = document.getElementById('compare-back-btn');
+    if (backBtn) backBtn.addEventListener('click', backToLeaderboardView);
+}
+
 // Build the lowercased text blob a leaderboard row is searched against. Includes the
 // raw fields, the canonical (normalized) hardware names, and console aliases so short
 // forms like "PS4"/"PS5" match rows whose raw values are "Jaguar"/"BC-250".
@@ -2359,6 +2683,8 @@ function renderTable() {
     const sortedByScore = [...benchmarkData].sort((a, b) => (b.mainScore || 0) - (a.mainScore || 0));
     
     tbody.innerHTML = '';
+    const compareActive = compareState.active;
+    const compareBaseline = getCompareBaseline();
     
     filteredData.forEach(row => {
         // Calculate absolute rank based on its index in sortedByScore
@@ -2372,6 +2698,12 @@ function renderTable() {
         } else if (absoluteRank === 3) {
             rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #cd7f32; fill: rgba(205, 127, 50, 0.2);"></i>${absoluteRank}`;
         }
+
+        const compareSelected = compareActive && isCompareSelected(row);
+        const compareBaselineRow = compareSelected && compareBaseline === row;
+        const rankCellContent = compareActive
+            ? `<span class="rank-content"><input type="checkbox" class="compare-row-checkbox"${compareSelected ? ' checked' : ''} aria-label="Select ${escapeFilterHtml(getDisplayName(row))} benchmark run"><span class="rank-number">${absoluteRank}</span></span>`
+            : rankContent;
         
         const displayName = getDisplayName(row);
         const isNamed = row.user && row.user.toLowerCase() !== 'anonymous';
@@ -2396,9 +2728,13 @@ function renderTable() {
         }
         
         const tr = document.createElement('tr');
+        tr.__benchmarkRow = row;
+        if (compareActive) tr.classList.add('compare-selectable');
+        if (compareSelected) tr.classList.add('compare-selected');
+        if (compareBaselineRow) tr.classList.add('compare-baseline');
         
         tr.innerHTML = `
-            <td class="rank-cell">${rankContent}</td>
+            <td class="rank-cell">${rankCellContent}</td>
             <td>${clientIdHtml}</td>
             <td title="${row.cpu}">${highlightText(row.cpu, searchQuery)}${specimenChipsHtml(row)}</td>
             <td>${row.cpuMaxFreq ? `${row.cpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
@@ -2421,6 +2757,21 @@ function renderTable() {
             userBadge.addEventListener('click', (e) => { e.stopPropagation(); openLeaderboardForUser(name); });
             userBadge.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLeaderboardForUser(name); }
+            });
+        }
+
+        const compareCheckbox = tr.querySelector('.compare-row-checkbox');
+        if (compareCheckbox) {
+            compareCheckbox.addEventListener('click', (e) => e.stopPropagation());
+            compareCheckbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                toggleCompareSelection(row);
+            });
+        }
+        if (compareActive) {
+            tr.addEventListener('click', (e) => {
+                if (e.target.closest('input, button, a, .client-id-badge, .specimen-chip')) return;
+                toggleCompareSelection(row);
             });
         }
 

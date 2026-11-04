@@ -1325,10 +1325,17 @@
         </div>
         
         <div class="modal-body-wrapper">
-            <button id="toggle-filters-btn" class="btn btn-secondary toggle-filters-btn">
-                <i data-lucide="sliders-horizontal"></i>
-                <span>Filters</span>
-            </button>
+            <div id="leaderboard-view">
+            <div class="leaderboard-toolbar">
+                <button id="toggle-filters-btn" class="btn btn-secondary toggle-filters-btn">
+                    <i data-lucide="sliders-horizontal"></i>
+                    <span>Filters</span>
+                </button>
+                <button id="compare-mode-btn" class="btn btn-secondary compare-mode-btn" type="button" aria-pressed="false">
+                    <i data-lucide="git-compare"></i>
+                    <span>Compare</span>
+                </button>
+            </div>
             <div class="leaderboard-filters">
                 <div class="search-wrapper">
                     <i data-lucide="search" class="search-icon"></i>
@@ -1387,6 +1394,18 @@
             </div>
 
             <p id="leaderboard-count" class="result-count" aria-live="polite"></p>
+
+            <div id="compare-bar" class="compare-bar" hidden aria-live="polite">
+                <div class="compare-bar-info">
+                    <span id="compare-count">0 selected</span>
+                    <span id="compare-baseline-label" class="compare-baseline-label"></span>
+                </div>
+                <div class="compare-bar-actions">
+                    <button id="compare-clear-btn" type="button" class="btn btn-secondary">Clear</button>
+                    <button id="compare-start-btn" type="button" class="btn btn-primary" disabled>Compare</button>
+                </div>
+            </div>
+
             <div class="table-card modal-table-card">
                 <div class="table-responsive">
                     <table id="leaderboard-table">
@@ -1437,6 +1456,18 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            </div><!-- /leaderboard-view -->
+
+            <div id="compare-view" class="compare-view" hidden>
+                <div class="compare-view-header">
+                    <button id="compare-back-btn" type="button" class="btn btn-secondary compare-back-btn">
+                        <i data-lucide="arrow-left"></i>
+                        <span>Back</span>
+                    </button>
+                    <h3>Benchmark comparison</h3>
+                </div>
+                <div id="compare-results" aria-live="polite"></div>
             </div>
         </div>
     </dialog>
