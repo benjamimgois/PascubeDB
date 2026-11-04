@@ -3699,7 +3699,7 @@ function getCPUBrandDistribution(data) {
         const arch = (r.architecture || '').toLowerCase();
         if (arch === 'aarch64') {
             brands.ARM++;
-        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('phenom') || cpu.includes('radeon') || cpu.includes('eng sample') || cpu.includes('bc-250') || cpu.includes('jaguar') || /^dg\d/.test(cpu) || cpu.includes('gx-') || cpu.includes('geode') || cpu.includes('opteron') || cpu.includes('sempron') || cpu.includes('turion') || /^a\d[- ]/i.test(cpu)) {
+        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('phenom') || cpu.includes('radeon') || cpu.includes('eng sample') || cpu.includes('bc-250') || cpu.includes('jaguar') || /^dg\d/.test(cpu) || cpu.includes('gx-') || cpu.includes('geode') || cpu.includes('opteron') || cpu.includes('sempron') || cpu.includes('turion') || /^a\d[- ]/i.test(cpu) || /^pro\s+a\d/i.test(cpu) || cpu.includes('zen')) {
             brands.AMD++;
         } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('pentium') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra') || cpu.includes('core 5') || cpu.includes('core 3') || cpu.includes('core 7') || cpu.includes('celeron') || cpu.includes('atom') || /^m\d-\d/.test(cpu) || /^\d/.test(cpu)) {
             brands.Intel++;
