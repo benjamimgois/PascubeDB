@@ -1183,6 +1183,8 @@ function processGvizData(jsonResponse) {
             cpuVal = 'Steam Deck';
         } else if (cpuVal.trim() === 'Custom APU 0932') {
             cpuVal = 'Steam Deck OLED';
+        } else if (/^(?:AMD\s+)?Custom(?:\s+CPU)?\s+1772$/i.test(cpuVal.trim())) {
+            cpuVal = 'Steam Machine';
         }
         
         let gpuVal = getVal(3) || 'Unknown GPU';
@@ -1413,6 +1415,8 @@ function processCSVData(csvText) {
             cpuVal = 'Steam Deck';
         } else if (cpuVal.trim() === 'Custom APU 0932') {
             cpuVal = 'Steam Deck OLED';
+        } else if (/^(?:AMD\s+)?Custom(?:\s+CPU)?\s+1772$/i.test(cpuVal.trim())) {
+            cpuVal = 'Steam Machine';
         }
         
         let gpuVal = row[3] || 'Unknown GPU';
@@ -2823,6 +2827,7 @@ function normalizeCPU(name) {
     if (/^dg\d{3,}/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     if (/^bc-?250/i.test(clean)) return 'PS5 APU (BC-250)';
     if (/^(liverpool|jaguar)\b/i.test(clean)) return 'PlayStation 4 APU (AMD)';
+    if (/^Custom(?:\s+CPU)?\s+1772$/i.test(clean)) return 'Steam Machine';
     return clean.replace(/\s+/g, ' ').trim();
 }
 
@@ -2842,6 +2847,7 @@ function normalizeGPU(name) {
     if (/^dg\d{3,}/i.test(clean)) return 'PlayStation 4 APU (AMD)';
     if (/^bc-?250/i.test(clean)) return 'PS5 APU (BC-250)';
     if (/^(liverpool|jaguar)\b/i.test(clean)) return 'PlayStation 4 APU (AMD)';
+    if (/^Custom(?:\s+CPU)?\s+1772$/i.test(clean)) return 'Steam Machine';
     return clean.replace(/\s+/g, ' ').trim();
 }
 
@@ -2950,7 +2956,7 @@ function classifyCPUFamily(normalizedName) {
     const lower = name.toLowerCase();
 
     // Exclude non-CPU devices
-    if (/raspberry|orange pi|custom apu|steam deck|mali/i.test(lower)) return null;
+    if (/raspberry|orange pi|custom apu|steam deck|steam machine|mali/i.test(lower)) return null;
 
     // Mobile: check suffix H/HX/HK/HS/U/Y
     const isMobile = /\b\d{3,4}(h|hs|hx|u|y)\b/i.test(lower) || /ryzen ai.*\b(hx|hs)\b/i.test(lower) || /z1\s*extreme/i.test(lower);
@@ -3183,6 +3189,7 @@ const CPU_YEARS = [
     { match: /Ryzen Z2|Ryzen AI Z2/i, year: 2025 },
     { match: /Steam Deck OLED/i, year: 2023 },
     { match: /Steam Deck$/i, year: 2022 },
+    { match: /Steam Machine|Custom(?:\s+CPU)?\s+1772/i, year: 2026 },
     { match: /BC-?250/i, year: 2021 },
     { match: /Oryon/i, year: 2024 },
     { match: /RK3588/i, year: 2022 },
@@ -3280,6 +3287,7 @@ const GPU_YEARS = [
     { match: /RX 9\d{3}/i, year: 2025 },
     { match: /Arc Pro B60/i, year: 2025 },
     { match: /Steam Deck$/i, year: 2022 },
+    { match: /Steam Machine/i, year: 2026 },
 
     // --- Identifiable post-2015 gaps ---
     { match: /GTX 6\d{2}|GTX 7\d{2}/i, year: 2012 },
@@ -4105,23 +4113,44 @@ function getTopCategoryGPUs(data, category, limit = 10) {
         .map(r => ({ name: normalizeGPU(r.gpu), score: r.gpuScore, displayName: getDisplayName(r), gpuMaxFreq: r.gpuMaxFreq, gpuMaxPower: r.gpuMaxPower, row: r }));
 }
 
+// Centralized CPU vendor detection. Prefers architecture and explicit vendor/model
+// patterns; checks AMD OPNs (e.g., 100-000000891) before generic numeric Intel models.
+function detectCPUBrand(cpuName, opts = {}) {
+    const cpu = String(cpuName || '').trim().toLowerCase();
+    const arch = String(opts.architecture || '').toLowerCase();
+
+    if (arch === 'aarch64' ||
+        /\b(arm|rk35\d{2}|mali|oryon|cortex-?a\d+|neoverse|qualcomm|snapdragon|apple|graviton|altra|tegra|exynos)\b/.test(cpu)) {
+        return 'ARM';
+    }
+
+    if (/\b(amd|ryzen|epyc|threadripper|fx|apu|deck|steam machine|athlon|phenom|radeon|eng sample|bc-?250|jaguar|liverpool|geode|opteron|sempron|turion|zen)\b/.test(cpu) ||
+        /^100-0000\d+/.test(cpu) ||
+        /^custom(?:\s+cpu)?\s+1772$/.test(cpu) ||
+        /^dg\d/.test(cpu) ||
+        /\bgx-/.test(cpu) ||
+        /^a\d[- ]/.test(cpu) ||
+        /^pro\s+a\d/.test(cpu)) {
+        return 'AMD';
+    }
+
+    if (/\b(intel|xeon|pentium|celeron|atom|ultra)\b/.test(cpu) ||
+        /\bcore\s+[3579]\b/.test(cpu) ||
+        /\b[iu][3579]\b/.test(cpu) ||
+        /^m\d-\d/.test(cpu) ||
+        /^\d/.test(cpu)) {
+        return 'Intel';
+    }
+
+    return 'Other';
+}
+
 // Helper to get CPU Brand distribution
 function getCPUBrandDistribution(data) {
     const brands = { AMD: 0, Intel: 0, ARM: 0, Other: 0 };
     data.forEach(r => {
-        const cpu = (r.cpu || '').toLowerCase();
-        const arch = (r.architecture || '').toLowerCase();
-        if (arch === 'aarch64') {
-            brands.ARM++;
-        } else if (cpu.includes('amd') || cpu.includes('ryzen') || cpu.includes('epyc') || cpu.includes('fx') || cpu.includes('apu') || cpu.includes('deck') || cpu.includes('athlon') || cpu.includes('phenom') || cpu.includes('radeon') || cpu.includes('eng sample') || cpu.includes('bc-250') || cpu.includes('jaguar') || /^dg\d/.test(cpu) || cpu.includes('gx-') || cpu.includes('geode') || cpu.includes('opteron') || cpu.includes('sempron') || cpu.includes('turion') || /^a\d[- ]/i.test(cpu) || /^pro\s+a\d/i.test(cpu) || cpu.includes('zen')) {
-            brands.AMD++;
-        } else if (cpu.includes('intel') || cpu.includes('xeon') || cpu.includes('pentium') || cpu.includes('i3') || cpu.includes('i5') || cpu.includes('i7') || cpu.includes('i9') || cpu.includes('ultra') || cpu.includes('core 5') || cpu.includes('core 3') || cpu.includes('core 7') || cpu.includes('celeron') || cpu.includes('atom') || /^m\d-\d/.test(cpu) || /^\d/.test(cpu)) {
-            brands.Intel++;
-        } else if (cpu.includes('arm') || cpu.includes('rk3588') || cpu.includes('mali')) {
-            brands.ARM++;
-        } else {
-            brands.Other++;
-        }
+        const brand = detectCPUBrand(r.cpu, { architecture: r.architecture });
+        brands[brand]++;
     });
     return brands;
 }
@@ -4148,7 +4177,9 @@ function detectGPUBrand(gpuName, opts = {}) {
     if (/\b(broadcom|videocore|vc4|v3d)\b/.test(gpu)) return 'Broadcom';
 
     // Intel
-    if (/\b(intel|iris|uhd|arc|xe)\b/.test(gpu) || /\bhd graphics\b/.test(gpu)) return 'Intel';
+    if (/\b(intel|iris|uhd|arc|xe)\b/.test(gpu) ||
+        /\bhd graphics\b/.test(gpu) ||
+        /\b(?:a3[158]0|a580|a7[57]0|b5[78]0)\b/.test(gpu)) return 'Intel';
 
     // AMD (Radeon, FirePro, Instinct, APUs, legacy ATI)
     if (/\b(amd|ati|radeon|firepro|instinct)\b/.test(gpu) ||
@@ -4159,9 +4190,8 @@ function detectGPUBrand(gpuName, opts = {}) {
         /\bhd\s*\d{3,4}\b/.test(gpu) ||
         /\bw[57]\d{3}\b/.test(gpu) ||
         /\b\d{3,4}[mx]\b/.test(gpu) || /\b\d{4}s\b/.test(gpu) ||
-        /\b(bc-?250|custom gpu|steam deck|deck|z1 extreme|liverpool|jaguar|dg\d{3})\b/.test(gpu) ||
-        /\bseries\b/.test(gpu) ||
-        (/\bgraphics\b/.test(gpu) && !/\b(intel|arc|iris|uhd|xe)\b/.test(gpu))) return 'AMD';
+        /\b(bc-?250|custom gpu|steam deck|steam machine|deck|z1 extreme|liverpool|jaguar|dg\d{3})\b/.test(gpu) ||
+        /\bseries\b/.test(gpu)) return 'AMD';
 
     // ARM ecosystem (Mali, Adreno, PowerVR, Apple silicon, SoCs)
     if (/\b(arm|mali|adreno|qualcomm|rk3588|panfrost|panthor|powervr|imagination|apple|asahi)\b/.test(gpu)) return 'ARM';
@@ -4169,10 +4199,13 @@ function detectGPUBrand(gpuName, opts = {}) {
     // Non-x86 platforms default to ARM
     if (arch === 'aarch64') return 'ARM';
 
-    // Fallbacks: kernel driver + Vulkan driver
+    // Fallbacks: kernel driver + Vulkan driver (run before generic "Graphics" fallback)
     if (/\bnvrm\b|\bnvidia\b/.test(driver) || /\bnvk\b/.test(vk)) return 'NVIDIA';
     if (/\bradv\b|\bamdvlk\b|\bamdgpu\b/.test(vk) || /\bradv\b|\bamdvlk\b/.test(driver)) return 'AMD';
     if (/\banv\b/.test(vk)) return 'Intel';
+
+    // Generic "Graphics" (usually AMD Radeon Graphics without prefix)
+    if (/\bgraphics\b/.test(gpu)) return 'AMD';
 
     return 'Other';
 }
