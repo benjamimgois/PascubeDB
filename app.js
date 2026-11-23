@@ -1119,23 +1119,16 @@ function setupEventListeners() {
     // Compare Your Hardware autocompletes & filter button
     setupMyHardwareAutocompletes();
     document.getElementById('my-hw-filter-btn')?.addEventListener('click', () => {
-        const { cpu: myCpu, gpu: myGpu, run: myRun } = myHardwareSelection;
-        if (!myCpu && !myGpu && !myRun) return;
+        const myRun = myHardwareSelection.run;
+        if (!myRun) return;
         leaderboardHardwareFilter = null;
         leaderboardUserFilter = null;
         const searchInput = document.getElementById('search-input');
         const cpuFilter = document.getElementById('cpu-filter');
         const gpuFilter = document.getElementById('gpu-filter');
-
-        if (myRun) {
-            if (searchInput) searchInput.value = (myRun.clientId && myRun.clientId !== 'N/D') ? myRun.clientId : (myRun.user || '');
-            if (cpuFilter) cpuFilter.value = '';
-            if (gpuFilter) gpuFilter.value = '';
-        } else {
-            if (searchInput) searchInput.value = '';
-            if (cpuFilter) cpuFilter.value = myCpu || '';
-            if (gpuFilter) gpuFilter.value = myGpu || '';
-        }
+        if (searchInput) searchInput.value = (myRun.clientId && myRun.clientId !== 'N/D') ? myRun.clientId : (myRun.user || '');
+        if (cpuFilter) cpuFilter.value = '';
+        if (gpuFilter) gpuFilter.value = '';
         handleFilterChange();
         document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -1737,8 +1730,7 @@ function populateFilters() {
     initUrlFilters();
 }
 
-let myHardwareSelection = { cpu: '', gpu: '', run: null };
-let myHardwareLists = { cpus: [], gpus: [] };
+let myHardwareSelection = { run: null };
 
 function setupSearchableDropdown({ inputId, dropdownId, clearId, getMatches, onSelect, onClear }) {
     const input = document.getElementById(inputId);
@@ -1793,52 +1785,6 @@ function setupSearchableDropdown({ inputId, dropdownId, clearId, getMatches, onS
 
 function setupMyHardwareAutocompletes() {
     setupSearchableDropdown({
-        inputId: 'my-cpu-input',
-        dropdownId: 'my-cpu-dropdown',
-        clearId: 'my-cpu-clear',
-        getMatches: (q) => myHardwareLists.cpus
-            .filter(c => !q || c.toLowerCase().includes(q))
-            .map(c => ({ label: c, value: c })),
-        onSelect: (cpu) => {
-            myHardwareSelection.cpu = cpu;
-            myHardwareSelection.run = null;
-            const runInput = document.getElementById('my-run-input');
-            const runClear = document.getElementById('my-run-clear');
-            if (runInput) runInput.value = '';
-            if (runClear) runClear.hidden = true;
-            renderMyHardwareSummary();
-        },
-        onClear: () => {
-            myHardwareSelection.cpu = '';
-            myHardwareSelection.run = null;
-            renderMyHardwareSummary();
-        }
-    });
-
-    setupSearchableDropdown({
-        inputId: 'my-gpu-input',
-        dropdownId: 'my-gpu-dropdown',
-        clearId: 'my-gpu-clear',
-        getMatches: (q) => myHardwareLists.gpus
-            .filter(g => !q || g.toLowerCase().includes(q))
-            .map(g => ({ label: g, value: g })),
-        onSelect: (gpu) => {
-            myHardwareSelection.gpu = gpu;
-            myHardwareSelection.run = null;
-            const runInput = document.getElementById('my-run-input');
-            const runClear = document.getElementById('my-run-clear');
-            if (runInput) runInput.value = '';
-            if (runClear) runClear.hidden = true;
-            renderMyHardwareSummary();
-        },
-        onClear: () => {
-            myHardwareSelection.gpu = '';
-            myHardwareSelection.run = null;
-            renderMyHardwareSummary();
-        }
-    });
-
-    setupSearchableDropdown({
         inputId: 'my-run-input',
         dropdownId: 'my-run-dropdown',
         clearId: 'my-run-clear',
@@ -1864,41 +1810,61 @@ function setupMyHardwareAutocompletes() {
                     return {
                         label: `${name} · ${scoreStr}`,
                         sub: `${r.cpu} + ${r.gpu} · ID: ${cidShort} · ${r.dateTime || ''}`,
-                        displayValue: `${name} (${cidShort})`,
+                        displayValue: `${name} (${cidShort}) · ${r.cpu} + ${r.gpu}`,
                         value: r
                     };
                 });
         },
         onSelect: (run) => {
+            const prevRun = myHardwareSelection.run;
             myHardwareSelection.run = run;
-            myHardwareSelection.cpu = run.cpu || '';
-            myHardwareSelection.gpu = run.gpu || '';
-            const cpuInput = document.getElementById('my-cpu-input');
-            const gpuInput = document.getElementById('my-gpu-input');
-            const cpuClear = document.getElementById('my-cpu-clear');
-            const gpuClear = document.getElementById('my-gpu-clear');
-            if (cpuInput) cpuInput.value = myHardwareSelection.cpu;
-            if (gpuInput) gpuInput.value = myHardwareSelection.gpu;
-            if (cpuClear) cpuClear.hidden = !myHardwareSelection.cpu;
-            if (gpuClear) gpuClear.hidden = !myHardwareSelection.gpu;
+            pinnedBaselineRow = run;
+
+            // Add selected run to compare selection as baseline so checking another row compares directly
+            compareState.active = true;
+            if (prevRun && prevRun !== run) {
+                compareState.selection = compareState.selection.filter(r => r !== prevRun);
+            }
+            if (!isCompareSelected(run)) {
+                if (compareState.selection.length >= COMPARE_MAX_RUNS) {
+                    compareState.selection.shift();
+                }
+                compareState.selection.unshift(run);
+            }
+            compareState.baseline = run;
+
             renderMyHardwareSummary();
+            updateCompareUI();
+            renderTable();
         },
         onClear: () => {
+            const prevRun = myHardwareSelection.run;
             myHardwareSelection.run = null;
+            if (prevRun && pinnedBaselineRow === prevRun) {
+                pinnedBaselineRow = null;
+            }
+            if (prevRun && isCompareSelected(prevRun)) {
+                compareState.selection = compareState.selection.filter(r => r !== prevRun);
+                if (compareState.baseline === prevRun) {
+                    compareState.baseline = compareState.selection[0] || null;
+                }
+                if (compareState.selection.length === 0) {
+                    compareState.active = false;
+                }
+            }
             renderMyHardwareSummary();
+            updateCompareUI();
+            renderTable();
         }
     });
 }
 
-function populateMyHardwareSelects(cpuList, gpuList) {
-    myHardwareLists.cpus = Array.from(cpuList).sort();
-    myHardwareLists.gpus = Array.from(gpuList).sort();
-}
+function populateMyHardwareSelects() {}
 
 function renderMyHardwareSummary() {
-    const { cpu: myCpu, gpu: myGpu, run: myRun } = myHardwareSelection;
+    const myRun = myHardwareSelection.run;
     const filterBtn = document.getElementById('my-hw-filter-btn');
-    if (filterBtn) filterBtn.disabled = !myCpu && !myGpu && !myRun;
+    if (filterBtn) filterBtn.disabled = !myRun;
 
     const setMetric = (id, pct, sub) => {
         const pctEl = document.getElementById(`${id}-pct`);
@@ -1907,17 +1873,15 @@ function renderMyHardwareSummary() {
         if (subEl) subEl.textContent = sub;
     };
 
-    if (!myCpu && !myGpu && !myRun) {
-        setMetric('my-hw-main', '—', 'Select CPU, GPU, or user/ID');
+    if (!myRun) {
+        setMetric('my-hw-main', '—', 'Select a run above');
         setMetric('my-hw-cpu1t', '—', '—');
         setMetric('my-hw-cpumt', '—', '—');
         setMetric('my-hw-gpu', '—', '—');
         return;
     }
 
-    const matching = myRun
-        ? [myRun]
-        : benchmarkData.filter(r => (!myCpu || r.cpu === myCpu) && (!myGpu || r.gpu === myGpu));
+    const matching = [myRun];
 
     const calcStanding = (field, sourceRuns) => {
         const allVals = benchmarkData
@@ -1936,16 +1900,14 @@ function renderMyHardwareSummary() {
         const topPct = Math.max(1, Math.round(100 - (belowOrEq / allVals.length) * 100));
         return {
             pct: `Top ${topPct}%`,
-            sub: `${myRun ? 'Run' : 'Best'} ${best.toLocaleString()} · Median ${median.toLocaleString()}`
+            sub: `Run ${best.toLocaleString()} · Median ${median.toLocaleString()}`
         };
     };
 
     const mainRes = calcStanding('mainScore', matching);
-    const cpuOnlyRuns = myRun ? [myRun] : (myCpu ? benchmarkData.filter(r => r.cpu === myCpu) : matching);
-    const gpuOnlyRuns = myRun ? [myRun] : (myGpu ? benchmarkData.filter(r => r.gpu === myGpu) : matching);
-    const cpu1tRes = calcStanding('cpuSingle', cpuOnlyRuns);
-    const cpuMtRes = calcStanding('cpuMulti', cpuOnlyRuns);
-    const gpuRes = calcStanding('gpuScore', gpuOnlyRuns);
+    const cpu1tRes = calcStanding('cpuSingle', matching);
+    const cpuMtRes = calcStanding('cpuMulti', matching);
+    const gpuRes = calcStanding('gpuScore', matching);
 
     setMetric('my-hw-main', mainRes.pct, mainRes.sub);
     setMetric('my-hw-cpu1t', cpu1tRes.pct, cpu1tRes.sub);

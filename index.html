@@ -110,32 +110,18 @@
                 <div class="hw-compare-header">
                     <div>
                         <h2>Compare Your Hardware</h2>
-                        <p>Select your CPU and/or GPU to see where you stand against the community</p>
+                        <p>Find your benchmark run by username or Client ID to see your standing and compare against others</p>
                     </div>
                     <button id="my-hw-filter-btn" type="button" class="btn btn-secondary btn-sm" disabled>
                         <i data-lucide="filter" aria-hidden="true"></i>
-                        <span>Filter table to my hardware</span>
+                        <span>Filter table to my runs</span>
                     </button>
                 </div>
                 <div class="hw-compare-selectors">
                     <div class="hw-autocomplete">
-                        <i data-lucide="cpu" class="filter-icon"></i>
-                        <label class="visually-hidden" for="my-cpu-input">Search your CPU</label>
-                        <input type="text" id="my-cpu-input" autocomplete="off" placeholder="Search CPU (e.g. 5800X3D)..." aria-label="Search your CPU">
-                        <button type="button" id="my-cpu-clear" class="hw-clear-btn" aria-label="Clear CPU" hidden><i data-lucide="x"></i></button>
-                        <div id="my-cpu-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
-                    </div>
-                    <div class="hw-autocomplete">
-                        <i data-lucide="zap" class="filter-icon"></i>
-                        <label class="visually-hidden" for="my-gpu-input">Search your GPU</label>
-                        <input type="text" id="my-gpu-input" autocomplete="off" placeholder="Search GPU (e.g. RX 9070 XT)..." aria-label="Search your GPU">
-                        <button type="button" id="my-gpu-clear" class="hw-clear-btn" aria-label="Clear GPU" hidden><i data-lucide="x"></i></button>
-                        <div id="my-gpu-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
-                    </div>
-                    <div class="hw-autocomplete">
                         <i data-lucide="user-search" class="filter-icon"></i>
-                        <label class="visually-hidden" for="my-run-input">Find run by user or Client ID</label>
-                        <input type="text" id="my-run-input" autocomplete="off" placeholder="Find run by user or Client ID..." aria-label="Find run by user or Client ID">
+                        <label class="visually-hidden" for="my-run-input">Find run by username or Client ID</label>
+                        <input type="text" id="my-run-input" autocomplete="off" placeholder="Search by username or Client ID (e.g. benjamimgois)..." aria-label="Find run by username or Client ID">
                         <button type="button" id="my-run-clear" class="hw-clear-btn" aria-label="Clear user or ID" hidden><i data-lucide="x"></i></button>
                         <div id="my-run-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
                     </div>
