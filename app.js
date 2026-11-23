@@ -145,7 +145,8 @@ const SCORE_COLORS = {
 let benchmarkData = [];
 let filteredData = [];
 let leaderboardHardwareFilter = null; // { cpu, gpu } normalized combo set by a chart-bar drilldown
-let leaderboardUserFilter = null;     // username string set by a username click
+let leaderboardUserFilter = null;     // username string set by a username click or ?user=
+let leaderboardRunFilter = null;      // single run object set by ?run=
 let chartInstances = {};
 let chartNorm = {};
 let hwDeviceCategory = 'all'; // 'all' | 'desktop' | 'mobile' | 'handheld'
@@ -1023,6 +1024,12 @@ function setupEventListeners() {
     document.getElementById('kernel-filter').addEventListener('change', handleFilterChange);
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', clearAllLeaderboardFilters);
+    const copyFilterLinkBtn = document.getElementById('copy-filter-link-btn');
+    if (copyFilterLinkBtn) {
+        copyFilterLinkBtn.addEventListener('click', () => {
+            copyShareLink(window.location.href, copyFilterLinkBtn, 'Copy link');
+        });
+    }
 
     // Global normalize: drives every chart, per-chart toggles still override afterwards.
     const normalizeAllCb = document.getElementById('normalize-all-cb');
@@ -1084,11 +1091,8 @@ function setupEventListeners() {
             btn.addEventListener('click', () => {
                 const val = btn.dataset.value || 'best';
                 if (val === leaderboardGrouping) return;
-                leaderboardGrouping = val;
-                groupingGroup.querySelectorAll('.chart-mode-btn').forEach(b => {
-                    b.classList.toggle('active', b.dataset.value === leaderboardGrouping);
-                });
-                handleFilterChange(false);
+                setLeaderboardGrouping(val);
+                handleFilterChange(true);
             });
         });
     }
@@ -1303,12 +1307,10 @@ function processGvizData(jsonResponse) {
     }
     
     populateFilters();
-    filteredData = [...benchmarkData];
-    sortData(currentSort.column, currentSort.direction);
+    handleFilterChange(false);
     renderOverviewStats();
     renderCharts();
     PILL_STATE.rendered.performance = true;
-    renderTable();
 }
 
 // Fetch Google Sheet Data
@@ -1535,15 +1537,13 @@ function processCSVData(csvText) {
     // Set up unique Dropdown Filter options
     populateFilters();
     
-    // Initial Filter & Sort (Sort by Main Score descending)
-    filteredData = [...benchmarkData];
-    sortData(currentSort.column, currentSort.direction);
+    // Initial Filter & Sort (respects URL filters and default grouping)
+    handleFilterChange(false);
     
     // Render Dashboard
     renderOverviewStats();
     renderCharts();
     PILL_STATE.rendered.performance = true;
-    renderTable();
 }
 
 // Parses standard CSV string correctly handling encapsulated quotes with commas
@@ -1915,8 +1915,114 @@ function renderMyHardwareSummary() {
     setMetric('my-hw-gpu', gpuRes.pct, gpuRes.sub);
 }
 
+function formatRunTimestampKey(dateStr) {
+    if (!dateStr || dateStr === 'N/D') return '';
+    const cleaned = String(dateStr).replace(',', '').trim();
+    const parts = cleaned.split(/\s+/);
+    const datePart = parts[0] || '';
+    const timePart = (parts[1] || '00:00:00').replace(/:/g, '').padEnd(6, '0').slice(0, 6);
+    if (datePart.includes('-')) {
+        const [y, m, d] = datePart.split('-');
+        if (y && m && d) return `${y.padStart(4, '0')}${m.padStart(2, '0')}${d.padStart(2, '0')}${timePart}`;
+    } else if (datePart.includes('/')) {
+        const [d, m, y] = datePart.split('/');
+        if (y && m && d) return `${y.padStart(4, '0')}${m.padStart(2, '0')}${d.padStart(2, '0')}${timePart}`;
+    }
+    return '';
+}
+
+function getRunId(row) {
+    if (!row) return '';
+    const cid = (row.clientId && row.clientId !== 'N/D')
+        ? String(row.clientId).trim().slice(0, 12)
+        : (row.user || 'anon').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'anon';
+    const ts = formatRunTimestampKey(row.dateTime);
+    return ts ? `${cid}-${ts}` : `${cid}-${row.mainScore || 0}`;
+}
+
+function findRunById(runId) {
+    if (!runId) return null;
+    const target = String(runId).trim();
+    const targetLower = target.toLowerCase();
+    const exact = benchmarkData.find(r => getRunId(r) === target);
+    if (exact) return exact;
+    const ci = benchmarkData.find(r => getRunId(r).toLowerCase() === targetLower);
+    if (ci) return ci;
+
+    // Support <fullClientId>-<timestamp> or <shortClientId>-<timestamp>
+    const dashIdx = targetLower.lastIndexOf('-');
+    if (dashIdx > 0) {
+        const cidPart = targetLower.slice(0, dashIdx);
+        const tsPart = targetLower.slice(dashIdx + 1);
+        const byPrefixAndTs = benchmarkData.find(r => {
+            const rCid = (r.clientId || '').toLowerCase();
+            const rTs = formatRunTimestampKey(r.dateTime);
+            return rTs === tsPart && (rCid === cidPart || rCid.startsWith(cidPart) || cidPart.startsWith(rCid.slice(0, 12)));
+        });
+        if (byPrefixAndTs) return byPrefixAndTs;
+    }
+
+    // Fallback: match by clientId (exact or prefix) and return most recent run
+    const byClient = benchmarkData
+        .filter(r => {
+            const rCid = (r.clientId || '').toLowerCase();
+            return rCid && rCid !== 'n/d' && (rCid === targetLower || rCid.startsWith(targetLower));
+        })
+        .sort((a, b) => {
+            const da = parseDate(a.dateTime);
+            const db = parseDate(b.dateTime);
+            return (db ? db.getTime() : 0) - (da ? da.getTime() : 0) || (b.mainScore || 0) - (a.mainScore || 0);
+        });
+    return byClient[0] || null;
+}
+
+function setLeaderboardGrouping(mode) {
+    leaderboardGrouping = mode === 'all' ? 'all' : 'best';
+    const groupingGroup = document.getElementById('lb-grouping-group');
+    if (groupingGroup) {
+        groupingGroup.querySelectorAll('.chart-mode-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.value === leaderboardGrouping);
+        });
+    }
+}
+
+function copyShareLink(url, btn, defaultLabel = '') {
+    const finish = () => {
+        if (!btn) return;
+        const span = btn.querySelector('span');
+        if (span) {
+            const orig = defaultLabel || span.textContent;
+            span.textContent = 'Copied!';
+            setTimeout(() => { span.textContent = orig; }, 1800);
+        } else {
+            const origHtml = btn.innerHTML;
+            btn.textContent = 'Copied!';
+            btn.classList.add('active');
+            setTimeout(() => {
+                btn.innerHTML = origHtml;
+                btn.classList.remove('active');
+                if (window.lucide) lucide.createIcons();
+            }, 1800);
+        }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(finish).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (_) {}
+            document.body.removeChild(ta);
+            finish();
+        });
+    }
+}
+
 // Update URL query parameters based on active filters
 function updateUrlFilters() {
+    const currentParams = new URLSearchParams(window.location.search);
     const searchVal = document.getElementById('search-input').value.trim();
     const osVal = document.getElementById('os-filter').value;
     const cpuVal = document.getElementById('cpu-filter').value;
@@ -1926,6 +2032,13 @@ function updateUrlFilters() {
     const kernelVal = document.getElementById('kernel-filter').value;
 
     const params = new URLSearchParams();
+    const tabVal = currentParams.get('tab');
+    const subtabVal = currentParams.get('subtab');
+    if (tabVal) params.set('tab', tabVal);
+    if (subtabVal) params.set('subtab', subtabVal);
+    if (leaderboardRunFilter) params.set('run', getRunId(leaderboardRunFilter));
+    if (leaderboardUserFilter) params.set('user', leaderboardUserFilter);
+    if (leaderboardGrouping === 'all') params.set('mode', 'all');
     if (searchVal) params.set('search', searchVal);
     if (osVal) params.set('os', osVal);
     if (cpuVal) params.set('cpu', cpuVal);
@@ -1945,6 +2058,9 @@ function initUrlFilters() {
     if (urlFiltersInitialized) return;
     const params = new URLSearchParams(window.location.search);
     
+    const runVal = params.get('run') || params.get('test');
+    const userVal = params.get('user');
+    const modeVal = params.get('mode');
     const searchVal = params.get('search');
     const osVal = params.get('os');
     const cpuVal = params.get('cpu');
@@ -1954,6 +2070,39 @@ function initUrlFilters() {
     const kernelVal = params.get('kernel');
 
     let applied = false;
+    if (modeVal === 'all' || modeVal === 'best') {
+        setLeaderboardGrouping(modeVal);
+        applied = true;
+    }
+
+    if (runVal) {
+        const targetRun = findRunById(runVal);
+        if (targetRun) {
+            leaderboardRunFilter = targetRun;
+            expandedLeaderboardRow = targetRun;
+            setLeaderboardGrouping('all');
+            myHardwareSelection.run = targetRun;
+            const myRunInput = document.getElementById('my-run-input');
+            const myRunClear = document.getElementById('my-run-clear');
+            if (myRunInput) {
+                const name = getDisplayName(targetRun);
+                const cidShort = targetRun.clientId && targetRun.clientId !== 'N/D' ? targetRun.clientId.slice(0, 12) : 'N/D';
+                myRunInput.value = `${name} (${cidShort}) · ${targetRun.cpu} + ${targetRun.gpu}`;
+            }
+            if (myRunClear) myRunClear.hidden = false;
+            renderMyHardwareSummary();
+            applied = true;
+        }
+    }
+
+    if (userVal) {
+        leaderboardUserFilter = userVal;
+        if (modeVal !== 'best') {
+            setLeaderboardGrouping('all');
+        }
+        applied = true;
+    }
+
     if (searchVal) {
         document.getElementById('search-input').value = searchVal;
         applied = true;
@@ -2032,6 +2181,9 @@ function renderActiveFilterChips() {
     if (leaderboardUserFilter) {
         active.push({ id: 'user-filter', label: 'User', value: leaderboardUserFilter });
     }
+    if (leaderboardRunFilter) {
+        active.push({ id: 'run-filter', label: 'Run', value: getCompareRunLabel(leaderboardRunFilter) });
+    }
     if (active.length === 0) {
         wrap.hidden = true;
         box.innerHTML = '';
@@ -2054,6 +2206,8 @@ function renderActiveFilterChips() {
                 leaderboardHardwareFilter = null;
             } else if (id === 'user-filter') {
                 leaderboardUserFilter = null;
+            } else if (id === 'run-filter') {
+                leaderboardRunFilter = null;
             } else {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -2071,6 +2225,7 @@ function clearAllLeaderboardFilters() {
     });
     leaderboardHardwareFilter = null;
     leaderboardUserFilter = null;
+    leaderboardRunFilter = null;
     handleFilterChange();
 }
 
@@ -2079,8 +2234,9 @@ function clearAllLeaderboardFilters() {
 function openLeaderboardForHardware(row) {
     if (!row) return;
     leaderboardUserFilter = null;
+    leaderboardRunFilter = null;
     leaderboardHardwareFilter = { cpu: normalizeCPU(row.cpu), gpu: normalizeGPU(row.gpu) };
-    handleFilterChange(false);
+    handleFilterChange(true);
     if (window.switchTab) window.switchTab('leaderboard');
     document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -2090,8 +2246,10 @@ function openLeaderboardForHardware(row) {
 function openLeaderboardForUser(name) {
     if (!name || name === 'Anonymous') return;
     leaderboardHardwareFilter = null;
+    leaderboardRunFilter = null;
     leaderboardUserFilter = name;
-    handleFilterChange(false);
+    setLeaderboardGrouping('all');
+    handleFilterChange(true);
     if (window.switchTab) window.switchTab('leaderboard');
     document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -2464,7 +2622,10 @@ function handleFilterChange(updateUrl = true) {
         const matchesUser = !leaderboardUserFilter ||
             (row.user || '').toLowerCase() === leaderboardUserFilter.toLowerCase();
 
-        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel && matchesHardware && matchesUser;
+        // Single-run filter (set by ?run= URL parameter)
+        const matchesRun = !leaderboardRunFilter || row === leaderboardRunFilter;
+
+        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel && matchesHardware && matchesUser && matchesRun;
     });
 
 
@@ -3103,6 +3264,7 @@ function renderTable() {
                 <div class="lb-row-actions">
                     <button type="button" class="lb-action-btn lb-pin-btn${isPinned ? ' active' : ''}" title="${isPinned ? 'Unpin baseline' : 'Pin as baseline'}">${isPinned ? 'Pinned' : 'Pin'}</button>
                     <button type="button" class="lb-action-btn lb-cmp-btn${compareSelected ? ' active' : ''}" title="Select for side-by-side comparison">${compareSelected ? 'Added' : 'Compare'}</button>
+                    <button type="button" class="lb-action-btn lb-share-btn" title="Copy direct link to this test"><i data-lucide="share-2" style="width:12px;height:12px;" aria-hidden="true"></i></button>
                 </div>
             </td>
         `;
@@ -3132,6 +3294,16 @@ function renderTable() {
                 if (!compareState.active) compareState.active = true;
                 toggleCompareSelection(row);
                 renderTable();
+            });
+        }
+
+        const shareBtn = tr.querySelector('.lb-share-btn');
+        if (shareBtn) {
+            shareBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const runId = getRunId(row);
+                const shareUrl = `${window.location.origin}${window.location.pathname}?run=${encodeURIComponent(runId)}`;
+                copyShareLink(shareUrl, shareBtn);
             });
         }
 
