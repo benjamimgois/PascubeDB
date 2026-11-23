@@ -92,7 +92,7 @@ body.modal-open {
 }
 
 .app-container {
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 0 auto;
     padding: 2rem 1.5rem;
     display: flex;
@@ -1882,7 +1882,7 @@ h1, h2, h3, h4 {
     width: 190px;
 }
 
-#ram-filter, #vram-filter, #kernel-filter {
+#ram-filter, #vram-filter, #arch-filter {
     width: 150px;
 }
 
@@ -4047,6 +4047,7 @@ summary:focus-visible,
     padding: 0.8rem 0.85rem;
     vertical-align: middle;
     white-space: normal;
+    max-width: none;
 }
 
 .leaderboard-table-clean tbody tr.lb-main-row {

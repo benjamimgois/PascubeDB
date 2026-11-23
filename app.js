@@ -198,8 +198,15 @@ const COMPARE_METRICS = [
     { key: 'cpuSingle', label: 'CPU Single' },
     { key: 'cpuMulti', label: 'CPU Multi' },
     { key: 'gpuScore', label: 'GPU Score' },
+    { key: 'gpuRt', label: 'GPU RT' },
     { key: 'cpuEff', label: 'CPU Efficiency (Pts/MHz)', getValue: getRowCpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
     { key: 'gpuEff', label: 'GPU Efficiency (Pts/MHz)', getValue: getRowGpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
+    { key: 'cpuMaxFreq', label: 'CPU Max Freq', format: v => `${v.toLocaleString()} MHz` },
+    { key: 'gpuMaxFreq', label: 'GPU Max Freq', format: v => `${v.toLocaleString()} MHz` },
+    { key: 'cpuMaxPower', label: 'CPU Max Power', format: v => `${v.toLocaleString()} W`, lowerIsBetter: true },
+    { key: 'gpuMaxPower', label: 'GPU Max Power', format: v => `${v.toLocaleString()} W`, lowerIsBetter: true },
+    { key: 'gpuMaxTemp', label: 'GPU Max Temp', format: v => `${v.toLocaleString()} °C`, lowerIsBetter: true },
+    { key: 'gpuTempDelta', label: 'GPU Temp Delta', format: v => `${v.toLocaleString()} °C`, lowerIsBetter: true },
 ];
 let compareState = { active: false, selection: [], baseline: null, view: 'leaderboard' };
 let leaderboardGrouping = 'best'; // 'best' | 'all'
@@ -1021,7 +1028,7 @@ function setupEventListeners() {
     document.getElementById('gpu-filter').addEventListener('change', handleFilterChange);
     document.getElementById('ram-filter').addEventListener('change', handleFilterChange);
     document.getElementById('vram-filter').addEventListener('change', handleFilterChange);
-    document.getElementById('kernel-filter').addEventListener('change', handleFilterChange);
+    document.getElementById('arch-filter').addEventListener('change', handleFilterChange);
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', clearAllLeaderboardFilters);
     const copyFilterLinkBtn = document.getElementById('copy-filter-link-btn');
@@ -1605,13 +1612,25 @@ function parseGB(sizeStr) {
 }
 
 // Populate Dropdown Filters (OS, CPU, GPU, RAM, VRAM)
+function getCpuArchitectureFamily(row) {
+    const raw = String(row?.architecture || '').trim();
+    const lower = raw.toLowerCase();
+    if (!lower || lower === 'n/d') return '';
+    if (/^(x86_64|amd64|i[3456]86|x86)/.test(lower)) return 'x86';
+    if (/^(aarch64|arm64|arm)/.test(lower)) return 'ARM';
+    if (/^riscv/.test(lower)) return 'RISC-V';
+    if (/^loongarch/.test(lower)) return 'LoongArch';
+    if (/^(ppc|powerpc)/.test(lower)) return 'PowerPC';
+    return raw;
+}
+
 function populateFilters() {
     const osFilter = document.getElementById('os-filter');
     const cpuFilter = document.getElementById('cpu-filter');
     const gpuFilter = document.getElementById('gpu-filter');
     const ramFilter = document.getElementById('ram-filter');
     const vramFilter = document.getElementById('vram-filter');
-    const kernelFilter = document.getElementById('kernel-filter');
+    const archFilter = document.getElementById('arch-filter');
     
     // Save current selected values
     const osSelected = osFilter.value;
@@ -1619,14 +1638,14 @@ function populateFilters() {
     const gpuSelected = gpuFilter.value;
     const ramSelected = ramFilter.value;
     const vramSelected = vramFilter.value;
-    const kernelSelected = kernelFilter.value;
+    const archSelected = archFilter.value;
     
     const osList = new Set();
     const cpuList = new Set();
     const gpuList = new Set();
     const ramList = new Set();
     const vramList = new Set();
-    const kernelList = new Set();
+    const archList = new Set();
     
     benchmarkData.forEach(row => {
         if (row.os && row.os.trim() !== '' && row.os !== 'N/D') {
@@ -1644,9 +1663,9 @@ function populateFilters() {
         if (row.vram && row.vram.trim() !== '' && row.vram !== 'N/D') {
             vramList.add(row.vram.trim());
         }
-        if (row.kernel && row.kernel.trim() !== '' && row.kernel !== 'N/D') {
-            const match = row.kernel.trim().match(/^(\d+\.\d+)/);
-            if (match) kernelList.add(match[1]);
+        const archFamily = getCpuArchitectureFamily(row);
+        if (archFamily) {
+            archList.add(archFamily);
         }
     });
     
@@ -1710,20 +1729,24 @@ function populateFilters() {
         vramFilter.value = vramSelected;
     }
     
-    // 6. Populate Kernel (numeric sort)
-    kernelFilter.innerHTML = '<option value="">ALL Kernel</option>';
-    Array.from(kernelList).sort((a, b) => {
-        const [aMaj, aMin] = a.split('.').map(Number);
-        const [bMaj, bMin] = b.split('.').map(Number);
-        return bMaj - aMaj || bMin - aMin;
-    }).forEach(kv => {
+    // 6. Populate CPU Architecture
+    archFilter.innerHTML = '<option value="">ALL Arch</option>';
+    const archOrder = ['x86', 'ARM', 'RISC-V', 'LoongArch', 'PowerPC'];
+    Array.from(archList).sort((a, b) => {
+        const ia = archOrder.indexOf(a);
+        const ib = archOrder.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
+    }).forEach(arch => {
         const option = document.createElement('option');
-        option.value = kv;
-        option.textContent = `Linux ${kv}`;
-        kernelFilter.appendChild(option);
+        option.value = arch;
+        option.textContent = arch;
+        archFilter.appendChild(option);
     });
-    if (kernelList.has(kernelSelected)) {
-        kernelFilter.value = kernelSelected;
+    if (archList.has(archSelected)) {
+        archFilter.value = archSelected;
     }
     
     populateMyHardwareSelects(cpuList, gpuList);
@@ -2032,7 +2055,7 @@ function updateUrlFilters() {
     const gpuVal = document.getElementById('gpu-filter').value;
     const ramVal = document.getElementById('ram-filter').value;
     const vramVal = document.getElementById('vram-filter').value;
-    const kernelVal = document.getElementById('kernel-filter').value;
+    const archVal = document.getElementById('arch-filter').value;
 
     const params = new URLSearchParams();
     const tabVal = currentParams.get('tab');
@@ -2048,7 +2071,7 @@ function updateUrlFilters() {
     if (gpuVal) params.set('gpu', gpuVal);
     if (ramVal) params.set('ram', ramVal);
     if (vramVal) params.set('vram', vramVal);
-    if (kernelVal) params.set('kernel', kernelVal);
+    if (archVal) params.set('arch', archVal);
 
     const newQueryString = params.toString();
     const newUrl = window.location.pathname + (newQueryString ? '?' + newQueryString : '');
@@ -2070,7 +2093,7 @@ function initUrlFilters() {
     const gpuVal = params.get('gpu');
     const ramVal = params.get('ram');
     const vramVal = params.get('vram');
-    const kernelVal = params.get('kernel');
+    const archVal = params.get('arch');
 
     let applied = false;
     if (modeVal === 'all' || modeVal === 'best') {
@@ -2137,9 +2160,9 @@ function initUrlFilters() {
         vramFilter.value = vramVal;
         applied = true;
     }
-    const kernelFilter = document.getElementById('kernel-filter');
-    if (kernelVal && [...kernelFilter.options].some(opt => opt.value === kernelVal)) {
-        kernelFilter.value = kernelVal;
+    const archFilter = document.getElementById('arch-filter');
+    if (archVal && [...archFilter.options].some(opt => opt.value === archVal)) {
+        archFilter.value = archVal;
         applied = true;
     }
 
@@ -2159,7 +2182,7 @@ const LEADERBOARD_FILTER_FIELDS = [
     { id: 'gpu-filter', label: 'GPU' },
     { id: 'ram-filter', label: 'RAM' },
     { id: 'vram-filter', label: 'VRAM' },
-    { id: 'kernel-filter', label: 'Kernel' },
+    { id: 'arch-filter', label: 'Arch' },
 ];
 
 function escapeFilterHtml(value) {
@@ -2426,10 +2449,11 @@ function formatCompareDelta(delta) {
     return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}%`;
 }
 
-function compareDeltaClass(delta) {
+function compareDeltaClass(delta, lowerIsBetter = false) {
     if (delta === null || !Number.isFinite(delta)) return 'delta-na';
     if (Math.abs(delta) < 0.05) return 'delta-neutral';
-    return delta > 0 ? 'delta-positive' : 'delta-negative';
+    const isPositive = lowerIsBetter ? delta < 0 : delta > 0;
+    return isPositive ? 'delta-positive' : 'delta-negative';
 }
 
 function buildCompareRankMap() {
@@ -2459,6 +2483,12 @@ function renderCompareResults() {
     const cards = runs.map(row => {
         const isBaseline = row === baseline;
         const rank = rankMap.get(row);
+        const envDetails = [
+            row.architecture && row.architecture !== 'N/D' ? row.architecture : null,
+            row.desktop && row.desktop !== 'N/D' ? row.desktop : null,
+            row.displayServer && row.displayServer !== 'N/D' ? row.displayServer : null,
+            row.storageType && row.storageType !== 'N/D' ? row.storageType : null,
+        ].filter(Boolean).join(' · ');
         return `
             <div class="compare-run-card${isBaseline ? ' baseline' : ''}">
                 <div class="compare-run-name">
@@ -2471,6 +2501,8 @@ function renderCompareResults() {
                     <span>${escapeFilterHtml(normalizeGPU(row.gpu))}</span>
                     <span>RAM ${escapeFilterHtml(row.ram || 'N/D')} · VRAM ${escapeFilterHtml(row.vram || 'N/D')}</span>
                     <span>${escapeFilterHtml(row.os || 'N/D')} · ${escapeFilterHtml(row.kernel || 'N/D')}</span>
+                    ${envDetails ? `<span>${escapeFilterHtml(envDetails)}</span>` : ''}
+                    ${row.driver && row.driver !== 'N/D' ? `<span>Driver: ${escapeFilterHtml(row.driver)}</span>` : ''}
                     <span>Rank #${rank || 'N/D'}</span>
                 </div>
             </div>`;
@@ -2485,7 +2517,7 @@ function renderCompareResults() {
             const delta = isBaseline ? null : computeCompareDelta(value, baseVal);
             const deltaHtml = isBaseline
                 ? '<span class="compare-delta delta-neutral">baseline</span>'
-                : `<span class="compare-delta ${compareDeltaClass(delta)}">${formatCompareDelta(delta)}</span>`;
+                : `<span class="compare-delta ${compareDeltaClass(delta, Boolean(metric.lowerIsBetter))}">${formatCompareDelta(delta)}</span>`;
             const displayVal = (typeof value === 'number' && Number.isFinite(value))
                 ? (metric.format ? metric.format(value) : formatCompareValue(value))
                 : 'N/D';
@@ -2602,7 +2634,7 @@ function handleFilterChange(updateUrl = true) {
     const gpuSelection = document.getElementById('gpu-filter').value;
     const ramSelection = document.getElementById('ram-filter').value;
     const vramSelection = document.getElementById('vram-filter').value;
-    const kernelSelection = document.getElementById('kernel-filter').value;
+    const archSelection = document.getElementById('arch-filter').value;
     
     filteredData = benchmarkData.filter(row => {
         // Search filter — raw fields + canonical names + console aliases
@@ -2614,11 +2646,7 @@ function handleFilterChange(updateUrl = true) {
         const matchesGpu = !gpuSelection || row.gpu === gpuSelection;
         const matchesRam = !ramSelection || row.ram === ramSelection;
         const matchesVram = !vramSelection || row.vram === vramSelection;
-        let matchesKernel = !kernelSelection;
-        if (!matchesKernel && row.kernel && row.kernel !== 'N/D') {
-            const match = row.kernel.match(/^(\d+\.\d+)/);
-            if (match) matchesKernel = match[1] === kernelSelection;
-        }
+        const matchesArch = !archSelection || getCpuArchitectureFamily(row) === archSelection;
 
         // Hardware-combo drilldown filter (set by a chart-bar click) — normalized CPU+GPU
         const hw = leaderboardHardwareFilter;
@@ -2632,7 +2660,7 @@ function handleFilterChange(updateUrl = true) {
         // Single-run filter (set by ?run= URL parameter)
         const matchesRun = !leaderboardRunFilter || row === leaderboardRunFilter;
 
-        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesKernel && matchesHardware && matchesUser && matchesRun;
+        return matchesSearch && matchesOs && matchesCpu && matchesGpu && matchesRam && matchesVram && matchesArch && matchesHardware && matchesUser && matchesRun;
     });
 
 
