@@ -1194,6 +1194,16 @@ function fetchGoogleSheetDataJSONP() {
     });
 }
 
+// Resolve known SoCs whose CPU string is reported as Unknown/N/D
+function resolveUnknownCpu(cpuVal, gpuVal, kernelVal) {
+    if (/^(?:unknown(?:\s+cpu)?|n\/d)$/i.test((cpuVal || '').trim())) {
+        if (/rtx\s+spark\s+n1x/i.test(gpuVal || '') || /\.n1x\./i.test(kernelVal || '')) {
+            return 'NVIDIA N1X';
+        }
+    }
+    return cpuVal;
+}
+
 // Process data from Google Sheets Visualization API JSON response
 function processGvizData(jsonResponse) {
     if (!jsonResponse || !jsonResponse.table || !jsonResponse.table.rows) {
@@ -1251,6 +1261,8 @@ function processGvizData(jsonResponse) {
         } else if (gpuVal.trim() === 'RX 580') {
             gpuVal = 'RX 580 Series';
         }
+
+        cpuVal = resolveUnknownCpu(cpuVal, gpuVal, getVal(6));
         
         return {
             user: getVal(0) || 'Anonymous',
@@ -1483,6 +1495,8 @@ function processCSVData(csvText) {
         } else if (gpuVal.trim() === 'RX 580') {
             gpuVal = 'RX 580 Series';
         }
+
+        cpuVal = resolveUnknownCpu(cpuVal, gpuVal, row[6]);
         
         return {
             user: row[0] || 'Anonymous',
