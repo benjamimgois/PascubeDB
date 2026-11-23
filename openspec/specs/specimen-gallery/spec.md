@@ -5,68 +5,6 @@ Surface genuinely curious Linux hardware — embedded boards, consoles, handheld
 
 ## Requirements
 
-### Requirement: Specimen classification taxonomy
-
-The system SHALL classify each benchmark row into zero or more specimen tags and assign the row the highest (rarest) tier among its tags. Tags and their detection signals SHALL be:
-
-- `es` (Engineering Sample, tier S): CPU or GPU name matches an engineering-sample pattern such as `eng sample`, `genuine intel ... 0000`, a bare `0000` model identifier, or an AMD OPN (`100-0000` followed by digits).
-- `console` (tier S): CPU or GPU name identifies a game-console APU. Detection SHALL recognize a `dg` part number (`dg` followed by at least three digits, e.g. `DG1501SML87LB`), the PS5-derived `BC-250`, and the console codenames `liverpool` and `jaguar` (PlayStation 4), `oberon` and `ariel` (PlayStation 5), `durango` and `scarlett` (Xbox), and `grizzly`, in addition to a curated console name list. A `dg` followed by a single digit (e.g. the Intel Arc `(DG2)` codename) SHALL NOT be treated as a console. Console APU models SHALL be canonicalized: `DG1501` to "PS4 Pro APU (AMD)", `BC-250` to "PS5 APU (BC-250)", and `Liverpool`/`Jaguar` to "PlayStation 4 APU (AMD)".
-- `exotic-arch` (tier S): the `architecture` field is a non-x86 architecture other than aarch64 (for example `riscv64`, `ppc64le`, `loongarch`).
-- `custom-apu` (tier A): the CPU or GPU matches a custom APU identifier that is not a recognized console part, such as `Custom Zen 2`.
-- `vm` (tier A): the OS or kernel field indicates virtualization (`vm`, `virtual`, `qemu`, `kvm`).
-- `sbc` (tier A): the `architecture` field is `aarch64`, or the CPU/GPU matches an embedded-board signal (Broadcom `VideoCore`, ARM `Mali`, Rockchip) or a curated board list (Raspberry Pi, Orange Pi, Banana Pi, Rock).
-- `server` (tier B): the CPU name matches Xeon, EPYC, or Threadripper.
-- `embedded` (tier B): the CPU or GPU matches an embedded part such as an AMD GX SoC or embedded Radeon.
-- `workstation` (tier B): the CPU matches a workstation HEDT part, or the GPU matches a professional/workstation family such as Quadro, TITAN, Radeon Pro, FirePro, Instinct, RTX A/Ada, Arc Pro, Tesla, or T-series.
-- `fossil` (tier B): the CPU model's curated release year is at least 10 years before the current year.
-- `anachronism` (tier B): the curated GPU release year minus the curated CPU release year is 8 or more years.
-- `exotic-gpu` (tier C): the GPU matches a curated legacy GPU list.
-- `rare-sku` (tier C): the GPU matches a curated regional, OEM-only, low-power, or low-volume SKU list.
-
-Tags not listed above SHALL NOT be produced. In particular the taxonomy SHALL NOT include a halo/new-release tag, an open-driver tag, or a handheld tag.
-
-Detection SHALL tolerate false positives: a row whose CPU model is unresolvable (`0000`) SHALL still receive the `es` tag.
-
-#### Scenario: aarch64 board is classified as an embedded specimen
-
-- **WHEN** a benchmark row has `architecture` equal to `aarch64` and a Broadcom `VideoCore` GPU
-- **THEN** the row receives the `sbc` tag with tier A
-
-#### Scenario: Engineering sample is classified
-
-- **WHEN** a benchmark row's CPU name matches `eng sample`
-- **THEN** the row receives the `es` tag with tier S
-
-#### Scenario: Server CPU is classified
-
-- **WHEN** a benchmark row's CPU name contains `Xeon`, `EPYC`, or `Threadripper`
-- **THEN** the row receives the `server` tag with tier B
-
-#### Scenario: Mismatched pairing is classified
-
-- **WHEN** a row's curated CPU year and curated GPU year differ by at least 8 years
-- **THEN** the row receives the `anachronism` tag with tier B
-
-#### Scenario: Multiple tags resolve to the rarest tier
-
-- **WHEN** a row matches both `fossil` (tier B) and `console` (tier S)
-- **THEN** the row's tier is S and all matched tags are retained
-
-#### Scenario: Row with no specimen signals
-
-- **WHEN** a row matches no specimen tag
-- **THEN** the row is excluded from the gallery and receives no leaderboard chips
-
-#### Scenario: PS4 Pro console part is canonicalized
-
-- **WHEN** a row's CPU or GPU contains a `DG1501` part number
-- **THEN** the row receives the `console` tag and the hardware is shown as a PS4 Pro APU
-
-#### Scenario: Custom APU is classified
-
-- **WHEN** a row's CPU or GPU is `Custom Zen 2`
-- **THEN** the row receives the `custom-apu` tag
-
 ### Requirement: Curated hardware release-year lookup
 
 The system SHALL maintain curated `CPU_YEARS` and `GPU_YEARS` lookup tables mapping known hardware families/models to release years, used to compute the `fossil` and `anachronism` tags and the Oldest CPU / Oldest GPU cards. The tables SHALL cover every hardware generation present in the dataset, including legacy CPUs released before 2011 and legacy GPUs released before 2015, so that no datable model is silently excluded from year-based behavior. When a model is absent from a table, year-based tags SHALL NOT be applied for that model.

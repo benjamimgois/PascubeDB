@@ -6,22 +6,26 @@ Specifies the two-tab navigation system (Hardware Benchmark / Software Benchmark
 ## Requirements
 
 ### Requirement: Tab Navigation Toggle
-The system SHALL render two tab buttons at the top of the dashboard: "Hardware benchmark" and "Software benchmark". Clicking a tab SHALL show the sections belonging to that category and hide the other.
+The system SHALL render five tab buttons at the top of the dashboard: "Leaderboard & Compare", "Hardware Charts", "Software Benchmark", "Desktop Landscape", and "Community Insights". Clicking a tab SHALL show the sections belonging to that tab and hide the others.
+
+#### Scenario: Switching to Leaderboard tab
+- **WHEN** user clicks "Leaderboard & Compare" tab
+- **THEN** the hardware percentile summary, filters, and leaderboard table are visible and all other tab panels are hidden
 
 #### Scenario: Switching to Hardware tab
-- **WHEN** user clicks "Hardware benchmark" tab
-- **THEN** all hardware sections (stats grid, charts, demographics, advanced, portable, community) are visible and software sections (Software Comparison, Package Distribution) are hidden
+- **WHEN** user clicks "Hardware Charts" tab
+- **THEN** hardware performance and efficiency charts are visible and all other tab panels are hidden
 
 #### Scenario: Switching to Software tab
-- **WHEN** user clicks "Software benchmark" tab
-- **THEN** software sections (Winner cards, Software Comparison, Package Distribution) are visible and hardware sections (stats grid, charts, demographics, advanced, portable, community) are hidden
+- **WHEN** user clicks "Software Benchmark" tab
+- **THEN** software sections (Winner cards, Software Comparison) are visible and all other tab panels are hidden
 
 ### Requirement: Default Tab
-The system SHALL activate the "Hardware benchmark" tab by default when the page loads.
+The system SHALL activate the "Leaderboard & Compare" tab by default when the page loads.
 
 #### Scenario: Page load
 - **WHEN** the dashboard page loads
-- **THEN** the "Hardware benchmark" tab is active and hardware sections are displayed
+- **THEN** the "Leaderboard & Compare" tab is active and the primary comparison experience is displayed immediately
 
 ### Requirement: Goverlay Style Cyan Underline Navigation
 The system SHALL style the main tab navigation bar with transparent button backgrounds and an active indicator rendered as an electric cyan sliding underline (`#0ea5e9`), replacing button fills and purple glowing shadows.

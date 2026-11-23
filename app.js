@@ -197,8 +197,15 @@ const COMPARE_METRICS = [
     { key: 'cpuSingle', label: 'CPU Single' },
     { key: 'cpuMulti', label: 'CPU Multi' },
     { key: 'gpuScore', label: 'GPU Score' },
+    { key: 'cpuEff', label: 'CPU Efficiency (Pts/MHz)', getValue: getRowCpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
+    { key: 'gpuEff', label: 'GPU Efficiency (Pts/MHz)', getValue: getRowGpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
 ];
 let compareState = { active: false, selection: [], baseline: null, view: 'leaderboard' };
+let leaderboardGrouping = 'best'; // 'best' | 'all'
+let leaderboardPage = 1;
+const LEADERBOARD_PAGE_SIZE = 50;
+let pinnedBaselineRow = null;
+let expandedLeaderboardRow = null;
 
 function getActiveSoftwareData(type) {
     const vs = chartVizState[type];
@@ -211,7 +218,7 @@ function getActiveSoftwareData(type) {
 // Pill Navigation State
 let PILL_STATE = {
     active: 'performance',
-    rendered: { performance: false, efficiency: false, curiosity: false }
+    rendered: { performance: false, efficiency: false }
 };
 
 function updateURLParam(key, value) {
@@ -264,7 +271,6 @@ function switchPill(name) {
                 // Browser laid out content → canvas has real dimensions
                 if (!PILL_STATE.rendered[name]) {
                     if (name === 'efficiency') renderEfficiencyCharts();
-                    if (name === 'curiosity') renderCuriosityCharts();
                     PILL_STATE.rendered[name] = true;
                 }
                 requestAnimationFrame(() => {
@@ -275,10 +281,6 @@ function switchPill(name) {
     }, 150);
 
     renderStats(name);
-    const catFilterEl = document.getElementById('hw-category-filter');
-    if (catFilterEl) {
-        catFilterEl.style.display = name === 'curiosity' ? 'none' : '';
-    }
     updateURLParam('subtab', name === 'performance' ? '' : name);
     setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
 }
@@ -286,7 +288,7 @@ function switchPill(name) {
 function initPillNav() {
     const params = new URLSearchParams(window.location.search);
     const subtab = params.get('subtab');
-    const initialPill = (subtab === 'efficiency' || subtab === 'curiosity') ? subtab : 'performance';
+    const initialPill = subtab === 'efficiency' ? 'efficiency' : 'performance';
     PILL_STATE.active = initialPill;
 
     const catGroup = document.getElementById('hw-category-group');
@@ -439,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initVizTooltips();
     initFeedbackUI();
     fetchData();
-    trackPage('tab:hardware');
+    trackPage('tab:leaderboard');
 });
 
 // Tab Navigation — Hardware / Software
@@ -1075,46 +1077,69 @@ function setupEventListeners() {
         });
     });
 
-    // Leaderboard Modal Toggle listeners
-    const modal = document.getElementById('leaderboard-modal');
-    const openBtn = document.getElementById('leaderboard-btn');
-    const closeBtn = document.getElementById('close-modal-btn');
-    
-    if (openBtn && modal) {
-        openBtn.addEventListener('click', () => {
-            modal.showModal();
-            document.body.classList.add('modal-open');
-        });
-    }
-    if (closeBtn && modal) {
-        closeBtn.addEventListener('click', () => {
-            modal.close();
-        });
-    }
-    if (modal) {
-        modal.addEventListener('close', () => {
-            document.body.classList.remove('modal-open');
-            const hadCompareState = compareState.active || compareState.selection.length > 0;
-            resetCompareState(false);
-            // Clear a chart-drilldown hardware filter so the next open is unfiltered
-            if (leaderboardHardwareFilter || leaderboardUserFilter) {
-                leaderboardHardwareFilter = null;
-                leaderboardUserFilter = null;
+    // Leaderboard grouping toggle (Best per Contributor vs All Runs)
+    const groupingGroup = document.getElementById('lb-grouping-group');
+    if (groupingGroup) {
+        groupingGroup.querySelectorAll('.chart-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.dataset.value || 'best';
+                if (val === leaderboardGrouping) return;
+                leaderboardGrouping = val;
+                groupingGroup.querySelectorAll('.chart-mode-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.value === leaderboardGrouping);
+                });
                 handleFilterChange(false);
-            } else if (hadCompareState) {
-                renderTable();
-            }
-            // Collapse filters on close so they reset on next open
-            if (filtersWrapper) {
-                filtersWrapper.classList.remove('filters-expanded');
-                if (toggleFiltersBtn) {
-                    toggleFiltersBtn.classList.remove('btn-primary');
-                    toggleFiltersBtn.classList.add('btn-secondary');
-                }
-            }
+            });
         });
     }
-    
+
+    // Pagination controls
+    document.getElementById('lb-prev-btn')?.addEventListener('click', () => {
+        if (leaderboardPage > 1) {
+            leaderboardPage--;
+            renderTable();
+            document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+    document.getElementById('lb-next-btn')?.addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(filteredData.length / LEADERBOARD_PAGE_SIZE));
+        if (leaderboardPage < totalPages) {
+            leaderboardPage++;
+            renderTable();
+            document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
+    // Clear pinned baseline
+    document.getElementById('clear-pinned-baseline-btn')?.addEventListener('click', () => {
+        pinnedBaselineRow = null;
+        renderTable();
+    });
+
+    // Compare Your Hardware autocompletes & filter button
+    setupMyHardwareAutocompletes();
+    document.getElementById('my-hw-filter-btn')?.addEventListener('click', () => {
+        const { cpu: myCpu, gpu: myGpu, run: myRun } = myHardwareSelection;
+        if (!myCpu && !myGpu && !myRun) return;
+        leaderboardHardwareFilter = null;
+        leaderboardUserFilter = null;
+        const searchInput = document.getElementById('search-input');
+        const cpuFilter = document.getElementById('cpu-filter');
+        const gpuFilter = document.getElementById('gpu-filter');
+
+        if (myRun) {
+            if (searchInput) searchInput.value = (myRun.clientId && myRun.clientId !== 'N/D') ? myRun.clientId : (myRun.user || '');
+            if (cpuFilter) cpuFilter.value = '';
+            if (gpuFilter) gpuFilter.value = '';
+        } else {
+            if (searchInput) searchInput.value = '';
+            if (cpuFilter) cpuFilter.value = myCpu || '';
+            if (gpuFilter) gpuFilter.value = myGpu || '';
+        }
+        handleFilterChange();
+        document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     // Toggle filters button on mobile
     const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
     const filtersWrapper = document.querySelector('.leaderboard-filters');
@@ -1124,23 +1149,6 @@ function setupEventListeners() {
             const isExpanded = filtersWrapper.classList.contains('filters-expanded');
             toggleFiltersBtn.classList.toggle('btn-primary', isExpanded);
             toggleFiltersBtn.classList.toggle('btn-secondary', !isExpanded);
-        });
-    }
-    
-    // Fallback for browsers without closedby support
-    if (modal && !('closedBy' in HTMLDialogElement.prototype)) {
-        modal.addEventListener('click', (event) => {
-            if (event.target !== modal) return;
-            const rect = modal.getBoundingClientRect();
-            const isDialogContent = (
-                rect.top <= event.clientY &&
-                event.clientY <= rect.top + rect.height &&
-                rect.left <= event.clientX &&
-                event.clientX <= rect.left + rect.width
-            );
-            if (!isDialogContent) {
-                modal.close();
-            }
         });
     }
 
@@ -1722,8 +1730,227 @@ function populateFilters() {
         kernelFilter.value = kernelSelected;
     }
     
+    populateMyHardwareSelects(cpuList, gpuList);
+    renderMyHardwareSummary();
+
     // Initialize filters from URL query parameters
     initUrlFilters();
+}
+
+let myHardwareSelection = { cpu: '', gpu: '', run: null };
+let myHardwareLists = { cpus: [], gpus: [] };
+
+function setupSearchableDropdown({ inputId, dropdownId, clearId, getMatches, onSelect, onClear }) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    const clearBtn = document.getElementById(clearId);
+    if (!input || !dropdown) return;
+
+    const renderList = () => {
+        const q = input.value.trim().toLowerCase();
+        const matches = getMatches(q).slice(0, 40);
+        if (clearBtn) clearBtn.hidden = input.value.length === 0;
+        if (!matches.length) {
+            dropdown.hidden = true;
+            return;
+        }
+        dropdown.innerHTML = '';
+        matches.forEach(item => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'hw-dropdown-item';
+            btn.innerHTML = `<span>${escapeFilterHtml(item.label)}</span>${item.sub ? `<span class="hw-dropdown-sub">${escapeFilterHtml(item.sub)}</span>` : ''}`;
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                input.value = item.displayValue || item.label;
+                if (clearBtn) clearBtn.hidden = false;
+                dropdown.hidden = true;
+                onSelect(item.value);
+            });
+            dropdown.appendChild(btn);
+        });
+        dropdown.hidden = false;
+    };
+
+    input.addEventListener('focus', renderList);
+    input.addEventListener('input', () => {
+        if (!input.value.trim()) onClear();
+        renderList();
+    });
+    input.addEventListener('blur', () => {
+        setTimeout(() => { dropdown.hidden = true; }, 120);
+    });
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            clearBtn.hidden = true;
+            dropdown.hidden = true;
+            onClear();
+            input.focus();
+        });
+    }
+}
+
+function setupMyHardwareAutocompletes() {
+    setupSearchableDropdown({
+        inputId: 'my-cpu-input',
+        dropdownId: 'my-cpu-dropdown',
+        clearId: 'my-cpu-clear',
+        getMatches: (q) => myHardwareLists.cpus
+            .filter(c => !q || c.toLowerCase().includes(q))
+            .map(c => ({ label: c, value: c })),
+        onSelect: (cpu) => {
+            myHardwareSelection.cpu = cpu;
+            myHardwareSelection.run = null;
+            const runInput = document.getElementById('my-run-input');
+            const runClear = document.getElementById('my-run-clear');
+            if (runInput) runInput.value = '';
+            if (runClear) runClear.hidden = true;
+            renderMyHardwareSummary();
+        },
+        onClear: () => {
+            myHardwareSelection.cpu = '';
+            myHardwareSelection.run = null;
+            renderMyHardwareSummary();
+        }
+    });
+
+    setupSearchableDropdown({
+        inputId: 'my-gpu-input',
+        dropdownId: 'my-gpu-dropdown',
+        clearId: 'my-gpu-clear',
+        getMatches: (q) => myHardwareLists.gpus
+            .filter(g => !q || g.toLowerCase().includes(q))
+            .map(g => ({ label: g, value: g })),
+        onSelect: (gpu) => {
+            myHardwareSelection.gpu = gpu;
+            myHardwareSelection.run = null;
+            const runInput = document.getElementById('my-run-input');
+            const runClear = document.getElementById('my-run-clear');
+            if (runInput) runInput.value = '';
+            if (runClear) runClear.hidden = true;
+            renderMyHardwareSummary();
+        },
+        onClear: () => {
+            myHardwareSelection.gpu = '';
+            myHardwareSelection.run = null;
+            renderMyHardwareSummary();
+        }
+    });
+
+    setupSearchableDropdown({
+        inputId: 'my-run-input',
+        dropdownId: 'my-run-dropdown',
+        clearId: 'my-run-clear',
+        getMatches: (q) => {
+            if (!q) return [];
+            return benchmarkData
+                .filter(r => {
+                    const user = (r.user || '').toLowerCase();
+                    const cid = (r.clientId || '').toLowerCase();
+                    return user.includes(q) || cid.includes(q);
+                })
+                .sort((a, b) => {
+                    const da = parseDate(a.dateTime);
+                    const db = parseDate(b.dateTime);
+                    const ta = da ? da.getTime() : 0;
+                    const tb = db ? db.getTime() : 0;
+                    return tb - ta || (b.mainScore || 0) - (a.mainScore || 0);
+                })
+                .map(r => {
+                    const name = getDisplayName(r);
+                    const scoreStr = r.mainScore ? `Main ${r.mainScore.toLocaleString()}` : 'N/D';
+                    const cidShort = r.clientId && r.clientId !== 'N/D' ? r.clientId.slice(0, 12) : 'N/D';
+                    return {
+                        label: `${name} · ${scoreStr}`,
+                        sub: `${r.cpu} + ${r.gpu} · ID: ${cidShort} · ${r.dateTime || ''}`,
+                        displayValue: `${name} (${cidShort})`,
+                        value: r
+                    };
+                });
+        },
+        onSelect: (run) => {
+            myHardwareSelection.run = run;
+            myHardwareSelection.cpu = run.cpu || '';
+            myHardwareSelection.gpu = run.gpu || '';
+            const cpuInput = document.getElementById('my-cpu-input');
+            const gpuInput = document.getElementById('my-gpu-input');
+            const cpuClear = document.getElementById('my-cpu-clear');
+            const gpuClear = document.getElementById('my-gpu-clear');
+            if (cpuInput) cpuInput.value = myHardwareSelection.cpu;
+            if (gpuInput) gpuInput.value = myHardwareSelection.gpu;
+            if (cpuClear) cpuClear.hidden = !myHardwareSelection.cpu;
+            if (gpuClear) gpuClear.hidden = !myHardwareSelection.gpu;
+            renderMyHardwareSummary();
+        },
+        onClear: () => {
+            myHardwareSelection.run = null;
+            renderMyHardwareSummary();
+        }
+    });
+}
+
+function populateMyHardwareSelects(cpuList, gpuList) {
+    myHardwareLists.cpus = Array.from(cpuList).sort();
+    myHardwareLists.gpus = Array.from(gpuList).sort();
+}
+
+function renderMyHardwareSummary() {
+    const { cpu: myCpu, gpu: myGpu, run: myRun } = myHardwareSelection;
+    const filterBtn = document.getElementById('my-hw-filter-btn');
+    if (filterBtn) filterBtn.disabled = !myCpu && !myGpu && !myRun;
+
+    const setMetric = (id, pct, sub) => {
+        const pctEl = document.getElementById(`${id}-pct`);
+        const subEl = document.getElementById(`${id}-sub`);
+        if (pctEl) pctEl.textContent = pct;
+        if (subEl) subEl.textContent = sub;
+    };
+
+    if (!myCpu && !myGpu && !myRun) {
+        setMetric('my-hw-main', '—', 'Select CPU, GPU, or user/ID');
+        setMetric('my-hw-cpu1t', '—', '—');
+        setMetric('my-hw-cpumt', '—', '—');
+        setMetric('my-hw-gpu', '—', '—');
+        return;
+    }
+
+    const matching = myRun
+        ? [myRun]
+        : benchmarkData.filter(r => (!myCpu || r.cpu === myCpu) && (!myGpu || r.gpu === myGpu));
+
+    const calcStanding = (field, sourceRuns) => {
+        const allVals = benchmarkData
+            .map(r => r[field])
+            .filter(v => typeof v === 'number' && Number.isFinite(v) && v > 0)
+            .sort((a, b) => a - b);
+        const targetVals = sourceRuns
+            .map(r => r[field])
+            .filter(v => typeof v === 'number' && Number.isFinite(v) && v > 0);
+        if (!allVals.length || !targetVals.length) {
+            return { pct: 'N/D', sub: 'No matching runs' };
+        }
+        const best = Math.max(...targetVals);
+        const median = allVals[Math.floor(allVals.length / 2)];
+        const belowOrEq = allVals.filter(v => v <= best).length;
+        const topPct = Math.max(1, Math.round(100 - (belowOrEq / allVals.length) * 100));
+        return {
+            pct: `Top ${topPct}%`,
+            sub: `${myRun ? 'Run' : 'Best'} ${best.toLocaleString()} · Median ${median.toLocaleString()}`
+        };
+    };
+
+    const mainRes = calcStanding('mainScore', matching);
+    const cpuOnlyRuns = myRun ? [myRun] : (myCpu ? benchmarkData.filter(r => r.cpu === myCpu) : matching);
+    const gpuOnlyRuns = myRun ? [myRun] : (myGpu ? benchmarkData.filter(r => r.gpu === myGpu) : matching);
+    const cpu1tRes = calcStanding('cpuSingle', cpuOnlyRuns);
+    const cpuMtRes = calcStanding('cpuMulti', cpuOnlyRuns);
+    const gpuRes = calcStanding('gpuScore', gpuOnlyRuns);
+
+    setMetric('my-hw-main', mainRes.pct, mainRes.sub);
+    setMetric('my-hw-cpu1t', cpu1tRes.pct, cpu1tRes.sub);
+    setMetric('my-hw-cpumt', cpuMtRes.pct, cpuMtRes.sub);
+    setMetric('my-hw-gpu', gpuRes.pct, gpuRes.sub);
 }
 
 // Update URL query parameters based on active filters
@@ -1892,11 +2119,8 @@ function openLeaderboardForHardware(row) {
     leaderboardUserFilter = null;
     leaderboardHardwareFilter = { cpu: normalizeCPU(row.cpu), gpu: normalizeGPU(row.gpu) };
     handleFilterChange(false);
-    const modal = document.getElementById('leaderboard-modal');
-    if (!modal) return;
-    if (typeof modal.showModal === 'function') modal.showModal();
-    else modal.setAttribute('open', '');
-    document.body.classList.add('modal-open');
+    if (window.switchTab) window.switchTab('leaderboard');
+    document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Open the leaderboard filtered to a single username's runs.
@@ -1906,13 +2130,8 @@ function openLeaderboardForUser(name) {
     leaderboardHardwareFilter = null;
     leaderboardUserFilter = name;
     handleFilterChange(false);
-    const modal = document.getElementById('leaderboard-modal');
-    if (!modal) return;
-    if (!modal.open) {
-        if (typeof modal.showModal === 'function') modal.showModal();
-        else modal.setAttribute('open', '');
-    }
-    document.body.classList.add('modal-open');
+    if (window.switchTab) window.switchTab('leaderboard');
+    document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ─── Benchmark comparison ───
@@ -1977,6 +2196,11 @@ function refreshVisibleCompareRows() {
         if (cb) {
             cb.checked = selected;
             cb.setAttribute('aria-label', `Select ${getDisplayName(row)} benchmark run`);
+        }
+        const cmpBtn = tr.querySelector('.lb-cmp-btn');
+        if (cmpBtn) {
+            cmpBtn.classList.toggle('active', selected);
+            cmpBtn.textContent = selected ? 'Added' : 'Compare';
         }
     });
 }
@@ -2126,15 +2350,20 @@ function renderCompareResults() {
     }).join('');
 
     const tableRows = COMPARE_METRICS.map(metric => {
+        const getVal = r => (metric.getValue ? metric.getValue(r) : r[metric.key]);
+        const baseVal = getVal(baseline);
         const cells = runs.map(row => {
             const isBaseline = row === baseline;
-            const value = row[metric.key];
-            const delta = isBaseline ? null : computeCompareDelta(value, baseline[metric.key]);
+            const value = getVal(row);
+            const delta = isBaseline ? null : computeCompareDelta(value, baseVal);
             const deltaHtml = isBaseline
                 ? '<span class="compare-delta delta-neutral">baseline</span>'
                 : `<span class="compare-delta ${compareDeltaClass(delta)}">${formatCompareDelta(delta)}</span>`;
+            const displayVal = (typeof value === 'number' && Number.isFinite(value))
+                ? (metric.format ? metric.format(value) : formatCompareValue(value))
+                : 'N/D';
             return `<td class="compare-cell">
-                <span class="compare-value">${formatCompareValue(value)}</span>
+                <span class="compare-value">${displayVal}</span>
                 ${deltaHtml}
             </td>`;
         }).join('');
@@ -2277,6 +2506,21 @@ function handleFilterChange(updateUrl = true) {
     });
 
 
+    if (leaderboardGrouping === 'best') {
+        const bestByContrib = {};
+        filteredData.forEach(row => {
+            const user = (row.user || '').trim().toLowerCase();
+            const key = (user && user !== 'anonymous') ? `u:${user}` : `c:${row.clientId || 'N/D'}`;
+            const cur = bestByContrib[key];
+            if (!cur || (row.mainScore || 0) > (cur.mainScore || 0)) {
+                bestByContrib[key] = row;
+            }
+        });
+        filteredData = Object.values(bestByContrib);
+    }
+
+    leaderboardPage = 1;
+
     // Keep current sort
     sortData(currentSort.column, currentSort.direction);
     
@@ -2290,7 +2534,6 @@ function handleFilterChange(updateUrl = true) {
 
     // Invalidate lazy-rendered pills so they re-render on next activation
     PILL_STATE.rendered.efficiency = false;
-    PILL_STATE.rendered.curiosity = false;
 
     renderActiveFilterChips();
 }
@@ -2618,6 +2861,16 @@ function handleSort(column) {
 }
 
 // Sort Logic Helper
+function getRowCpuEff(r) {
+    if (!r || r.cpuSingle === null || r.cpuMaxFreq === null || r.cpuMaxFreq <= 0) return null;
+    return r.cpuSingle / r.cpuMaxFreq;
+}
+
+function getRowGpuEff(r) {
+    if (!r || r.gpuScore === null || r.gpuMaxFreq === null || r.gpuMaxFreq <= 0) return null;
+    return r.gpuScore / r.gpuMaxFreq;
+}
+
 function sortData(column, direction) {
     const isAsc = direction === 'asc';
     
@@ -2654,6 +2907,14 @@ function sortData(column, direction) {
             case 'gpuMaxFreq':
                 valA = a.gpuMaxFreq || 0;
                 valB = b.gpuMaxFreq || 0;
+                break;
+            case 'cpuEff':
+                valA = getRowCpuEff(a) || 0;
+                valB = getRowCpuEff(b) || 0;
+                break;
+            case 'gpuEff':
+                valA = getRowGpuEff(a) || 0;
+                valB = getRowGpuEff(b) || 0;
                 break;
             case 'vram':
                 valA = a.vram.toLowerCase();
@@ -2726,40 +2987,73 @@ function updatePinnedColumnWidth() {
     if (w > 0) table.style.setProperty('--pin-col1-width', w + 'px');
 }
 
+function formatInlineDeltaBadge(val, baseVal) {
+    if (!pinnedBaselineRow || typeof val !== 'number' || typeof baseVal !== 'number' || baseVal <= 0) return '';
+    const pct = ((val - baseVal) / baseVal) * 100;
+    const rounded = Math.round(pct * 10) / 10;
+    const cls = rounded > 0 ? 'pos' : rounded < 0 ? 'neg' : 'zero';
+    const sign = rounded > 0 ? '+' : '';
+    return `<span class="lb-delta-badge ${cls}">${sign}${rounded}%</span>`;
+}
+
 function renderTable() {
     const tbody = document.getElementById('leaderboard-body');
     const searchQuery = document.getElementById('search-input')?.value?.trim() || '';
 
-    updatePinnedColumnWidth();
-
     const countEl = document.getElementById('leaderboard-count');
+    const totalResults = filteredData.length;
+    const totalPages = Math.max(1, Math.ceil(totalResults / LEADERBOARD_PAGE_SIZE));
+    if (leaderboardPage > totalPages) leaderboardPage = totalPages;
+
     if (countEl) {
-        countEl.textContent = `${filteredData.length} ${filteredData.length === 1 ? 'result' : 'results'}`;
+        const modeLabel = leaderboardGrouping === 'best' ? 'contributors' : 'runs';
+        countEl.textContent = `${totalResults.toLocaleString()} ${totalResults === 1 ? 'result' : modeLabel}`;
     }
 
-    if (filteredData.length === 0) {
+    const bannerEl = document.getElementById('pinned-baseline-banner');
+    const bannerTextEl = document.getElementById('pinned-baseline-text');
+    if (bannerEl && bannerTextEl) {
+        if (pinnedBaselineRow) {
+            bannerEl.hidden = false;
+            bannerTextEl.textContent = `Baseline: ${normalizeCPU(pinnedBaselineRow.cpu)} + ${normalizeGPU(pinnedBaselineRow.gpu)}`;
+        } else {
+            bannerEl.hidden = true;
+        }
+    }
+
+    const pagEl = document.getElementById('leaderboard-pagination');
+    const pageInfoEl = document.getElementById('lb-page-info');
+    const prevBtn = document.getElementById('lb-prev-btn');
+    const nextBtn = document.getElementById('lb-next-btn');
+    if (pagEl) {
+        pagEl.hidden = totalResults <= LEADERBOARD_PAGE_SIZE;
+        if (pageInfoEl) pageInfoEl.textContent = `Page ${leaderboardPage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = leaderboardPage <= 1;
+        if (nextBtn) nextBtn.disabled = leaderboardPage >= totalPages;
+    }
+
+    if (totalResults === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="15" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     No benchmark results match your search or filters.
                 </td>
             </tr>
         `;
         return;
     }
-    
-    // Sort reference table by main score to compute absolute ranks
+
     const sortedByScore = [...benchmarkData].sort((a, b) => (b.mainScore || 0) - (a.mainScore || 0));
-    
+    const maxMain = sortedByScore[0]?.mainScore || 1;
+    const startIdx = (leaderboardPage - 1) * LEADERBOARD_PAGE_SIZE;
+    const pageRows = filteredData.slice(startIdx, startIdx + LEADERBOARD_PAGE_SIZE);
+
     tbody.innerHTML = '';
     const compareActive = compareState.active;
-    const compareBaseline = getCompareBaseline();
-    
-    filteredData.forEach(row => {
-        // Calculate absolute rank based on its index in sortedByScore
+
+    pageRows.forEach(row => {
         const absoluteRank = sortedByScore.findIndex(r => r === row) + 1;
-        
-        let rankContent = absoluteRank;
+        let rankContent = `${absoluteRank}`;
         if (absoluteRank === 1) {
             rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #ffd700; fill: rgba(255, 215, 0, 0.2);"></i>${absoluteRank}`;
         } else if (absoluteRank === 2) {
@@ -2768,64 +3062,114 @@ function renderTable() {
             rankContent = `<i data-lucide="trophy" style="display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: text-bottom; color: #cd7f32; fill: rgba(205, 127, 50, 0.2);"></i>${absoluteRank}`;
         }
 
-        const compareSelected = compareActive && isCompareSelected(row);
-        const compareBaselineRow = compareSelected && compareBaseline === row;
-        const rankCellContent = compareActive
-            ? `<span class="rank-content"><input type="checkbox" class="compare-row-checkbox"${compareSelected ? ' checked' : ''} aria-label="Select ${escapeFilterHtml(getDisplayName(row))} benchmark run"><span class="rank-number">${absoluteRank}</span></span>`
-            : rankContent;
-        
+        const compareSelected = isCompareSelected(row);
+        const isPinned = pinnedBaselineRow === row;
+        const formFactor = classifyDevice(row);
         const displayName = getDisplayName(row);
         const isNamed = row.user && row.user.toLowerCase() !== 'anonymous';
 
-        let clientIdHtml = '';
-        if (row.clientId === 'N/D') {
-            clientIdHtml = '<span class="nd-cell">N/D</span>';
-        } else if (isNamed) {
-            clientIdHtml = `
-                <div class="client-id-badge clickable" role="button" tabindex="0"
-                     title="Show all tests from ${escapeFilterHtml(row.user)}"
-                     data-user="${escapeFilterHtml(row.user)}">
-                    <span class="client-id-text">${highlightText(displayName, searchQuery)}</span>
-                </div>
-            `;
-        } else {
-            clientIdHtml = `
-                <div class="client-id-badge">
-                    <span class="client-id-text">${highlightText(displayName, searchQuery)}</span>
-                </div>
-            `;
-        }
-        
+        const contribHtml = row.clientId === 'N/D'
+            ? '<span class="nd-cell">N/D</span>'
+            : isNamed
+                ? `<span class="client-id-badge clickable" role="button" tabindex="0" title="Show all tests from ${escapeFilterHtml(row.user)}" data-user="${escapeFilterHtml(row.user)}"><span class="client-id-text">${highlightText(displayName, searchQuery)}</span></span>`
+                : `<span class="client-id-badge"><span class="client-id-text">${highlightText(displayName, searchQuery)}</span></span>`;
+
+        const mainPctWidth = row.mainScore ? Math.min(100, Math.round((row.mainScore / maxMain) * 100)) : 0;
+        const base = pinnedBaselineRow && pinnedBaselineRow !== row ? pinnedBaselineRow : null;
+        const cpuEffVal = getRowCpuEff(row);
+        const gpuEffVal = getRowGpuEff(row);
+        const baseCpuEff = base ? getRowCpuEff(base) : null;
+        const baseGpuEff = base ? getRowGpuEff(base) : null;
+
         const tr = document.createElement('tr');
         tr.__benchmarkRow = row;
-        if (compareActive) tr.classList.add('compare-selectable');
+        tr.className = 'lb-main-row';
         if (compareSelected) tr.classList.add('compare-selected');
-        if (compareBaselineRow) tr.classList.add('compare-baseline');
-        
+        if (isPinned) tr.classList.add('lb-pinned-baseline');
+
         tr.innerHTML = `
-            <td class="rank-cell">${rankCellContent}</td>
-            <td>${clientIdHtml}</td>
-            <td title="${row.cpu}">${highlightText(row.cpu, searchQuery)}${specimenChipsHtml(row)}</td>
-            <td>${row.cpuMaxFreq ? `${row.cpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
-            <td>${row.ram}</td>
-            <td title="${row.gpu}">${highlightText(row.gpu, searchQuery)}</td>
-            <td>${row.gpuMaxFreq ? `${row.gpuMaxFreq.toLocaleString()} MHz` : '<span class="nd-cell">N/D</span>'}</td>
-            <td>${row.vram}</td>
-            <td title="${row.os}">${highlightText(row.os && row.os.length > 21 ? row.os.substring(0, 21) + '…' : row.os, searchQuery)}</td>
-            <td title="${row.kernel}">${highlightText(row.kernel, searchQuery)}</td>
-            <td class="score-cell main">${row.mainScore ? row.mainScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
-            <td class="score-cell secondary">${row.cpuSingle ? row.cpuSingle.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
-            <td class="score-cell secondary">${row.cpuMulti ? row.cpuMulti.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
-            <td class="score-cell secondary">${row.gpuScore ? row.gpuScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</td>
-            <td style="font-size: 0.8rem; color: var(--text-secondary)">${row.dateTime}</td>
+            <td class="rank-cell">${compareActive ? `<span class="rank-content"><input type="checkbox" class="compare-row-checkbox"${compareSelected ? ' checked' : ''} aria-label="Select ${escapeFilterHtml(displayName)} benchmark run"><span class="rank-number">${absoluteRank}</span></span>` : rankContent}</td>
+            <td>
+                <div class="lb-hw-cell">
+                    <div class="lb-hw-primary">${highlightText(row.cpu, searchQuery)} + ${highlightText(row.gpu, searchQuery)}</div>
+                    <div class="lb-hw-sub">
+                        ${contribHtml}
+                        <span class="lb-form-tag">${formFactor}</span>
+                        <span>${row.ram || 'N/D'}</span>
+                    </div>
+                </div>
+            </td>
+            <td title="${escapeFilterHtml(row.os || '')}">${highlightText(row.os && row.os.length > 22 ? row.os.substring(0, 22) + '…' : (row.os || 'N/D'), searchQuery)}</td>
+            <td class="score-cell main">
+                <div class="lb-score-wrap">
+                    <div class="lb-score-top">
+                        <span>${row.mainScore ? row.mainScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</span>
+                        ${base ? formatInlineDeltaBadge(row.mainScore, base.mainScore) : ''}
+                    </div>
+                    <div class="lb-score-bar-track"><div class="lb-score-bar-fill" style="width:${mainPctWidth}%"></div></div>
+                </div>
+            </td>
+            <td class="score-cell secondary">
+                <div class="lb-score-top">
+                    <span>${row.cpuSingle ? row.cpuSingle.toLocaleString() : 'N/D'}</span>
+                    ${base ? formatInlineDeltaBadge(row.cpuSingle, base.cpuSingle) : ''}
+                </div>
+                <div class="lb-hw-sub">MT: ${row.cpuMulti ? row.cpuMulti.toLocaleString() : 'N/D'} ${base ? formatInlineDeltaBadge(row.cpuMulti, base.cpuMulti) : ''}</div>
+            </td>
+            <td class="score-cell secondary">
+                <div class="lb-score-top">
+                    <span>${row.gpuScore ? row.gpuScore.toLocaleString() : '<span class="nd-cell">N/D</span>'}</span>
+                    ${base ? formatInlineDeltaBadge(row.gpuScore, base.gpuScore) : ''}
+                </div>
+                <div class="lb-hw-sub">RT: ${row.gpuRt ? row.gpuRt.toLocaleString() : 'N/D'} ${base ? formatInlineDeltaBadge(row.gpuRt, base.gpuRt) : ''}</div>
+            </td>
+            <td class="score-cell secondary">
+                <div class="lb-score-top">
+                    <span>${cpuEffVal !== null ? (Math.trunc(cpuEffVal * 100) / 100).toFixed(2) : '<span class="nd-cell">N/D</span>'}</span>
+                    ${base ? formatInlineDeltaBadge(cpuEffVal, baseCpuEff) : ''}
+                </div>
+                <div class="lb-hw-sub">${cpuEffVal !== null ? 'Pts/MHz' : ''}</div>
+            </td>
+            <td class="score-cell secondary">
+                <div class="lb-score-top">
+                    <span>${gpuEffVal !== null ? (Math.trunc(gpuEffVal * 100) / 100).toFixed(2) : '<span class="nd-cell">N/D</span>'}</span>
+                    ${base ? formatInlineDeltaBadge(gpuEffVal, baseGpuEff) : ''}
+                </div>
+                <div class="lb-hw-sub">${gpuEffVal !== null ? 'Pts/MHz' : ''}</div>
+            </td>
+            <td>
+                <div class="lb-row-actions">
+                    <button type="button" class="lb-action-btn lb-pin-btn${isPinned ? ' active' : ''}" title="${isPinned ? 'Unpin baseline' : 'Pin as baseline'}">${isPinned ? 'Pinned' : 'Pin'}</button>
+                    <button type="button" class="lb-action-btn lb-cmp-btn${compareSelected ? ' active' : ''}" title="Select for side-by-side comparison">${compareSelected ? 'Added' : 'Compare'}</button>
+                </div>
+            </td>
         `;
-        
+
         const userBadge = tr.querySelector('.client-id-badge.clickable');
         if (userBadge) {
             const name = userBadge.getAttribute('data-user');
             userBadge.addEventListener('click', (e) => { e.stopPropagation(); openLeaderboardForUser(name); });
             userBadge.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLeaderboardForUser(name); }
+            });
+        }
+
+        const pinBtn = tr.querySelector('.lb-pin-btn');
+        if (pinBtn) {
+            pinBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pinnedBaselineRow = (pinnedBaselineRow === row) ? null : row;
+                renderTable();
+            });
+        }
+
+        const cmpBtn = tr.querySelector('.lb-cmp-btn');
+        if (cmpBtn) {
+            cmpBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!compareState.active) compareState.active = true;
+                toggleCompareSelection(row);
+                renderTable();
             });
         }
 
@@ -2837,14 +3181,34 @@ function renderTable() {
                 toggleCompareSelection(row);
             });
         }
-        if (compareActive) {
-            tr.addEventListener('click', (e) => {
-                if (e.target.closest('input, button, a, .client-id-badge, .specimen-chip')) return;
-                toggleCompareSelection(row);
-            });
-        }
+
+        tr.addEventListener('click', (e) => {
+            if (e.target.closest('input, button, a, .client-id-badge')) return;
+            expandedLeaderboardRow = (expandedLeaderboardRow === row) ? null : row;
+            renderTable();
+        });
 
         tbody.appendChild(tr);
+
+        if (expandedLeaderboardRow === row) {
+            const detailTr = document.createElement('tr');
+            detailTr.className = 'leaderboard-detail-row';
+            detailTr.innerHTML = `
+                <td colspan="9">
+                    <div class="lb-detail-grid">
+                        <div class="lb-detail-item"><span class="lb-detail-label">CPU Max Freq</span><span class="lb-detail-val">${row.cpuMaxFreq ? `${row.cpuMaxFreq.toLocaleString()} MHz` : 'N/D'}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">GPU Max Freq</span><span class="lb-detail-val">${row.gpuMaxFreq ? `${row.gpuMaxFreq.toLocaleString()} MHz` : 'N/D'}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">VRAM</span><span class="lb-detail-val">${escapeFilterHtml(row.vram || 'N/D')}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">Kernel</span><span class="lb-detail-val">${escapeFilterHtml(row.kernel || 'N/D')}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">Driver</span><span class="lb-detail-val">${escapeFilterHtml(row.driver || 'N/D')}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">GOverlay</span><span class="lb-detail-val">${escapeFilterHtml(row.goverlayVersion || 'N/D')}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">Client ID</span><span class="lb-detail-val">${escapeFilterHtml(row.clientId || 'N/D')}</span></div>
+                        <div class="lb-detail-item"><span class="lb-detail-label">Date</span><span class="lb-detail-val">${escapeFilterHtml(row.dateTime || 'N/D')}</span></div>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(detailTr);
+        }
     });
 
     if (window.lucide) {
@@ -6027,19 +6391,12 @@ function renderCharts() {
     // Re-running switchTab on later re-renders (e.g. toggling "Normalize")
     // hides/shows the whole content and resets the page scroll.
     if (!tabsInitialized && window.switchTab) {
-        window.switchTab('hardware');
+        window.switchTab('leaderboard');
         tabsInitialized = true;
     }
 
     PILL_STATE.rendered.performance = true;
     renderStats(PILL_STATE.active || 'performance');
-
-    // Direct ?subtab=curiosity links must render the chips and submissions table,
-    // not only the stat cards, before the user switches pills manually.
-    if (PILL_STATE.active === 'curiosity' && !PILL_STATE.rendered.curiosity) {
-        renderCuriosityCharts();
-        PILL_STATE.rendered.curiosity = true;
-    }
 }
 
 // ── Efficiency Chart Computations ──

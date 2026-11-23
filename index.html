@@ -54,20 +54,21 @@
                             <span>Blog</span>
                             <span class="blog-badge" id="blog-badge"></span>
                         </button>
-                        <button id="leaderboard-btn" class="btn btn-primary">
-                            <i data-lucide="trophy"></i>
-                            <span>Leaderboard</span>
-                        </button>
                     </div>
                 </div>
             </header>
 
             <!-- Tab Navigation -->
             <nav id="tab-nav" class="tab-nav" role="tablist" aria-label="Dashboard sections">
-                <button id="tab-btn-hardware" class="tab-btn active" data-tab="hardware" role="tab" aria-selected="true" aria-controls="tab-hardware" aria-label="Hardware Benchmark">
+                <button id="tab-btn-leaderboard" class="tab-btn active" data-tab="leaderboard" role="tab" aria-selected="true" aria-controls="tab-leaderboard" aria-label="Leaderboard &amp; Compare">
+                    <i data-lucide="trophy" aria-hidden="true"></i>
+                    <span class="tab-label-full">Leaderboard &amp; Compare</span>
+                    <span class="tab-label-short" aria-hidden="true">Leaderboard</span>
+                </button>
+                <button id="tab-btn-hardware" class="tab-btn" data-tab="hardware" role="tab" aria-selected="false" aria-controls="tab-hardware" tabindex="-1" aria-label="Hardware Charts">
                     <i data-lucide="cpu" aria-hidden="true"></i>
-                    <span class="tab-label-full">Hardware Benchmark</span>
-                    <span class="tab-label-short" aria-hidden="true">Hardware</span>
+                    <span class="tab-label-full">Hardware Charts</span>
+                    <span class="tab-label-short" aria-hidden="true">Charts</span>
                 </button>
                 <button id="tab-btn-software" class="tab-btn" data-tab="software" role="tab" aria-selected="false" aria-controls="tab-software" tabindex="-1" aria-label="Software Benchmark">
                     <i data-lucide="git-compare" aria-hidden="true"></i>
@@ -103,8 +104,203 @@
             </button>
         </div>
 
+        <!-- Leaderboard & Compare Content (Primary Tab) -->
+        <div id="tab-leaderboard" class="tab-content active" data-tab="leaderboard" role="tabpanel" aria-labelledby="tab-btn-leaderboard">
+            <section id="hw-compare-card" class="hw-compare-card" aria-label="Compare your hardware">
+                <div class="hw-compare-header">
+                    <div>
+                        <h2>Compare Your Hardware</h2>
+                        <p>Select your CPU and/or GPU to see where you stand against the community</p>
+                    </div>
+                    <button id="my-hw-filter-btn" type="button" class="btn btn-secondary btn-sm" disabled>
+                        <i data-lucide="filter" aria-hidden="true"></i>
+                        <span>Filter table to my hardware</span>
+                    </button>
+                </div>
+                <div class="hw-compare-selectors">
+                    <div class="hw-autocomplete">
+                        <i data-lucide="cpu" class="filter-icon"></i>
+                        <label class="visually-hidden" for="my-cpu-input">Search your CPU</label>
+                        <input type="text" id="my-cpu-input" autocomplete="off" placeholder="Search CPU (e.g. 5800X3D)..." aria-label="Search your CPU">
+                        <button type="button" id="my-cpu-clear" class="hw-clear-btn" aria-label="Clear CPU" hidden><i data-lucide="x"></i></button>
+                        <div id="my-cpu-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
+                    </div>
+                    <div class="hw-autocomplete">
+                        <i data-lucide="zap" class="filter-icon"></i>
+                        <label class="visually-hidden" for="my-gpu-input">Search your GPU</label>
+                        <input type="text" id="my-gpu-input" autocomplete="off" placeholder="Search GPU (e.g. RX 9070 XT)..." aria-label="Search your GPU">
+                        <button type="button" id="my-gpu-clear" class="hw-clear-btn" aria-label="Clear GPU" hidden><i data-lucide="x"></i></button>
+                        <div id="my-gpu-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
+                    </div>
+                    <div class="hw-autocomplete">
+                        <i data-lucide="user-search" class="filter-icon"></i>
+                        <label class="visually-hidden" for="my-run-input">Find run by user or Client ID</label>
+                        <input type="text" id="my-run-input" autocomplete="off" placeholder="Find run by user or Client ID..." aria-label="Find run by user or Client ID">
+                        <button type="button" id="my-run-clear" class="hw-clear-btn" aria-label="Clear user or ID" hidden><i data-lucide="x"></i></button>
+                        <div id="my-run-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
+                    </div>
+                </div>
+                <div id="my-hw-summary" class="hw-compare-summary">
+                    <div class="hw-percentile-item">
+                        <span class="hw-pct-label">Main Score</span>
+                        <strong id="my-hw-main-pct" class="hw-pct-value">—</strong>
+                        <span id="my-hw-main-sub" class="hw-pct-sub">Select CPU or GPU</span>
+                    </div>
+                    <div class="hw-percentile-item">
+                        <span class="hw-pct-label">CPU 1T</span>
+                        <strong id="my-hw-cpu1t-pct" class="hw-pct-value">—</strong>
+                        <span id="my-hw-cpu1t-sub" class="hw-pct-sub">—</span>
+                    </div>
+                    <div class="hw-percentile-item">
+                        <span class="hw-pct-label">CPU MT</span>
+                        <strong id="my-hw-cpumt-pct" class="hw-pct-value">—</strong>
+                        <span id="my-hw-cpumt-sub" class="hw-pct-sub">—</span>
+                    </div>
+                    <div class="hw-percentile-item">
+                        <span class="hw-pct-label">GPU Score</span>
+                        <strong id="my-hw-gpu-pct" class="hw-pct-value">—</strong>
+                        <span id="my-hw-gpu-sub" class="hw-pct-sub">—</span>
+                    </div>
+                </div>
+            </section>
+
+            <div id="leaderboard-view">
+                <div class="leaderboard-toolbar">
+                    <button id="toggle-filters-btn" class="btn btn-secondary toggle-filters-btn">
+                        <i data-lucide="sliders-horizontal"></i>
+                        <span>Filters</span>
+                    </button>
+                    <div class="chart-mode-group" id="lb-grouping-group" role="group" aria-label="Leaderboard grouping">
+                        <button class="chart-mode-btn active" data-value="best" type="button">Best per Contributor</button>
+                        <button class="chart-mode-btn" data-value="all" type="button">All Runs</button>
+                    </div>
+                    <button id="compare-mode-btn" class="btn btn-secondary compare-mode-btn" type="button" aria-pressed="false">
+                        <i data-lucide="git-compare"></i>
+                        <span>Compare</span>
+                    </button>
+                    <div id="pinned-baseline-banner" class="pinned-baseline-banner" hidden>
+                        <span id="pinned-baseline-text"></span>
+                        <button id="clear-pinned-baseline-btn" type="button" class="btn-clear-filters">Unpin</button>
+                    </div>
+                </div>
+                <div class="leaderboard-filters">
+                    <div class="search-wrapper">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <label class="visually-hidden" for="search-input">Search benchmarks</label>
+                        <input type="text" id="search-input" aria-label="Search benchmarks by CPU, GPU, OS or client ID" placeholder="Search CPU, GPU, OS, client-id...">
+                    </div>
+                    <div class="select-wrapper">
+                        <i data-lucide="filter" class="filter-icon"></i>
+                        <label class="visually-hidden" for="os-filter">Filter by operating system</label>
+                        <select id="os-filter" aria-label="Filter by operating system">
+                            <option value="">ALL OS</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <i data-lucide="cpu" class="filter-icon"></i>
+                        <label class="visually-hidden" for="cpu-filter">Filter by CPU model</label>
+                        <select id="cpu-filter" aria-label="Filter by CPU model">
+                            <option value="">All CPU Models</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <i data-lucide="zap" class="filter-icon"></i>
+                        <label class="visually-hidden" for="gpu-filter">Filter by GPU model</label>
+                        <select id="gpu-filter" aria-label="Filter by GPU model">
+                            <option value="">All GPU Models</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <i data-lucide="binary" class="filter-icon"></i>
+                        <label class="visually-hidden" for="ram-filter">Filter by RAM capacity</label>
+                        <select id="ram-filter" aria-label="Filter by RAM capacity">
+                            <option value="">ALL RAM</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <i data-lucide="database" class="filter-icon"></i>
+                        <label class="visually-hidden" for="vram-filter">Filter by VRAM capacity</label>
+                        <select id="vram-filter" aria-label="Filter by VRAM capacity">
+                            <option value="">ALL VRAM</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <i data-lucide="terminal" class="filter-icon"></i>
+                        <label class="visually-hidden" for="kernel-filter">Filter by kernel version</label>
+                        <select id="kernel-filter" aria-label="Filter by kernel version">
+                            <option value="">ALL Kernel</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="active-filters" class="active-filters" hidden>
+                    <span id="active-filter-chips" class="active-filter-chips"></span>
+                    <button id="clear-filters-btn" type="button" class="btn-clear-filters">
+                        <i data-lucide="x" aria-hidden="true"></i>
+                        <span>Clear all</span>
+                    </button>
+                </div>
+
+                <p id="leaderboard-count" class="result-count" aria-live="polite"></p>
+
+                <div id="compare-bar" class="compare-bar" hidden aria-live="polite">
+                    <div class="compare-bar-info">
+                        <span id="compare-count">0 selected</span>
+                        <span id="compare-baseline-label" class="compare-baseline-label"></span>
+                    </div>
+                    <div class="compare-bar-actions">
+                        <button id="compare-clear-btn" type="button" class="btn btn-secondary">Clear</button>
+                        <button id="compare-start-btn" type="button" class="btn btn-primary" disabled>Compare</button>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table id="leaderboard-table" class="leaderboard-table-clean">
+                            <thead>
+                                <tr>
+                                    <th data-sort="rank" class="sortable sorted-asc"># <i data-lucide="chevron-up"></i></th>
+                                    <th data-sort="cpu" class="sortable">Hardware <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="os" class="sortable">OS <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="mainScore" class="sortable">Main Score <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="cpuSingle" class="sortable">CPU 1T / MT <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="gpuScore" class="sortable">GPU / RT <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="cpuEff" class="sortable">CPU Eff <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="gpuEff" class="sortable">GPU Eff <i data-lucide="chevrons-up-down"></i></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-body">
+                                <tr>
+                                    <td colspan="9" class="loading-state">
+                                        <div class="spinner"></div>
+                                        <p>Loading benchmark data...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="leaderboard-pagination" class="leaderboard-pagination" hidden>
+                    <button id="lb-prev-btn" type="button" class="btn btn-secondary btn-sm">Previous</button>
+                    <span id="lb-page-info" class="lb-page-info">Page 1 of 1</span>
+                    <button id="lb-next-btn" type="button" class="btn btn-secondary btn-sm">Next</button>
+                </div>
+            </div><!-- /leaderboard-view -->
+
+            <div id="compare-view" class="compare-view" hidden>
+                <div class="compare-view-header">
+                    <button id="compare-back-btn" type="button" class="btn btn-secondary compare-back-btn">
+                        <i data-lucide="arrow-left"></i>
+                        <span>Back</span>
+                    </button>
+                    <h3>Benchmark comparison</h3>
+                </div>
+                <div id="compare-results" aria-live="polite"></div>
+            </div>
+        </div><!-- /tab-leaderboard -->
+
         <!-- Hardware Benchmark Content -->
-        <div id="tab-hardware" class="tab-content active" data-tab="hardware" role="tabpanel" aria-labelledby="tab-btn-hardware">
+        <div id="tab-hardware" class="tab-content" data-tab="hardware" role="tabpanel" aria-labelledby="tab-btn-hardware">
 
         <div class="hw-benchmark-container">
 
@@ -112,7 +308,6 @@
         <div class="hw-controls-bar">
             <div class="hw-tab-bar" role="tablist" aria-label="Hardware benchmark views">
                 <button id="pill-btn-performance" class="hw-tab active" data-pill="performance" role="tab" aria-selected="true" aria-controls="pill-performance"><i data-lucide="cpu" aria-hidden="true"></i> Performance</button>
-                <button id="pill-btn-curiosity" class="hw-tab" data-pill="curiosity" role="tab" aria-selected="false" aria-controls="pill-curiosity" tabindex="-1"><i data-lucide="sparkles" aria-hidden="true"></i> Curiosity</button>
                 <button id="pill-btn-efficiency" class="hw-tab" data-pill="efficiency" role="tab" aria-selected="false" aria-controls="pill-efficiency" tabindex="-1"><i data-lucide="bar-chart-3" aria-hidden="true"></i> Efficiency</button>
                 <div class="hw-tab-underline" aria-hidden="true"></div>
             </div>
@@ -494,64 +689,6 @@
         </section>
 
         </div><!-- /pill-content efficiency -->
-
-        <!-- Curiosity Pill -->
-        <div class="pill-content" data-pill="curiosity" id="pill-curiosity" role="tabpanel" aria-labelledby="pill-btn-curiosity">
-
-        <section class="curiosity-section">
-            <div class="section-header">
-                <h2>Curiosity</h2>
-                <p>Filter submitted benchmarks by the kind of oddity — legacy GPU, server, console, SBC and more</p>
-            </div>
-
-            <div class="curiosity-chips" id="curiosity-chips"></div>
-            <p class="curiosity-summary" id="curiosity-summary" aria-live="polite"></p>
-        </section>
-
-        <section class="submissions-section">
-            <div class="section-header">
-                <h2>Submitted Benchmarks</h2>
-                <p id="submissions-sub" aria-live="polite">Benchmark runs contributed for the selected curiosity</p>
-            </div>
-            <div class="submissions-controls">
-                <label class="submissions-control">
-                    <span>Device</span>
-                    <select id="submissions-device"></select>
-                </label>
-                <label class="submissions-control">
-                    <span>Sort by</span>
-                    <select id="submissions-sort">
-                        <option value="score">Main Score</option>
-                        <option value="cpuSingle">CPU Single</option>
-                        <option value="cpuMulti">CPU Multi</option>
-                        <option value="gpuScore">GPU Score</option>
-                        <option value="newest">Newest</option>
-                    </select>
-                </label>
-            </div>
-            <div class="submissions-table-wrap">
-                <table class="submissions-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Contributor</th>
-                            <th>CPU</th>
-                            <th>GPU</th>
-                            <th>Type</th>
-                            <th class="ta-right">Main</th>
-                            <th class="ta-right">CPU S</th>
-                            <th class="ta-right">CPU M</th>
-                            <th class="ta-right">GPU</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody id="submissions-body"></tbody>
-                </table>
-                <p class="submissions-empty" id="submissions-empty" hidden>No benchmark runs for this selection.</p>
-            </div>
-        </section>
-
-        </div><!-- /pill-content curiosity -->
 
         </div><!-- /hw-benchmark-container -->
 
@@ -1050,166 +1187,6 @@
         </div>
     </dialog>
 
-    <!-- Community Leaderboard Modal -->
-    <dialog id="leaderboard-modal" class="modal-dialog" closedby="any" aria-labelledby="modal-title">
-        <div class="modal-header">
-            <div class="modal-title-block">
-                <h2 id="modal-title">Community Leaderboard</h2>
-                <p>Filter, search, and sort all benchmark results</p>
-            </div>
-            <button id="close-modal-btn" class="btn-close-modal" aria-label="Close modal">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        
-        <div class="modal-body-wrapper">
-            <div id="leaderboard-view">
-            <div class="leaderboard-toolbar">
-                <button id="toggle-filters-btn" class="btn btn-secondary toggle-filters-btn">
-                    <i data-lucide="sliders-horizontal"></i>
-                    <span>Filters</span>
-                </button>
-                <button id="compare-mode-btn" class="btn btn-secondary compare-mode-btn" type="button" aria-pressed="false">
-                    <i data-lucide="git-compare"></i>
-                    <span>Compare</span>
-                </button>
-            </div>
-            <div class="leaderboard-filters">
-                <div class="search-wrapper">
-                    <i data-lucide="search" class="search-icon"></i>
-                    <label class="visually-hidden" for="search-input">Search benchmarks</label>
-                    <input type="text" id="search-input" aria-label="Search benchmarks by CPU, GPU, OS or client ID" placeholder="Search CPU, GPU, OS, client-id...">
-                </div>
-                <div class="select-wrapper">
-                    <i data-lucide="filter" class="filter-icon"></i>
-                    <label class="visually-hidden" for="os-filter">Filter by operating system</label>
-                    <select id="os-filter" aria-label="Filter by operating system">
-                        <option value="">ALL OS</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <i data-lucide="cpu" class="filter-icon"></i>
-                    <label class="visually-hidden" for="cpu-filter">Filter by CPU model</label>
-                    <select id="cpu-filter" aria-label="Filter by CPU model">
-                        <option value="">All CPU Models</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <i data-lucide="zap" class="filter-icon"></i>
-                    <label class="visually-hidden" for="gpu-filter">Filter by GPU model</label>
-                    <select id="gpu-filter" aria-label="Filter by GPU model">
-                        <option value="">All GPU Models</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <i data-lucide="binary" class="filter-icon"></i>
-                    <label class="visually-hidden" for="ram-filter">Filter by RAM capacity</label>
-                    <select id="ram-filter" aria-label="Filter by RAM capacity">
-                        <option value="">ALL RAM</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <i data-lucide="database" class="filter-icon"></i>
-                    <label class="visually-hidden" for="vram-filter">Filter by VRAM capacity</label>
-                    <select id="vram-filter" aria-label="Filter by VRAM capacity">
-                        <option value="">ALL VRAM</option>
-                    </select>
-                </div>
-                <div class="select-wrapper">
-                    <i data-lucide="terminal" class="filter-icon"></i>
-                    <label class="visually-hidden" for="kernel-filter">Filter by kernel version</label>
-                    <select id="kernel-filter" aria-label="Filter by kernel version">
-                        <option value="">ALL Kernel</option>
-                    </select>
-                </div>
-            </div>
-            <div id="active-filters" class="active-filters" hidden>
-                <span id="active-filter-chips" class="active-filter-chips"></span>
-                <button id="clear-filters-btn" type="button" class="btn-clear-filters">
-                    <i data-lucide="x" aria-hidden="true"></i>
-                    <span>Clear all</span>
-                </button>
-            </div>
-
-            <p id="leaderboard-count" class="result-count" aria-live="polite"></p>
-
-            <div id="compare-bar" class="compare-bar" hidden aria-live="polite">
-                <div class="compare-bar-info">
-                    <span id="compare-count">0 selected</span>
-                    <span id="compare-baseline-label" class="compare-baseline-label"></span>
-                </div>
-                <div class="compare-bar-actions">
-                    <button id="compare-clear-btn" type="button" class="btn btn-secondary">Clear</button>
-                    <button id="compare-start-btn" type="button" class="btn btn-primary" disabled>Compare</button>
-                </div>
-            </div>
-
-            <div class="table-card modal-table-card">
-                <div class="table-responsive">
-                    <table id="leaderboard-table">
-                        <colgroup>
-                            <col style="width:42px">
-                            <col style="width:80px">
-                            <col style="width:140px">
-                            <col style="width:65px">
-                            <col style="width:40px">
-                            <col style="width:140px">
-                            <col style="width:65px">
-                            <col style="width:45px">
-                            <col style="width:140px">
-                            <col style="width:130px">
-                            <col style="width:72px">
-                            <col style="width:72px">
-                            <col style="width:72px">
-                            <col style="width:72px">
-                            <col style="width:120px">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th data-sort="rank" class="sortable sorted-asc"># <i data-lucide="chevron-up"></i></th>
-                                <th data-sort="clientId" class="sortable">Contributor <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpu" class="sortable">CPU <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpuMaxFreq" class="sortable">CPU Freq <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="ram" class="sortable">RAM <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="gpu" class="sortable">GPU <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="gpuMaxFreq" class="sortable">GPU Freq <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="vram" class="sortable">VRAM <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="os" class="sortable">OS <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="kernel" class="sortable">Kernel <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="mainScore" class="sortable">Main <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpuSingle" class="sortable">CPU 1T <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="cpuMulti" class="sortable">CPU MT <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="gpuScore" class="sortable">GPU <i data-lucide="chevrons-up-down"></i></th>
-                                <th data-sort="date" class="sortable">Date <i data-lucide="chevrons-up-down"></i></th>
-                            </tr>
-                        </thead>
-                        <tbody id="leaderboard-body">
-                            <!-- Injected by JavaScript -->
-                            <tr>
-                                <td colspan="15" class="loading-state">
-                                    <div class="spinner"></div>
-                                    <p>Loading benchmark data...</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            </div><!-- /leaderboard-view -->
-
-            <div id="compare-view" class="compare-view" hidden>
-                <div class="compare-view-header">
-                    <button id="compare-back-btn" type="button" class="btn btn-secondary compare-back-btn">
-                        <i data-lucide="arrow-left"></i>
-                        <span>Back</span>
-                    </button>
-                    <h3>Benchmark comparison</h3>
-                </div>
-                <div id="compare-results" aria-live="polite"></div>
-            </div>
-        </div>
-    </dialog>
-
     <!-- Model Selector Modal -->
     <dialog id="model-select-modal" class="modal-dialog" style="max-width: 420px;">
         <div class="modal-header">
@@ -1227,25 +1204,6 @@
                 <button id="model-select-confirm" class="btn btn-primary">Compare</button>
                 <button id="model-select-cancel" class="btn btn-secondary">Cancel</button>
             </div>
-        </div>
-    </dialog>
-
-    <!-- Specimen Detail Modal -->
-    <dialog id="specimen-modal" class="modal-dialog specimen-modal" closedby="any" aria-labelledby="specimen-modal-title">
-        <div class="modal-header">
-            <div class="modal-title-block">
-                <h2 id="specimen-modal-title">Specimen</h2>
-                <p id="specimen-modal-sub" class="specimen-modal-sub"></p>
-            </div>
-            <button id="close-specimen-modal" class="btn-close-modal" aria-label="Close">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        <div class="modal-body-wrapper">
-            <div id="specimen-modal-chips" class="specimen-chips"></div>
-            <p id="specimen-modal-reason" class="specimen-modal-reason"></p>
-            <div class="specimen-scores" id="specimen-modal-scores"></div>
-            <div class="specimen-context" id="specimen-modal-context"></div>
         </div>
     </dialog>
 
