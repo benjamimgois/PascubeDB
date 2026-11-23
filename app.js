@@ -194,20 +194,23 @@ let modelSelectorActiveType = null;
 
 const COMPARE_MAX_RUNS = 5;
 const COMPARE_METRICS = [
-    { key: 'mainScore', label: 'Main Score' },
-    { key: 'cpuSingle', label: 'CPU Single' },
-    { key: 'cpuMulti', label: 'CPU Multi' },
-    { key: 'gpuScore', label: 'GPU Score' },
-    { key: 'gpuRt', label: 'GPU RT' },
-    { key: 'cpuEff', label: 'CPU Efficiency (Pts/MHz)', getValue: getRowCpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
-    { key: 'gpuEff', label: 'GPU Efficiency (Pts/MHz)', getValue: getRowGpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
-    { key: 'cpuMaxFreq', label: 'CPU Max Freq', format: v => `${v.toLocaleString()} MHz` },
-    { key: 'gpuMaxFreq', label: 'GPU Max Freq', format: v => `${v.toLocaleString()} MHz` },
-    { key: 'cpuMaxPower', label: 'CPU Max Power', format: v => `${v.toLocaleString()} W`, lowerIsBetter: true },
-    { key: 'gpuMaxPower', label: 'GPU Max Power', format: v => `${v.toLocaleString()} W`, lowerIsBetter: true },
-    { key: 'gpuMaxTemp', label: 'GPU Max Temp', format: v => `${v.toLocaleString()} °C`, lowerIsBetter: true },
-    { key: 'gpuTempDelta', label: 'GPU Temp Delta', format: v => `${v.toLocaleString()} °C`, lowerIsBetter: true },
+    { key: 'mainScore', label: 'Main Score', section: 'Performance' },
+    { key: 'cpuSingle', label: 'CPU Single', section: 'Performance' },
+    { key: 'cpuMulti', label: 'CPU Multi', section: 'Performance' },
+    { key: 'gpuScore', label: 'GPU Score', section: 'Performance' },
+    { key: 'gpuRt', label: 'GPU RT', section: 'Performance' },
+    { key: 'cpuEff', label: 'CPU Efficiency (Pts/MHz)', section: 'Efficiency', getValue: getRowCpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
+    { key: 'gpuEff', label: 'GPU Efficiency (Pts/MHz)', section: 'Efficiency', getValue: getRowGpuEff, format: v => (Math.trunc(v * 100) / 100).toFixed(2) },
+    { key: 'cpuMaxFreq', label: 'CPU Max Freq', section: 'Clocks & Power', format: v => `${v.toLocaleString()} MHz` },
+    { key: 'gpuMaxFreq', label: 'GPU Max Freq', section: 'Clocks & Power', format: v => `${v.toLocaleString()} MHz` },
+    { key: 'cpuMaxPower', label: 'CPU Max Power', section: 'Clocks & Power', format: v => `${v.toLocaleString()} W`, lowerIsBetter: true },
+    { key: 'gpuMaxPower', label: 'GPU Max Power', section: 'Clocks & Power', format: v => `${v.toLocaleString()} W`, lowerIsBetter: true },
+    { key: 'gpuMaxTemp', label: 'GPU Max Temp', section: 'Thermals', format: v => `${v.toLocaleString()} °C`, lowerIsBetter: true },
+    { key: 'gpuTempDelta', label: 'GPU Temp Delta', section: 'Thermals', format: v => `${v.toLocaleString()} °C`, lowerIsBetter: true },
 ];
+const COMPARE_SECTION_ORDER = ['Performance', 'Efficiency', 'Clocks & Power', 'Thermals'];
+const COMPARE_SERIES_COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#a855f7', '#ec4899'];
+let compareShowCharts = true;
 let compareState = { active: false, selection: [], baseline: null, view: 'leaderboard' };
 let leaderboardGrouping = 'best'; // 'best' | 'all'
 let leaderboardPage = 1;
@@ -1670,7 +1673,7 @@ function populateFilters() {
     });
     
     // 1. Populate OS
-    osFilter.innerHTML = '<option value="">ALL OS</option>';
+    osFilter.innerHTML = '<option value="">All OS</option>';
     Array.from(osList).sort().forEach(os => {
         const option = document.createElement('option');
         option.value = os;
@@ -1706,7 +1709,7 @@ function populateFilters() {
     }
     
     // 4. Populate RAM (Numeric Sort)
-    ramFilter.innerHTML = '<option value="">ALL RAM</option>';
+    ramFilter.innerHTML = '<option value="">All RAM</option>';
     Array.from(ramList).sort((a, b) => parseGB(a) - parseGB(b)).forEach(ram => {
         const option = document.createElement('option');
         option.value = ram;
@@ -1718,7 +1721,7 @@ function populateFilters() {
     }
     
     // 5. Populate VRAM (Numeric Sort)
-    vramFilter.innerHTML = '<option value="">ALL VRAM</option>';
+    vramFilter.innerHTML = '<option value="">All VRAM</option>';
     Array.from(vramList).sort((a, b) => parseGB(a) - parseGB(b)).forEach(vram => {
         const option = document.createElement('option');
         option.value = vram;
@@ -1730,7 +1733,7 @@ function populateFilters() {
     }
     
     // 6. Populate CPU Architecture
-    archFilter.innerHTML = '<option value="">ALL Arch</option>';
+    archFilter.innerHTML = '<option value="">All Arch</option>';
     const archOrder = ['x86', 'ARM', 'RISC-V', 'LoongArch', 'PowerPC'];
     Array.from(archList).sort((a, b) => {
         const ia = archOrder.indexOf(a);
@@ -2317,9 +2320,8 @@ function updateCompareUI() {
         btn.classList.toggle('active', compareState.active);
         btn.setAttribute('aria-pressed', compareState.active ? 'true' : 'false');
     }
-    if (bar) bar.hidden = !compareState.active;
-
     const n = compareState.selection.length;
+    if (bar) bar.hidden = n === 0;
     if (count) count.textContent = `${n} selected`;
     if (baselineLabel) {
         const baseline = getCompareBaseline();
@@ -2327,19 +2329,21 @@ function updateCompareUI() {
             ? `Baseline: ${getCompareRunLabel(baseline)}`
             : 'Select 2–5 runs';
     }
-    if (startBtn) startBtn.disabled = n < 2;
+    if (startBtn) {
+        startBtn.disabled = n < 2;
+        startBtn.textContent = n > 0 ? `Compare (${n})` : 'Compare';
+    }
 }
 
 function refreshVisibleCompareRows() {
     const tbody = document.getElementById('leaderboard-body');
     if (!tbody) return;
-    const active = compareState.active;
     const baseline = getCompareBaseline();
     tbody.querySelectorAll('tr').forEach(tr => {
         const row = tr.__benchmarkRow;
         if (!row) return;
-        const selected = active && isCompareSelected(row);
-        tr.classList.toggle('compare-selectable', active);
+        const selected = isCompareSelected(row);
+        tr.classList.add('compare-selectable');
         tr.classList.toggle('compare-selected', selected);
         tr.classList.toggle('compare-baseline', selected && baseline === row);
         const cb = tr.querySelector('.compare-row-checkbox');
@@ -2463,6 +2467,97 @@ function buildCompareRankMap() {
     return rankMap;
 }
 
+function renderCompareRadarSvg(runs) {
+    const axes = [
+        { label: 'Main', get: r => r.mainScore },
+        { label: 'CPU 1T', get: r => r.cpuSingle },
+        { label: 'CPU MT', get: r => r.cpuMulti },
+        { label: 'GPU', get: r => r.gpuScore },
+        { label: 'GPU RT', get: r => r.gpuRt },
+        { label: 'CPU Eff', get: r => getRowCpuEff(r) },
+    ];
+    const size = 250;
+    const cx = size / 2;
+    const cy = size / 2;
+    const rMax = 84;
+    const angleFor = i => (-Math.PI / 2) + (i * 2 * Math.PI / axes.length);
+    const maxVals = axes.map(ax => Math.max(...runs.map(r => {
+        const v = ax.get(r);
+        return (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : 0;
+    }), 1));
+
+    const gridSvg = [0.25, 0.5, 0.75, 1].map(scale => {
+        const pts = axes.map((_, i) => {
+            const a = angleFor(i);
+            return `${(cx + Math.cos(a) * rMax * scale).toFixed(1)},${(cy + Math.sin(a) * rMax * scale).toFixed(1)}`;
+        }).join(' ');
+        return `<polygon points="${pts}" fill="none" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1" />`;
+    }).join('');
+
+    const axisSvg = axes.map((ax, i) => {
+        const a = angleFor(i);
+        const x2 = (cx + Math.cos(a) * rMax).toFixed(1);
+        const y2 = (cy + Math.sin(a) * rMax).toFixed(1);
+        const lx = (cx + Math.cos(a) * (rMax + 18)).toFixed(1);
+        const ly = (cy + Math.sin(a) * (rMax + 18)).toFixed(1);
+        return `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1" /><text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="#94a3b8" font-size="10">${ax.label}</text>`;
+    }).join('');
+
+    const polysSvg = runs.map((run, idx) => {
+        const color = COMPARE_SERIES_COLORS[idx % COMPARE_SERIES_COLORS.length];
+        const pts = axes.map((ax, i) => {
+            const raw = ax.get(run);
+            const val = (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) ? raw : 0;
+            const ratio = Math.min(1, val / maxVals[i]);
+            const a = angleFor(i);
+            return `${(cx + Math.cos(a) * rMax * ratio).toFixed(1)},${(cy + Math.sin(a) * rMax * ratio).toFixed(1)}`;
+        }).join(' ');
+        return `<polygon points="${pts}" fill="${color}" fill-opacity="0.16" stroke="${color}" stroke-width="2" />`;
+    }).join('');
+
+    const legend = runs.map((run, idx) => {
+        const color = COMPARE_SERIES_COLORS[idx % COMPARE_SERIES_COLORS.length];
+        return `<span class="compare-legend-item"><span class="compare-legend-dot" style="background:${color}"></span>${escapeFilterHtml(getCompareShortLabel(run))}</span>`;
+    }).join('');
+
+    return `
+        <div class="compare-radar-wrap">
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Normalized radar comparison across 6 axes">${gridSvg}${axisSvg}${polysSvg}</svg>
+            <div class="compare-legend">${legend}</div>
+        </div>`;
+}
+
+function renderCompareBarsHtml(runs) {
+    const barMetrics = [
+        { label: 'Main Score', get: r => r.mainScore, fmt: v => v.toLocaleString() },
+        { label: 'CPU Single', get: r => r.cpuSingle, fmt: v => v.toLocaleString() },
+        { label: 'CPU Multi', get: r => r.cpuMulti, fmt: v => v.toLocaleString() },
+        { label: 'GPU Score', get: r => r.gpuScore, fmt: v => v.toLocaleString() },
+        { label: 'GPU RT', get: r => r.gpuRt, fmt: v => v.toLocaleString() },
+        { label: 'GPU Max Power', get: r => r.gpuMaxPower, fmt: v => `${v.toLocaleString()} W` },
+    ];
+
+    return barMetrics.map(m => {
+        const maxVal = Math.max(...runs.map(r => {
+            const v = m.get(r);
+            return (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : 0;
+        }), 1);
+        const rowsHtml = runs.map((run, idx) => {
+            const val = m.get(run);
+            const hasVal = typeof val === 'number' && Number.isFinite(val) && val > 0;
+            const pct = hasVal ? Math.round((val / maxVal) * 100) : 0;
+            const color = COMPARE_SERIES_COLORS[idx % COMPARE_SERIES_COLORS.length];
+            return `
+                <div class="compare-bar-row">
+                    <span class="compare-bar-name" title="${escapeFilterHtml(getCompareRunLabel(run))}">${escapeFilterHtml(getCompareShortLabel(run))}</span>
+                    <div class="compare-bar-track"><div class="compare-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+                    <span class="compare-bar-val">${hasVal ? m.fmt(val) : 'N/D'}</span>
+                </div>`;
+        }).join('');
+        return `<div class="compare-bar-group"><div class="compare-bar-label">${m.label}</div>${rowsHtml}</div>`;
+    }).join('');
+}
+
 function renderCompareResults() {
     const container = document.getElementById('compare-results');
     if (!container) return;
@@ -2508,26 +2603,38 @@ function renderCompareResults() {
             </div>`;
     }).join('');
 
-    const tableRows = COMPARE_METRICS.map(metric => {
-        const getVal = r => (metric.getValue ? metric.getValue(r) : r[metric.key]);
-        const baseVal = getVal(baseline);
-        const cells = runs.map(row => {
-            const isBaseline = row === baseline;
-            const value = getVal(row);
-            const delta = isBaseline ? null : computeCompareDelta(value, baseVal);
-            const deltaHtml = isBaseline
-                ? '<span class="compare-delta delta-neutral">baseline</span>'
-                : `<span class="compare-delta ${compareDeltaClass(delta, Boolean(metric.lowerIsBetter))}">${formatCompareDelta(delta)}</span>`;
-            const displayVal = (typeof value === 'number' && Number.isFinite(value))
-                ? (metric.format ? metric.format(value) : formatCompareValue(value))
-                : 'N/D';
-            return `<td class="compare-cell">
-                <span class="compare-value">${displayVal}</span>
-                ${deltaHtml}
-            </td>`;
-        }).join('');
-        return `<tr><th scope="row">${escapeFilterHtml(metric.label)}</th>${cells}</tr>`;
-    }).join('');
+    let tableRows = '';
+    COMPARE_SECTION_ORDER.forEach(sectionName => {
+        const sectionMetrics = COMPARE_METRICS.filter(m => m.section === sectionName);
+        if (!sectionMetrics.length) return;
+        tableRows += `<tr class="compare-section-row"><td colspan="${runs.length + 1}">${escapeFilterHtml(sectionName)}</td></tr>`;
+        sectionMetrics.forEach((metric, rowIdx) => {
+            const getVal = r => (metric.getValue ? metric.getValue(r) : r[metric.key]);
+            const baseVal = getVal(baseline);
+            const validVals = runs.map(r => getVal(r)).filter(v => typeof v === 'number' && Number.isFinite(v));
+            const bestVal = validVals.length > 1
+                ? (metric.lowerIsBetter ? Math.min(...validVals) : Math.max(...validVals))
+                : null;
+            const cells = runs.map(row => {
+                const isBaseline = row === baseline;
+                const value = getVal(row);
+                const isNumeric = typeof value === 'number' && Number.isFinite(value);
+                const isBest = isNumeric && bestVal !== null && value === bestVal;
+                const delta = isBaseline ? null : computeCompareDelta(value, baseVal);
+                const deltaHtml = isBaseline
+                    ? '<span class="compare-delta delta-neutral">baseline</span>'
+                    : `<span class="compare-delta ${compareDeltaClass(delta, Boolean(metric.lowerIsBetter))}">${formatCompareDelta(delta)}</span>`;
+                const displayVal = isNumeric
+                    ? (metric.format ? metric.format(value) : formatCompareValue(value))
+                    : 'N/D';
+                return `<td class="compare-cell">
+                    <span class="compare-value${isBest ? ' is-best' : ''}">${isBest ? '★ ' : ''}${displayVal}</span>
+                    ${deltaHtml}
+                </td>`;
+            }).join('');
+            tableRows += `<tr class="${rowIdx % 2 === 1 ? 'compare-row-alt' : ''}"><th scope="row">${escapeFilterHtml(metric.label)}</th>${cells}</tr>`;
+        });
+    });
 
     const tableHeaders = runs.map(row => {
         const isBaseline = row === baseline;
@@ -2537,6 +2644,20 @@ function renderCompareResults() {
         return `<th scope="col" title="${escapeFilterHtml(getCompareRunLabel(row))}">${escapeFilterHtml(label)}</th>`;
     }).join('');
 
+    const chartsHtml = compareShowCharts ? `
+        <div class="compare-charts-grid">
+            <div class="compare-chart-card">
+                <div class="compare-chart-title">Normalized Profile (Radar)</div>
+                <div class="compare-chart-sub">100% = highest selected run per axis</div>
+                ${renderCompareRadarSvg(runs)}
+            </div>
+            <div class="compare-chart-card">
+                <div class="compare-chart-title">Category Comparison (Normalized)</div>
+                <div class="compare-chart-sub">Relative scale against top selected run per metric</div>
+                <div class="compare-bars-wrap">${renderCompareBarsHtml(runs)}</div>
+            </div>
+        </div>` : '';
+
     container.innerHTML = `
         <div class="compare-controls">
             <label class="compare-baseline-control">
@@ -2545,12 +2666,19 @@ function renderCompareResults() {
                     ${baselineOptions}
                 </select>
             </label>
-            <span class="compare-hardware-note ${allSameHardware ? 'same' : 'diff'}">
-                <i data-lucide="${allSameHardware ? 'check-circle' : 'alert-triangle'}" aria-hidden="true"></i>
-                ${allSameHardware ? 'Same hardware' : 'Hardware differs — deltas include hardware differences'}
-            </span>
+            <div class="compare-controls-right">
+                <label class="compare-charts-toggle">
+                    <input type="checkbox" id="compare-charts-toggle-cb"${compareShowCharts ? ' checked' : ''} />
+                    <span>Show Charts</span>
+                </label>
+                <span class="compare-hardware-note ${allSameHardware ? 'same' : 'diff'}">
+                    <i data-lucide="${allSameHardware ? 'check-circle' : 'alert-triangle'}" aria-hidden="true"></i>
+                    ${allSameHardware ? 'Same hardware' : 'Hardware differs — deltas include hardware differences'}
+                </span>
+            </div>
         </div>
         <div class="compare-run-grid">${cards}</div>
+        ${chartsHtml}
         <div class="compare-table-wrap">
             <table class="compare-table">
                 <caption class="visually-hidden">Benchmark comparison against the selected baseline</caption>
@@ -2558,6 +2686,14 @@ function renderCompareResults() {
                 <tbody>${tableRows}</tbody>
             </table>
         </div>`;
+
+    const chartsToggleCb = document.getElementById('compare-charts-toggle-cb');
+    if (chartsToggleCb) {
+        chartsToggleCb.addEventListener('change', (e) => {
+            compareShowCharts = e.target.checked;
+            renderCompareResults();
+        });
+    }
 
     const baselineSelect = document.getElementById('compare-baseline-select');
     if (baselineSelect) {
@@ -3246,7 +3382,7 @@ function renderTable() {
         if (isPinned) tr.classList.add('lb-pinned-baseline');
 
         tr.innerHTML = `
-            <td class="rank-cell">${compareActive ? `<span class="rank-content"><input type="checkbox" class="compare-row-checkbox"${compareSelected ? ' checked' : ''} aria-label="Select ${escapeFilterHtml(displayName)} benchmark run"><span class="rank-number">${absoluteRank}</span></span>` : rankContent}</td>
+            <td class="rank-cell"><span class="rank-content"><input type="checkbox" class="compare-row-checkbox"${compareSelected ? ' checked' : ''} aria-label="Select ${escapeFilterHtml(displayName)} benchmark run"><span class="rank-number">${rankContent}</span></span></td>
             <td>
                 <div class="lb-hw-cell">
                     <div class="lb-hw-primary">${highlightText(row.cpu, searchQuery)} + ${highlightText(row.gpu, searchQuery)}</div>
@@ -3326,7 +3462,15 @@ function renderTable() {
         if (cmpBtn) {
             cmpBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (!compareState.active) compareState.active = true;
+                compareState.active = true;
+                if (pinnedBaselineRow && pinnedBaselineRow !== row) {
+                    compareState.selection = [pinnedBaselineRow, row];
+                    compareState.baseline = pinnedBaselineRow;
+                    updateCompareUI();
+                    refreshVisibleCompareRows();
+                    openCompareView();
+                    return;
+                }
                 toggleCompareSelection(row);
                 renderTable();
             });
@@ -3347,6 +3491,7 @@ function renderTable() {
             compareCheckbox.addEventListener('click', (e) => e.stopPropagation());
             compareCheckbox.addEventListener('change', (e) => {
                 e.stopPropagation();
+                compareState.active = true;
                 toggleCompareSelection(row);
             });
         }

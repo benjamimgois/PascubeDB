@@ -107,30 +107,29 @@
         <!-- Leaderboard & Compare Content (Primary Tab) -->
         <div id="tab-leaderboard" class="tab-content active" data-tab="leaderboard" role="tabpanel" aria-labelledby="tab-btn-leaderboard">
             <section id="hw-compare-card" class="hw-compare-card" aria-label="Compare your hardware">
-                <div class="hw-compare-header">
-                    <div>
+                <div class="hw-compare-left">
+                    <div class="hw-compare-header">
                         <h2>Compare Your Hardware</h2>
-                        <p>Find your benchmark run by username or Client ID to see your standing and compare against others</p>
+                        <button id="my-hw-filter-btn" type="button" class="btn btn-secondary btn-sm" disabled>
+                            <i data-lucide="filter" aria-hidden="true"></i>
+                            <span>Filter table to my runs</span>
+                        </button>
                     </div>
-                    <button id="my-hw-filter-btn" type="button" class="btn btn-secondary btn-sm" disabled>
-                        <i data-lucide="filter" aria-hidden="true"></i>
-                        <span>Filter table to my runs</span>
-                    </button>
-                </div>
-                <div class="hw-compare-selectors">
-                    <div class="hw-autocomplete">
-                        <i data-lucide="user-search" class="filter-icon"></i>
-                        <label class="visually-hidden" for="my-run-input">Find run by username or Client ID</label>
-                        <input type="text" id="my-run-input" autocomplete="off" placeholder="Search by username or Client ID (e.g. benjamimgois)..." aria-label="Find run by username or Client ID">
-                        <button type="button" id="my-run-clear" class="hw-clear-btn" aria-label="Clear user or ID" hidden><i data-lucide="x"></i></button>
-                        <div id="my-run-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
+                    <div class="hw-compare-selectors">
+                        <div class="hw-autocomplete">
+                            <i data-lucide="user-search" class="filter-icon"></i>
+                            <label class="visually-hidden" for="my-run-input">Find run by username or Client ID</label>
+                            <input type="text" id="my-run-input" autocomplete="off" placeholder="Search by username or Client ID (e.g. benjamimgois)..." aria-label="Find run by username or Client ID">
+                            <button type="button" id="my-run-clear" class="hw-clear-btn" aria-label="Clear user or ID" hidden><i data-lucide="x"></i></button>
+                            <div id="my-run-dropdown" class="hw-dropdown-list" role="listbox" hidden></div>
+                        </div>
                     </div>
                 </div>
                 <div id="my-hw-summary" class="hw-compare-summary">
                     <div class="hw-percentile-item">
                         <span class="hw-pct-label">Main Score</span>
                         <strong id="my-hw-main-pct" class="hw-pct-value">—</strong>
-                        <span id="my-hw-main-sub" class="hw-pct-sub">Select CPU or GPU</span>
+                        <span id="my-hw-main-sub" class="hw-pct-sub">Select a run</span>
                     </div>
                     <div class="hw-percentile-item">
                         <span class="hw-pct-label">CPU 1T</span>
@@ -152,21 +151,20 @@
 
             <div id="leaderboard-view">
                 <div class="leaderboard-toolbar">
-                    <button id="toggle-filters-btn" class="btn btn-secondary toggle-filters-btn">
-                        <i data-lucide="sliders-horizontal"></i>
-                        <span>Filters</span>
-                    </button>
-                    <div class="chart-mode-group" id="lb-grouping-group" role="group" aria-label="Leaderboard grouping">
-                        <button class="chart-mode-btn active" data-value="best" type="button">Best per Contributor</button>
-                        <button class="chart-mode-btn" data-value="all" type="button">All Runs</button>
-                    </div>
-                    <button id="compare-mode-btn" class="btn btn-secondary compare-mode-btn" type="button" aria-pressed="false">
-                        <i data-lucide="git-compare"></i>
-                        <span>Compare</span>
-                    </button>
-                    <div id="pinned-baseline-banner" class="pinned-baseline-banner" hidden>
-                        <span id="pinned-baseline-text"></span>
-                        <button id="clear-pinned-baseline-btn" type="button" class="btn-clear-filters">Unpin</button>
+                    <p id="leaderboard-count" class="result-count" aria-live="polite"></p>
+                    <div class="leaderboard-toolbar-actions">
+                        <button id="toggle-filters-btn" class="btn btn-secondary toggle-filters-btn">
+                            <i data-lucide="sliders-horizontal"></i>
+                            <span>Filters</span>
+                        </button>
+                        <div class="chart-mode-group" id="lb-grouping-group" role="group" aria-label="Leaderboard grouping">
+                            <button class="chart-mode-btn active" data-value="best" type="button">Best per Contributor</button>
+                            <button class="chart-mode-btn" data-value="all" type="button">All Runs</button>
+                        </div>
+                        <div id="pinned-baseline-banner" class="pinned-baseline-banner" hidden>
+                            <span id="pinned-baseline-text"></span>
+                            <button id="clear-pinned-baseline-btn" type="button" class="btn-clear-filters">Unpin</button>
+                        </div>
                     </div>
                 </div>
                 <div class="leaderboard-filters">
@@ -179,7 +177,7 @@
                         <i data-lucide="filter" class="filter-icon"></i>
                         <label class="visually-hidden" for="os-filter">Filter by operating system</label>
                         <select id="os-filter" aria-label="Filter by operating system">
-                            <option value="">ALL OS</option>
+                            <option value="">All OS</option>
                         </select>
                     </div>
                     <div class="select-wrapper">
@@ -200,21 +198,21 @@
                         <i data-lucide="binary" class="filter-icon"></i>
                         <label class="visually-hidden" for="ram-filter">Filter by RAM capacity</label>
                         <select id="ram-filter" aria-label="Filter by RAM capacity">
-                            <option value="">ALL RAM</option>
+                            <option value="">All RAM</option>
                         </select>
                     </div>
                     <div class="select-wrapper">
                         <i data-lucide="database" class="filter-icon"></i>
                         <label class="visually-hidden" for="vram-filter">Filter by VRAM capacity</label>
                         <select id="vram-filter" aria-label="Filter by VRAM capacity">
-                            <option value="">ALL VRAM</option>
+                            <option value="">All VRAM</option>
                         </select>
                     </div>
                     <div class="select-wrapper">
                         <i data-lucide="cpu" class="filter-icon"></i>
                         <label class="visually-hidden" for="arch-filter">Filter by CPU architecture</label>
                         <select id="arch-filter" aria-label="Filter by CPU architecture">
-                            <option value="">ALL Arch</option>
+                            <option value="">All Arch</option>
                         </select>
                     </div>
                 </div>
@@ -229,8 +227,6 @@
                         <span>Clear all</span>
                     </button>
                 </div>
-
-                <p id="leaderboard-count" class="result-count" aria-live="polite"></p>
 
                 <div id="compare-bar" class="compare-bar" hidden aria-live="polite">
                     <div class="compare-bar-info">

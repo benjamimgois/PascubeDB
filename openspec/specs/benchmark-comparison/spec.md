@@ -5,18 +5,6 @@ Lets users select benchmark runs from the leaderboard and compare each run's sco
 
 ## Requirements
 
-### Requirement: Compare mode activation
-
-The leaderboard SHALL provide a Compare control that switches the table into a selection mode. In compare mode, each row SHALL expose a selection control and rows SHALL remain sortable and filterable.
-
-#### Scenario: Entering compare mode
-- **WHEN** the user activates the Compare control
-- **THEN** the leaderboard enters compare mode and each visible row exposes a selection control
-
-#### Scenario: Leaving compare mode
-- **WHEN** the user exits compare mode
-- **THEN** the selection is cleared and the table returns to its normal state
-
 ### Requirement: Benchmark run selection
 
 In compare mode, users SHALL be able to select between 2 and 5 benchmark runs. Selection SHALL persist across search, filter, and sort changes and SHALL be cleared when the leaderboard modal closes or benchmark data is refreshed. A compare bar SHALL show the selected count and the current baseline.
@@ -71,11 +59,11 @@ For each selected run, the system SHALL compare Main Score, CPU Single, CPU Mult
 
 ### Requirement: Comparison results view
 
-The comparison view SHALL show a baseline selector, a per-run summary with contributor and hardware context, and a metric table containing absolute values and signed deltas for each selected run. The view SHALL indicate when all selected runs share the baseline's normalized CPU and GPU, and SHALL warn when hardware differs.
+The comparison view SHALL show a baseline selector, a per-run summary with contributor and hardware context, toggleable comparative charts, and a grouped metric table containing absolute values and signed deltas for each selected run. The view SHALL indicate when all selected runs share the baseline's normalized CPU and GPU, and SHALL warn when hardware differs.
 
 #### Scenario: Results render for selected runs
 - **WHEN** the user starts a comparison with at least two selected runs
-- **THEN** the results view shows the baseline, every selected run, and Main/CPU Single/CPU Multi/GPU values with deltas
+- **THEN** the results view shows the baseline, every selected run, comparative charts (when enabled), and the grouped metric table with values and deltas
 
 #### Scenario: Same hardware is indicated
 - **WHEN** every selected run has the same normalized CPU and GPU as the baseline
@@ -102,7 +90,7 @@ Compare selection and results SHALL be keyboard operable and screen-reader frien
 - **THEN** the value includes its sign and percentage, such as `-7.1%`, independently of color
 
 ### Requirement: Inline Baseline Pinning and Direct Row Compare
-Each Leaderboard row SHALL directly expose a `Pin as Baseline` control and a `Compare` selection control without requiring a separate modal dialog.
+Each Leaderboard row SHALL directly expose a `Pin as Baseline` control and a `Compare` control without requiring a separate modal dialog. When a pinned baseline is active, clicking `Compare` on another row SHALL pre-select the pinned baseline and that row and open the comparison view immediately.
 
 #### Scenario: Pinning a baseline row
 - **WHEN** the user clicks `Pin as Baseline` on any Leaderboard row
@@ -111,3 +99,36 @@ Each Leaderboard row SHALL directly expose a `Pin as Baseline` control and a `Co
 #### Scenario: Unpinning the baseline row
 - **WHEN** the user clicks `Unpin` on the pinned baseline row or clears the baseline
 - **THEN** inline percentage deltas are removed from the table rows
+
+#### Scenario: One-click compare against pinned baseline
+- **WHEN** a pinned baseline is active and the user clicks `Compare` on a non-baseline row
+- **THEN** the system selects the pinned baseline and the clicked row and opens the Benchmark comparison view directly
+
+#### Scenario: Row compare without pinned baseline
+- **WHEN** no pinned baseline is active and the user clicks `Compare` on a row
+- **THEN** the system toggles that row in the compare selection and updates the compare bar
+
+### Requirement: Direct Row Selection Without Mode Toggle
+The leaderboard SHALL keep row selection controls accessible directly in each row without requiring a separate toolbar mode toggle, and SHALL automatically reveal the floating compare bar when one or more runs are selected.
+
+#### Scenario: Direct row selection without mode toggle
+- **WHEN** the leaderboard table renders
+- **THEN** each visible row exposes a subtle selection checkbox in the rank column and the toolbar does not require a separate Compare mode toggle button
+
+#### Scenario: Auto-showing the floating compare bar
+- **WHEN** the user checks one or more row selection checkboxes
+- **THEN** the sticky compare bar appears automatically showing the selected count and a `Compare (N)` action
+
+### Requirement: Comparative Visual Charts in Comparison View
+The Benchmark comparison view SHALL provide a toggleable comparative charts section featuring a normalized radar chart across key performance/efficiency axes and normalized horizontal comparison bars for selected runs.
+
+#### Scenario: Toggling comparative charts
+- **WHEN** the user toggles the `Show Charts` control in the comparison view
+- **THEN** the radar and normalized bar charts show or hide immediately without losing the selected runs or baseline
+
+### Requirement: Grouped Comparison Metric Sections and Best-Value Highlight
+The comparison metric table SHALL group metrics into four sections (`Performance`, `Efficiency`, `Clocks & Power`, `Thermals`), constrain the metric label column width for comfortable scanning, and highlight the best valid value per metric row.
+
+#### Scenario: Grouped metric sections render
+- **WHEN** the comparison table renders
+- **THEN** metrics are organized under `Performance`, `Efficiency`, `Clocks & Power`, and `Thermals` section headers with best-value highlighting on each metric row
