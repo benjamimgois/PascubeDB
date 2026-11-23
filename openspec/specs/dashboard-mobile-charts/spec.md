@@ -2,7 +2,9 @@
 
 ## Purpose
 Specifies the capability to render performance comparison charts and distribution metrics for mobile form factors (laptops/notebooks and handheld gaming PCs) on the benchmark dashboard.
+
 ## Requirements
+
 ### Requirement: Mobile Device Detection Logic
 The system SHALL scan and analyze the benchmark dataset to identify rows representing mobile devices. Each mobile record MUST be classified as either "Handheld" or "Notebook" based on CPU, GPU, OS, and Kernel signatures.
 - "Handheld" signature includes: CPU/GPU containing "Steam Deck", "Z1 Extreme", "Z1", "Custom APU 0405", or "AMD Custom GPU 0405"; or OS/Kernel containing "Bazzite (ROG Ally", "Steam Deck", "Ally", or "Legion Go".
@@ -19,20 +21,6 @@ The system SHALL aggregate the counts of Handheld vs. Notebook vs. SBC devices a
 - **WHEN** the dashboard page finishes loading the benchmark data
 - **THEN** a doughnut chart is rendered showing the percentage of Handhelds, Notebooks, and SBCs among all identified non-desktop devices
 
-### Requirement: Top 10 Notebook Benchmark Runs
-The system SHALL identify Notebook devices and render a horizontal bar chart of the top 10 highest individual Main Scores.
-
-#### Scenario: Rendering the Top 10 Notebook Benchmark Runs chart
-- **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a horizontal bar chart is rendered displaying the top 10 Notebook runs sorted by Main Score in descending order, with client-id (first 8 characters) shown on hover
-
-### Requirement: Top 10 Handheld Benchmark Runs
-The system SHALL identify Handheld devices and render a horizontal bar chart of the top 10 highest individual Main Scores.
-
-#### Scenario: Rendering the Top 10 Handheld Benchmark Runs chart
-- **WHEN** the dashboard page finishes loading the benchmark data
-- **THEN** a horizontal bar chart is rendered displaying the top 10 Handheld runs sorted by Main Score in descending order, with client-id (first 8 characters) shown on hover
-
 ### Requirement: Top 10 SBC Benchmark Runs
 The system SHALL parse the "product name" field from each benchmark row. When rendering the Top 10 SBC Benchmark Runs chart, the label SHALL display the product name (if available and not "N/D") instead of the normalized CPU name.
 
@@ -46,4 +34,3 @@ The system SHALL ensure that text labels on portable device charts (including Ma
 #### Scenario: Rendering labels on a narrow portable device bar
 - **WHEN** the portable horizontal bar chart is rendered and the CPU frequency label would overlap the score
 - **THEN** the CPU frequency label is rendered outside to the right of the bar dynamically
-

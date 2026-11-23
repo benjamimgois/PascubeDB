@@ -2,7 +2,9 @@
 
 ## Purpose
 Specifies the capability to compare software versions (OS, Mesa driver, NVIDIA driver, Kernel) by head-to-head wins across hardware groups and display the winner for each category.
+
 ## Requirements
+
 ### Requirement: Software Winner Comparison Computation
 The system SHALL group benchmark runs by hardware (CPU for kernel/OS, GPU for drivers) and software version, compute the average score per version per hardware group, and count wins: for each hardware group with 2+ software versions, the version with the highest average score gets a win. The winner is the version with the most wins across all compared hardware groups. Driver categorization for Mesa and NVIDIA versions SHALL be based on the driver string content ("Mesa" or "NVRM"/"NVIDIA") instead of GPU model names, ensuring GTX and MX GPUs are correctly grouped under the NVIDIA comparison. Normalized GPU model names that resolve to empty strings SHALL be excluded.
 
@@ -36,3 +38,24 @@ For delta charts rendered using diverging bars, the system SHALL ensure that any
 - **WHEN** a delta chart is rendered in Delta % mode
 - **THEN** non-baseline datasets with 0% delta are rendered with a 3px bar, while the baseline dataset has no bar
 
+### Requirement: Unified Software Comparison Mode Selector
+Each software comparison chart card (`OS vs. Hardware`, `Mesa Driver vs. GPU`, `NVIDIA Driver vs. GPU`, `Kernel vs. CPU Score`) SHALL replace separate `Normalize` and `Absolute | Delta %` controls with a single 3-mode selector offering `Absolute`, `Normalized %`, and `Delta %`.
+
+#### Scenario: Switching visualization mode to Normalized %
+- **WHEN** the user selects `Normalized %` on a software comparison card
+- **THEN** the card renders scores scaled 0–100% per hardware group without displaying a separate `Normalize` toggle
+
+#### Scenario: Syncing with global Normalize all toggle
+- **WHEN** the user toggles the global `Normalize all` control in the dashboard header
+- **THEN** software comparison cards switch between `Absolute` and `Normalized %` accordingly
+
+### Requirement: Conditional Baseline Selector Visibility
+The `Baseline` selector row on each software comparison card SHALL be visible only when the card is in `Delta %` mode, and hidden in `Absolute` and `Normalized %` modes.
+
+#### Scenario: Hiding Baseline in Absolute or Normalized % mode
+- **WHEN** a software comparison card is in `Absolute` or `Normalized %` mode
+- **THEN** its `Baseline` dropdown control is hidden from the card header
+
+#### Scenario: Showing Baseline in Delta % mode
+- **WHEN** the user switches a software comparison card to `Delta %` mode
+- **THEN** its `Baseline` dropdown control becomes visible in the card header

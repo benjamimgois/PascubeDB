@@ -758,6 +758,36 @@ h1, h2, h3, h4 {
     gap: 1.5rem;
 }
 
+.hw-controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.hw-controls-bar .hw-tab-bar {
+    flex: 1 1 320px;
+    border-bottom: none;
+}
+
+.hw-category-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.hw-category-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
 /* Tab Bar with underline indicator */
 .hw-tab-bar {
     display: flex;
