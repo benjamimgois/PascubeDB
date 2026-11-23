@@ -2571,6 +2571,11 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     width: auto;
 }
 
+.compare-share-btn {
+    margin-left: auto;
+    width: auto;
+}
+
 #compare-results {
     display: flex;
     flex-direction: column;

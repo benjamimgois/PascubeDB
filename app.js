@@ -2075,6 +2075,17 @@ function updateUrlFilters() {
     if (ramVal) params.set('ram', ramVal);
     if (vramVal) params.set('vram', vramVal);
     if (archVal) params.set('arch', archVal);
+    if (compareState.view === 'results' && compareState.selection.length >= 2) {
+        const compareIds = compareState.selection.map(r => getRunId(r)).filter(Boolean);
+        if (compareIds.length >= 2) {
+            params.set('compare', compareIds.join(','));
+            const base = getCompareBaseline();
+            if (base && base !== compareState.selection[0]) {
+                const baseId = getRunId(base);
+                if (baseId) params.set('baseline', baseId);
+            }
+        }
+    }
 
     const newQueryString = params.toString();
     const newUrl = window.location.pathname + (newQueryString ? '?' + newQueryString : '');
@@ -2169,10 +2180,31 @@ function initUrlFilters() {
         applied = true;
     }
 
+    const compareParam = params.get('compare');
+    const baselineParam = params.get('baseline');
+
     urlFiltersInitialized = true;
 
     if (applied) {
         handleFilterChange(false);
+    }
+
+    if (compareParam) {
+        const resolved = [];
+        compareParam.split(',').map(s => s.trim()).filter(Boolean).forEach(id => {
+            if (resolved.length >= COMPARE_MAX_RUNS) return;
+            const match = findRunById(id);
+            if (match && !resolved.includes(match)) resolved.push(match);
+        });
+        if (resolved.length >= 2) {
+            compareState.active = true;
+            compareState.selection = resolved;
+            const baseMatch = baselineParam ? findRunById(baselineParam) : null;
+            compareState.baseline = (baseMatch && resolved.includes(baseMatch)) ? baseMatch : resolved[0];
+            updateCompareUI();
+            refreshVisibleCompareRows();
+            openCompareView();
+        }
     }
 }
 
@@ -2703,6 +2735,7 @@ function renderCompareResults() {
             renderCompareResults();
             updateCompareUI();
             refreshVisibleCompareRows();
+            updateUrlFilters();
         });
     }
     if (window.lucide) lucide.createIcons();
@@ -2716,6 +2749,7 @@ function openCompareView() {
     if (leaderboardView) leaderboardView.hidden = true;
     if (compareView) compareView.hidden = false;
     renderCompareResults();
+    updateUrlFilters();
     const backBtn = document.getElementById('compare-back-btn');
     if (backBtn) backBtn.focus();
 }
@@ -2728,6 +2762,7 @@ function backToLeaderboardView() {
     if (compareView) compareView.hidden = true;
     updateCompareUI();
     refreshVisibleCompareRows();
+    updateUrlFilters();
     const startBtn = document.getElementById('compare-start-btn');
     if (startBtn) startBtn.focus();
 }
@@ -2746,6 +2781,13 @@ function setupCompareListeners() {
     if (startBtn) startBtn.addEventListener('click', openCompareView);
     const backBtn = document.getElementById('compare-back-btn');
     if (backBtn) backBtn.addEventListener('click', backToLeaderboardView);
+    const shareBtn = document.getElementById('compare-share-btn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+            updateUrlFilters();
+            copyShareLink(window.location.href, shareBtn, 'Share link');
+        });
+    }
 }
 
 // Build the lowercased text blob a leaderboard row is searched against. Includes the
