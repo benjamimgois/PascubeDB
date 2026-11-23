@@ -1126,6 +1126,7 @@ function setupEventListeners() {
         const myRun = myHardwareSelection.run;
         if (!myRun) return;
         leaderboardHardwareFilter = null;
+        leaderboardRunFilter = null;
         leaderboardUserFilter = null;
         const searchInput = document.getElementById('search-input');
         const cpuFilter = document.getElementById('cpu-filter');
@@ -1133,6 +1134,8 @@ function setupEventListeners() {
         if (searchInput) searchInput.value = (myRun.clientId && myRun.clientId !== 'N/D') ? myRun.clientId : (myRun.user || '');
         if (cpuFilter) cpuFilter.value = '';
         if (gpuFilter) gpuFilter.value = '';
+        setLeaderboardGrouping('all');
+        currentSort = { column: 'date', direction: 'desc' };
         handleFilterChange();
         document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -2100,6 +2103,7 @@ function initUrlFilters() {
         if (modeVal !== 'best') {
             setLeaderboardGrouping('all');
         }
+        currentSort = { column: 'date', direction: 'desc' };
         applied = true;
     }
 
@@ -2206,6 +2210,7 @@ function renderActiveFilterChips() {
                 leaderboardHardwareFilter = null;
             } else if (id === 'user-filter') {
                 leaderboardUserFilter = null;
+                if (currentSort.column === 'date') currentSort = { column: 'mainScore', direction: 'desc' };
             } else if (id === 'run-filter') {
                 leaderboardRunFilter = null;
             } else {
@@ -2226,6 +2231,7 @@ function clearAllLeaderboardFilters() {
     leaderboardHardwareFilter = null;
     leaderboardUserFilter = null;
     leaderboardRunFilter = null;
+    if (currentSort.column === 'date') currentSort = { column: 'mainScore', direction: 'desc' };
     handleFilterChange();
 }
 
@@ -2249,6 +2255,7 @@ function openLeaderboardForUser(name) {
     leaderboardRunFilter = null;
     leaderboardUserFilter = name;
     setLeaderboardGrouping('all');
+    currentSort = { column: 'date', direction: 'desc' };
     handleFilterChange(true);
     if (window.switchTab) window.switchTab('leaderboard');
     document.getElementById('leaderboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -3068,13 +3075,13 @@ function sortData(column, direction) {
                 valB = b.gpuScore || 0;
                 break;
             case 'date': {
-                const dA = parseDate(a.dateTime);
-                const dB = parseDate(b.dateTime);
-                if (!dA && !dB) { valA = valB = 0; break; }
-                if (!dA) { valA = 0; valB = 1; break; }
-                if (!dB) { valA = 1; valB = 0; break; }
-                valA = dA.getTime();
-                valB = dB.getTime();
+                const kA = formatRunTimestampKey(a.dateTime);
+                const kB = formatRunTimestampKey(b.dateTime);
+                if (!kA && !kB) { valA = valB = 0; break; }
+                if (!kA) { valA = 0; valB = 1; break; }
+                if (!kB) { valA = 1; valB = 0; break; }
+                valA = Number(kA);
+                valB = Number(kB);
                 break;
             }
             default:
