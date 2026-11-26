@@ -1107,6 +1107,9 @@ function setupEventListeners() {
         });
     }
 
+    // Newest-first sort toggle
+    document.getElementById('sort-newest-btn')?.addEventListener('click', applyNewestSort);
+
     // Pagination controls
     document.getElementById('lb-prev-btn')?.addEventListener('click', () => {
         if (leaderboardPage > 1) {
@@ -2859,6 +2862,7 @@ function handleFilterChange(updateUrl = true) {
 
     // Keep current sort
     sortData(currentSort.column, currentSort.direction);
+    syncLeaderboardSortUi();
     
     // Re-render
     renderTable();
@@ -3163,37 +3167,63 @@ function renderOverviewStatsImpl() {
 
 const TRUNC = 30;
 function trunc(s) { return s && s.length > TRUNC ? s.substring(0, TRUNC - 3) + '...' : s || '-'; }
+// Keep the sortable table headers and the "Newest" toolbar toggle in sync with currentSort.
+function syncLeaderboardSortUi() {
+    let iconChanged = false;
+    const isDateSort = currentSort.column === 'date';
+
+    document.querySelectorAll('#leaderboard-table th.sortable').forEach(header => {
+        header.classList.remove('sorted-asc', 'sorted-desc');
+        const isActive = !isDateSort && header.getAttribute('data-sort') === currentSort.column;
+        if (isActive) {
+            header.classList.add(currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+        // Lucide replaces the original <i> with an <svg> that keeps data-lucide,
+        // so target either form instead of assuming an <i> is still there.
+        const icon = header.querySelector('[data-lucide]');
+        if (!icon) return;
+        const desired = isActive
+            ? (currentSort.direction === 'asc' ? 'chevron-up' : 'chevron-down')
+            : 'chevrons-up-down';
+        if (icon.getAttribute('data-lucide') !== desired) {
+            icon.setAttribute('data-lucide', desired);
+            iconChanged = true;
+        }
+    });
+
+    const newestBtn = document.getElementById('sort-newest-btn');
+    if (newestBtn) {
+        newestBtn.classList.toggle('active', isDateSort);
+        newestBtn.setAttribute('aria-pressed', isDateSort ? 'true' : 'false');
+    }
+
+    if (iconChanged && window.lucide) lucide.createIcons();
+}
+
 function handleSort(column) {
     let direction = 'asc';
     if (currentSort.column === column && currentSort.direction === 'asc') {
         direction = 'desc';
     }
-    
+
     currentSort = { column, direction };
-    
-    // Update sorted headers CSS styles
-    const headers = document.querySelectorAll('#leaderboard-table th');
-    headers.forEach(header => {
-        header.classList.remove('sorted-asc', 'sorted-desc');
-        // Clear old icon inside header (if not rank, etc.)
-        const icon = header.querySelector('i');
-        if (icon) {
-            icon.setAttribute('data-lucide', 'chevrons-up-down');
-        }
-    });
-    
-    const activeHeader = document.querySelector(`#leaderboard-table th[data-sort="${column}"]`);
-    if (activeHeader) {
-        activeHeader.classList.add(direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
-        const icon = activeHeader.querySelector('i');
-        if (icon) {
-            icon.setAttribute('data-lucide', direction === 'asc' ? 'chevron-up' : 'chevron-down');
-        }
-        lucide.createIcons();
-    }
-    
+    syncLeaderboardSortUi();
+
     sortData(column, direction);
     renderTable();
+}
+
+// Toggle the "by submission date, newest first" ordering.
+function applyNewestSort() {
+    if (currentSort.column === 'date') {
+        currentSort = { column: 'mainScore', direction: 'desc' };
+    } else {
+        currentSort = { column: 'date', direction: 'desc' };
+        // In "Best per Contributor" the visible date belongs to each user's best run,
+        // not their latest submission, so show every run to keep the order meaningful.
+        if (leaderboardGrouping !== 'all') setLeaderboardGrouping('all');
+    }
+    handleFilterChange();
 }
 
 // Sort Logic Helper

@@ -39,6 +39,7 @@ PascubeDB/
 - **Dados**: Array `benchmarkData[]` de objetos com `{user, cpu, ram, gpu, vram, driver, kernel, os, mainScore, cpuSingle, cpuMulti, gpuScore, dateTime, clientId}`
 - **Filtros**: `handleFilterChange()` — busca textual + dropdowns (OS, CPU, GPU, RAM, VRAM)
 - **Ordenação**: `handleSort()` / `sortData()` — todas colunas clicáveis
+- **Newest**: `applyNewestSort()` + `syncLeaderboardSortUi()` — botão na toolbar ordena por `dateTime` desc (força grouping "All Runs") e mantém headers/estado em sincronia
 - **Tabela**: `renderTable()` — tabela no modal com rank, client ID copiável, badges
 - **Gráficos**: `renderCharts()` → Chart.js (bar charts, donuts)
   - Seções: Overview → Demographics → Advanced → Mobile → Community Insights
