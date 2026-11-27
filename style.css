@@ -653,24 +653,6 @@ h1, h2, h3, h4 {
     color: var(--text-primary);
 }
 
-.bneck-legend {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.bneck-badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: #0b0f19;
-    white-space: nowrap;
-    line-height: 1.4;
-}
-
 /* Tab Navigation */
 .tab-nav {
     display: flex;
@@ -889,12 +871,6 @@ h1, h2, h3, h4 {
 .mobile-thermals-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-}
-
-.thermal-eff-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
@@ -3225,8 +3201,7 @@ tr:nth-child(3) .rank-cell { color: #b45309; font-size: 0.85rem; font-weight: 80
     .demographics-grid-4,
     .advanced-charts-grid,
     .usage-charts-grid,
-    .driver-comparison-grid,
-    .thermal-eff-grid {
+    .driver-comparison-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }

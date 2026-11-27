@@ -1307,6 +1307,8 @@ function processGvizData(jsonResponse) {
             displayServer: getVal(18) || 'N/D',
             desktop: getVal(19) || 'N/D',
             storageType: getVal(20) || 'N/D',
+            cpuMaxTemp: cleanNumber(getVal(22)),
+            cpuTempDelta: cleanNumber(getVal(23)),
             gpuMaxTemp: cleanNumber(getVal(24)),
             gpuTempDelta: cleanNumber(getVal(25)),
             cpuMaxFreq: cleanNumber(getVal(27)),
@@ -1316,7 +1318,7 @@ function processGvizData(jsonResponse) {
             goverlayVersion: normalizeGoverlayVersion(getFormattedVal(31)),
             gpuRt: cleanNumber(getVal(32))
         };
-    }).filter(row => row !== null);
+    }).filter(row => row !== null).map(fillMissingPower);
     
     if (benchmarkData.length === 0) {
         throw new Error("No benchmark records found in Google Sheets");
@@ -1470,6 +1472,65 @@ function cleanNumber(val) {
     return isNaN(num) ? null : num;
 }
 
+// Static max-power lookup (approximate TDP/PPT, watts) for rows without a power
+// reading. Keeps the offline FALLBACK_CSV and older/partial submissions usable
+// in the Pts / W charts. Only models present in the cached fallback dataset
+// need entries.
+const POWER_LOOKUP = {
+    cpu: {
+        'Ryzen 7 9800X3D': 162,
+        'Ryzen 7 7800X3D': 120,
+        'AMD Ryzen 7 7800X3D': 120,
+        'Ryzen 7 5800X3D 8-Core': 120,
+        'AMD Ryzen 7 5800x3d': 120,
+        'AMD Ryzen 9 9950X3D': 200,
+        'Ryzen 9 9950X3D': 200,
+        'Ryzen 9 9950X3D 16-Core': 200,
+        'i7-4790K @ 4.00GHz': 88,
+        'Ryzen 7 5800X 8-Core': 142,
+        'Ryzen 7 9700X 8-Core': 105,
+        '12th Gen i5-12400F': 117,
+        'Ryzen 9 7950X3D 16-Core': 162,
+        'RYZEN AI MAX+ 395 w/ Radeon 8060S': 120,
+        'i5-14600KF': 181,
+        'Ryzen 9 5900X 12-Core': 142,
+        'Ryzen 7 5700X 8-Core': 76,
+        'i7-9700K @ 3.60GHz': 95,
+        'Ryzen 5 3600 6-Core': 88,
+        'Ryzen 5 5600G with Radeon Graphics': 65,
+        'i7-2600K @ 3.40GHz': 95,
+        '11th Gen i5-11400H @ 2.70GHz': 95,
+        'Ryzen 5 5600 6-Core': 65,
+        'AMD Ryzen 5 5600 6-Core': 65
+    },
+    gpu: {
+        'RX 9070 XT': 304,
+        'RX 7900 XTX': 355,
+        'RTX 5070 Ti': 300,
+        'RX 9070': 220,
+        'RX 580': 185,
+        'RTX 5070': 250,
+        'RX 6750 XT': 250,
+        'RX 9060 XT': 160,
+        'RX 7800 XT': 263,
+        'RTX 4090': 450,
+        'RX 6800': 250,
+        'RTX 3060 Ti': 200,
+        'RTX 3050 Laptop GPU': 75,
+        'Graphics': 15
+    }
+};
+
+function fillMissingPower(row) {
+    if ((row.cpuMaxPower === null || row.cpuMaxPower === 0) && POWER_LOOKUP.cpu[row.cpu]) {
+        row.cpuMaxPower = POWER_LOOKUP.cpu[row.cpu];
+    }
+    if ((row.gpuMaxPower === null || row.gpuMaxPower === 0) && POWER_LOOKUP.gpu[row.gpu]) {
+        row.gpuMaxPower = POWER_LOOKUP.gpu[row.gpu];
+    }
+    return row;
+}
+
 
 // Process CSV content
 function processCSVData(csvText) {
@@ -1539,6 +1600,8 @@ function processCSVData(csvText) {
             displayServer: row[18] || 'N/D',
             desktop: row[19] || 'N/D',
             storageType: row[20] || 'N/D',
+            cpuMaxTemp: cleanNumber(row[22]),
+            cpuTempDelta: cleanNumber(row[23]),
             gpuMaxTemp: cleanNumber(row[24]),
             gpuTempDelta: cleanNumber(row[25]),
             cpuMaxFreq: cleanNumber(row[27]),
@@ -1548,7 +1611,7 @@ function processCSVData(csvText) {
             goverlayVersion: normalizeGoverlayVersion(row[31]),
             gpuRt: cleanNumber(row[32])
         };
-    }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null));
+    }).filter(row => row !== null && (row.mainScore !== null || row.cpuSingle !== null || row.cpuMulti !== null || row.gpuScore !== null)).map(fillMissingPower);
     
     // Set up unique Dropdown Filter options
     populateFilters();
@@ -2885,7 +2948,7 @@ function renderOverviewStats() {
 
 const STATS_PILL_LABELS = {
     performance: ['Top CPU Single-Thread', 'Top CPU Multi-Thread', 'Top GPU Score', 'Lowest Main Score'],
-    efficiency: ['Most Efficient CPU', 'Most Efficient GPU', 'TOP CPU Bottleneck', 'Best Thermal GPU'],
+    efficiency: ['Top CPU Pts/W', 'Top GPU Pts/W', 'Top CPU Pts/MHz', 'Best Thermal GPU'],
     curiosity: ['Rarest CPU', 'Oldest CPU', 'Oldest GPU', 'Rarest GPU']
 };
 
@@ -2899,9 +2962,9 @@ const STAT_TOOLTIPS = {
         'Winner is the submission with the lowest main score among all benchmarks. Highlights the most modest hardware in the database.'
     ],
     efficiency: [
+        'Winner is the CPU model with the highest multi-core score per watt. Formula: cpuMulti ÷ cpuMaxPower, using the highest plausible max power recorded for that model across submissions. Higher ratios mean the CPU delivers more performance per watt.',
+        'Winner is the GPU model with the highest score per watt. Formula: gpuScore ÷ gpuMaxPower, using the highest plausible max power recorded for that model across submissions. Higher ratios mean the GPU delivers more performance per watt.',
         'Winner is the hardware+user combo with the highest CPU single-core score per MHz of clock frequency. Formula: cpuSingle ÷ cpuMaxFreq. Higher ratios indicate more work done per clock cycle — a sign of strong architectural efficiency.',
-        'Winner is the hardware+user combo with the highest GPU score per MHz of clock frequency. Formula: gpuScore ÷ gpuMaxFreq. Higher ratios mean the GPU achieves more performance per megahertz.',
-        'Lowest CPU Multi ÷ GPU Score. Highlights the most CPU-limited combos — the GPU far outruns the CPU.',
         'GPU model with the best gpuScore per gpuTempDelta. Higher ratios mean more performance per °C.'
     ],
     curiosity: [
@@ -2999,27 +3062,27 @@ function renderStats(pill) {
     if (pill === 'efficiency') {
         const effData = getHardwareScopedData(benchmarkData);
         const effGpuData = getHardwareScopedData(benchmarkData, { excludeDesktopGpuForMobile: true });
+        const cpuPowerEff = computeCpuPowerEfficiency(effData);
+        const gpuPowerEff = computeGpuPowerEfficiency(effGpuData);
         const cpuEff = computeCpuEfficiency(effData);
-        const gpuEff = computeGpuEfficiency(effGpuData);
-        document.getElementById('stat-top-cpu-single').textContent = cpuEff.length > 0 ? `${(Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
-        document.getElementById('stat-top-cpu-single-sub').textContent = cpuEff.length > 0 ? cpuEff[0].name : '-';
-        document.getElementById('stat-cpu-single-second').textContent = cpuEff[1] ? `#2 ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#2 -';
-        document.getElementById('stat-cpu-single-third').textContent = cpuEff[2] ? `#3 ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#3 -';
 
-        document.getElementById('stat-top-cpu-multi').textContent = gpuEff.length > 0 ? `${(Math.trunc(gpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
-        document.getElementById('stat-top-cpu-multi-sub').textContent = gpuEff.length > 0 ? gpuEff[0].name : '-';
-        document.getElementById('stat-cpu-multi-second').textContent = gpuEff[1] ? `#2 ${gpuEff[1].name} — ${(Math.trunc(gpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#2 -';
-        document.getElementById('stat-cpu-multi-third').textContent = gpuEff[2] ? `#3 ${gpuEff[2].name} — ${(Math.trunc(gpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#3 -';
+        // Card 1: Most Efficient CPU by power
+        document.getElementById('stat-top-cpu-single').textContent = cpuPowerEff.length > 0 ? `${(Math.trunc(cpuPowerEff[0].ratio * 100) / 100).toFixed(2)} Pts / W` : '-';
+        document.getElementById('stat-top-cpu-single-sub').textContent = cpuPowerEff.length > 0 ? cpuPowerEff[0].name : '-';
+        document.getElementById('stat-cpu-single-second').textContent = cpuPowerEff[1] ? `#2 ${cpuPowerEff[1].name} — ${(Math.trunc(cpuPowerEff[1].ratio * 100) / 100).toFixed(2)} Pts / W` : '#2 -';
+        document.getElementById('stat-cpu-single-third').textContent = cpuPowerEff[2] ? `#3 ${cpuPowerEff[2].name} — ${(Math.trunc(cpuPowerEff[2].ratio * 100) / 100).toFixed(2)} Pts / W` : '#3 -';
 
-        const bneck = effData
-            .filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0)
-            .map(r => ({ ratio: r.cpuMulti / r.gpuScore, user: getDisplayName(r), cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu) }))
-            .filter(r => r.ratio >= 0.1 && r.ratio <= 10)
-            .sort((a, b) => a.ratio - b.ratio);
-        document.getElementById('stat-top-gpu').textContent = bneck.length > 0 ? bneck[0].ratio.toFixed(3) : '-';
-        document.getElementById('stat-top-gpu-sub').textContent = bneck.length > 0 ? `${bneck[0].cpu} + ${bneck[0].gpu}` : '-';
-        document.getElementById('stat-gpu-second').textContent = bneck[1] ? `#2 ${bneck[1].cpu} + ${bneck[1].gpu} — ${bneck[1].ratio.toFixed(3)}` : '#2 -';
-        document.getElementById('stat-gpu-third').textContent = bneck[2] ? `#3 ${bneck[2].cpu} + ${bneck[2].gpu} — ${bneck[2].ratio.toFixed(3)}` : '#3 -';
+        // Card 2: Most Efficient GPU by power
+        document.getElementById('stat-top-cpu-multi').textContent = gpuPowerEff.length > 0 ? `${(Math.trunc(gpuPowerEff[0].ratio * 100) / 100).toFixed(2)} Pts / W` : '-';
+        document.getElementById('stat-top-cpu-multi-sub').textContent = gpuPowerEff.length > 0 ? gpuPowerEff[0].name : '-';
+        document.getElementById('stat-cpu-multi-second').textContent = gpuPowerEff[1] ? `#2 ${gpuPowerEff[1].name} — ${(Math.trunc(gpuPowerEff[1].ratio * 100) / 100).toFixed(2)} Pts / W` : '#2 -';
+        document.getElementById('stat-cpu-multi-third').textContent = gpuPowerEff[2] ? `#3 ${gpuPowerEff[2].name} — ${(Math.trunc(gpuPowerEff[2].ratio * 100) / 100).toFixed(2)} Pts / W` : '#3 -';
+
+        // Card 3: Most Efficient CPU by clock
+        document.getElementById('stat-top-gpu').textContent = cpuEff.length > 0 ? `${(Math.trunc(cpuEff[0].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '-';
+        document.getElementById('stat-top-gpu-sub').textContent = cpuEff.length > 0 ? cpuEff[0].name : '-';
+        document.getElementById('stat-gpu-second').textContent = cpuEff[1] ? `#2 ${cpuEff[1].name} — ${(Math.trunc(cpuEff[1].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#2 -';
+        document.getElementById('stat-gpu-third').textContent = cpuEff[2] ? `#3 ${cpuEff[2].name} — ${(Math.trunc(cpuEff[2].ratio * 100) / 100).toFixed(2)} Pts / MHz` : '#3 -';
 
         // Card 4: Best Thermal GPU
         const gpuThermalSorted = computeThermalEfficiency(effGpuData);
@@ -3029,9 +3092,9 @@ function renderStats(pill) {
         document.getElementById('stat-humble-third').textContent = gpuThermalSorted[2] ? `#3 ${gpuThermalSorted[2].name} — ${(Math.trunc(gpuThermalSorted[2].ratio * 10) / 10).toFixed(1)} Pts / ºC` : '#3 -';
 
         const effCards = document.querySelectorAll('#stats-grid .stat-card');
-        setPodiumGap(effCards[0], cpuEff[0]?.ratio, cpuEff[1]?.ratio);
-        setPodiumGap(effCards[1], gpuEff[0]?.ratio, gpuEff[1]?.ratio);
-        setPodiumGap(effCards[2], bneck[0]?.ratio, bneck[1]?.ratio, true);
+        setPodiumGap(effCards[0], cpuPowerEff[0]?.ratio, cpuPowerEff[1]?.ratio);
+        setPodiumGap(effCards[1], gpuPowerEff[0]?.ratio, gpuPowerEff[1]?.ratio);
+        setPodiumGap(effCards[2], cpuEff[0]?.ratio, cpuEff[1]?.ratio);
         setPodiumGap(effCards[3], gpuThermalSorted[0]?.ratio, gpuThermalSorted[1]?.ratio);
     } else if (pill === 'curiosity') {
         const data = collectSpecimenData();
@@ -6815,10 +6878,84 @@ function computeGpuEfficiency(data) {
     return Object.values(map).sort((a, b) => b.ratio - a.ratio);
 }
 
+// Max power readings are noisy across submissions (some tools report a fraction
+// of the real draw). Use the highest plausible reading per hardware model so a
+// single bad low value cannot inflate a model's performance-per-watt. Readings
+// below 20 W on high-scoring parts are assumed to be scaled by 10.
+function buildModelMaxPower(data, getHwKey, powerKey, scoreKey, bounds) {
+    const map = {};
+    data.forEach(r => {
+        const power = r[powerKey];
+        const score = r[scoreKey];
+        if (power === null || power === undefined || !Number.isFinite(power)) return;
+        if (power < bounds.min || power > bounds.max) return;
+        const hwKey = getHwKey(r);
+        if (!hwKey || hwKey === 'Unknown CPU' || hwKey === 'Unknown GPU') return;
+        if (!map[hwKey]) map[hwKey] = { power: 0, bestScore: 0, samples: 0 };
+        map[hwKey].samples++;
+        if (power > map[hwKey].power) map[hwKey].power = power;
+        if (score !== null && score > map[hwKey].bestScore) map[hwKey].bestScore = score;
+    });
+    Object.keys(map).forEach(hwKey => {
+        const entry = map[hwKey];
+        if (entry.samples < bounds.minSamples) { delete map[hwKey]; return; }
+        if (entry.power < 20 && entry.bestScore > bounds.scaleThreshold) entry.power *= 10;
+    });
+    return map;
+}
+
+function computeCpuPowerEfficiency(data) {
+    const powerByModel = buildModelMaxPower(data, r => normalizeCPU(r.cpu), 'cpuMaxPower', 'cpuMulti', { min: 3, max: 500, scaleThreshold: 5000, minSamples: 2 });
+    const map = {};
+    data.forEach(r => {
+        if (r.cpuMulti === null) return;
+        const hwKey = normalizeCPU(r.cpu);
+        if (!hwKey || hwKey === 'Unknown CPU') return;
+        const model = powerByModel[hwKey];
+        if (!model || model.power <= 0) return;
+        const ratio = r.cpuMulti / model.power;
+        if (!map[hwKey] || ratio > map[hwKey].ratio) map[hwKey] = { name: hwKey, ratio, score: r.cpuMulti, power: model.power, user: r.user || 'Anonymous', cid: r.clientId || '—' };
+    });
+    return Object.values(map).sort((a, b) => b.ratio - a.ratio);
+}
+
+function computeGpuPowerEfficiency(data) {
+    const powerByModel = buildModelMaxPower(data, r => normalizeGPU(r.gpu), 'gpuMaxPower', 'gpuScore', { min: 5, max: 600, scaleThreshold: 3000, minSamples: 2 });
+    const map = {};
+    data.forEach(r => {
+        if (r.gpuScore === null) return;
+        const hwKey = normalizeGPU(r.gpu);
+        if (!hwKey || hwKey === 'Unknown GPU') return;
+        const model = powerByModel[hwKey];
+        if (!model || model.power <= 0) return;
+        const ratio = r.gpuScore / model.power;
+        if (!map[hwKey] || ratio > map[hwKey].ratio) map[hwKey] = { name: hwKey, ratio, score: r.gpuScore, power: model.power, user: r.user || 'Anonymous', cid: r.clientId || '—' };
+    });
+    return Object.values(map).sort((a, b) => b.ratio - a.ratio);
+}
+
+// Temperature deltas at or below this value are sensor noise / idle readings,
+// not a real load delta, and would otherwise produce absurd Pts / ºC scores.
+const MIN_THERMAL_DELTA = 10;
+
+function computeCpuThermalEfficiency(data) {
+    const map = {};
+    data.forEach(r => {
+        if (r.cpuMulti === null || r.cpuTempDelta === null || r.cpuTempDelta <= MIN_THERMAL_DELTA) return;
+        const hwKey = normalizeCPU(r.cpu);
+        if (!hwKey || hwKey === 'Unknown CPU') return;
+        const userKey = r.user || 'Anonymous';
+        const key = hwKey + '|' + userKey;
+        const ratio = r.cpuMulti / r.cpuTempDelta;
+        if (!map[key] || ratio > map[key].ratio) map[key] = { name: hwKey, ratio, score: r.cpuMulti, temp: r.cpuTempDelta, user: userKey };
+    });
+    return Object.values(map).sort((a, b) => b.ratio - a.ratio);
+}
+
 function computeThermalEfficiency(data) {
     const map = {};
     data.forEach(r => {
-        if (r.gpuScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= 1) return;
+        if (r.gpuScore === null || r.gpuTempDelta === null || r.gpuTempDelta <= MIN_THERMAL_DELTA) return;
         const hwKey = normalizeGPU(r.gpu) || 'Unknown GPU';
         const userKey = r.user || 'Anonymous';
         const key = hwKey + '|' + userKey;
@@ -6832,8 +6969,46 @@ function renderEfficiencyCharts() {
     const deduped = dedupByBestScore(benchmarkData);
     const bm = getHardwareScopedData(deduped);
     const bmGpu = getHardwareScopedData(deduped, { excludeDesktopGpuForMobile: true });
+    // Power efficiency uses the raw scoped runs so the per-model max power can
+    // draw on every submission, not only the best-scoring run per user.
+    const bmPower = getHardwareScopedData(benchmarkData);
+    const bmPowerGpu = getHardwareScopedData(benchmarkData, { excludeDesktopGpuForMobile: true });
 
-    // CPU Efficiency
+    // CPU Power Efficiency
+    const cpuPowerEff = computeCpuPowerEfficiency(bmPower);
+    if (document.getElementById('cpuPowerEfficiencyChart')) {
+        const labels = cpuPowerEff.map(d => d.name);
+        const values = cpuPowerEff.map(d => Math.trunc(d.ratio * 100) / 100);
+        makeChartScrollable('cpuPowerEfficiencyChart', labels, values, 'Score / W',
+            'rgba(245, 158, 11, 0.85)', '#f59e0b', 10, undefined,
+            cpuPowerEff.map(d => d.user), null, true, null, null,
+            cpuPowerEff.map(d => d.score), cpuPowerEff.map(d => d.user),
+            cpuPowerEff.map(d => d.power), null,
+            { centerLabels: cpuPowerEff.map(d => `${d.score.toLocaleString()} / ${d.power.toLocaleString()} W`) });
+        const topEl = document.getElementById('cpuPowerEffTop');
+        if (topEl) topEl.textContent = cpuPowerEff.length > 0
+            ? `1º ${cpuPowerEff[0].name} — ${cpuPowerEff[0].user} — ${Math.trunc(cpuPowerEff[0].ratio * 100) / 100} (${cpuPowerEff[0].score.toLocaleString()} / ${cpuPowerEff[0].power.toLocaleString()} W)`
+            : '—';
+    }
+
+    // GPU Power Efficiency
+    const gpuPowerEff = computeGpuPowerEfficiency(bmPowerGpu);
+    if (document.getElementById('gpuPowerEfficiencyChart')) {
+        const labels = gpuPowerEff.map(d => d.name);
+        const values = gpuPowerEff.map(d => Math.trunc(d.ratio * 100) / 100);
+        makeChartScrollable('gpuPowerEfficiencyChart', labels, values, 'Score / W',
+            'rgba(244, 63, 94, 0.85)', '#f43f5e', 10, undefined,
+            gpuPowerEff.map(d => d.user), null, true, null, null,
+            gpuPowerEff.map(d => d.score), gpuPowerEff.map(d => d.user),
+            null, gpuPowerEff.map(d => d.power),
+            { centerLabels: gpuPowerEff.map(d => `${d.score.toLocaleString()} / ${d.power.toLocaleString()} W`) });
+        const topEl = document.getElementById('gpuPowerEffTop');
+        if (topEl) topEl.textContent = gpuPowerEff.length > 0
+            ? `1º ${gpuPowerEff[0].name} — ${gpuPowerEff[0].user} — ${Math.trunc(gpuPowerEff[0].ratio * 100) / 100} (${gpuPowerEff[0].score.toLocaleString()} / ${gpuPowerEff[0].power.toLocaleString()} W)`
+            : '—';
+    }
+
+    // CPU Efficiency (clock)
     const cpuEff = computeCpuEfficiency(bm);
     if (document.getElementById('cpuEfficiencyChart')) {
         const labels = cpuEff.map(d => d.name);
@@ -6846,7 +7021,7 @@ function renderEfficiencyCharts() {
         if (topEl) topEl.textContent = cpuEff.length > 0 ? '1º ' + cpuEff[0].name : '—';
     }
 
-    // GPU Efficiency
+    // GPU Efficiency (clock)
     const gpuEff = computeGpuEfficiency(bmGpu);
     if (document.getElementById('gpuEfficiencyChart')) {
         const labels = gpuEff.map(d => d.name);
@@ -6859,327 +7034,35 @@ function renderEfficiencyCharts() {
         if (topEl) topEl.textContent = gpuEff.length > 0 ? '1º ' + gpuEff[0].name : '—';
     }
 
-    // Populate GPU select then render bottleneck chart
-    const sel = document.getElementById('bottleneckGpuSelect');
-    if (sel) {
-        sel.innerHTML = '';
-        const gpuScores = {};
-        const valid = bm.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
-        valid.forEach(r => {
-            const g = normalizeGPU(r.gpu) || 'Unknown';
-            if (!gpuScores[g]) gpuScores[g] = { sum: 0, count: 0 };
-            gpuScores[g].sum += r.gpuScore;
-            gpuScores[g].count++;
-        });
-        const sorted = Object.entries(gpuScores).sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count) || a[0].localeCompare(b[0]));
-        sorted.forEach(([g]) => {
-            const opt = document.createElement('option');
-            opt.value = g;
-            opt.textContent = g;
-            sel.appendChild(opt);
-        });
-        sel.onchange = () => renderBottleneckChart(bm, sel.value);
-        if (sel.options.length) {
-            const hasTarget = Array.from(sel.options).some(opt => opt.value === 'RX 9070 XT');
-            if (hasTarget) {
-                sel.value = 'RX 9070 XT';
-            } else {
-                sel.selectedIndex = 0;
-            }
-            renderBottleneckChart(bm, sel.value);
-        } else if (chartInstances['bottleneckRatioChart']) {
-            chartInstances['bottleneckRatioChart'].destroy();
-            delete chartInstances['bottleneckRatioChart'];
-        }
+    // CPU Thermal Efficiency
+    const cpuThermalEff = computeCpuThermalEfficiency(bm);
+    if (document.getElementById('cpuThermalEfficiencyChart')) {
+        const labels = cpuThermalEff.map(d => d.name);
+        const values = cpuThermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
+        makeChartScrollable('cpuThermalEfficiencyChart', labels, values, 'Score / °C',
+            'rgba(249, 115, 22, 0.8)', '#f97316', 10, undefined,
+            cpuThermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined, undefined, undefined,
+            { barScore: cpuThermalEff.map(d => d.score), barTemp: cpuThermalEff.map(d => d.temp) });
+        const topEl = document.getElementById('cpuThermalEffTop');
+        if (topEl) topEl.textContent = cpuThermalEff.length > 0
+            ? `1º ${cpuThermalEff[0].user || '—'} — ${cpuThermalEff[0].name} — ${Math.trunc(cpuThermalEff[0].ratio * 10) / 10} (${cpuThermalEff[0].score.toLocaleString()} / ${cpuThermalEff[0].temp}ºC)`
+            : '—';
     }
 
-    // Thermal Efficiency
+    // GPU Thermal Efficiency
     const thermalEff = computeThermalEfficiency(bmGpu);
     if (document.getElementById('thermalEfficiencyChart')) {
         const labels = thermalEff.map(d => d.name);
         const values = thermalEff.map(d => Math.trunc(d.ratio * 10) / 10);
         makeChartScrollable('thermalEfficiencyChart', labels, values, 'Score / °C',
             'rgba(139, 92, 246, 0.8)', '#8b5cf6', 10, undefined,
-            thermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined,
+            thermalEff.map(d => d.user), null, true, undefined, undefined, undefined, undefined, undefined, undefined,
             { barScore: thermalEff.map(d => d.score), barTemp: thermalEff.map(d => d.temp) });
         const topEl = document.getElementById('thermalEffTop');
         if (topEl) topEl.textContent = thermalEff.length > 0
             ? `1º ${thermalEff[0].user || '—'} — ${thermalEff[0].name} — ${Math.trunc(thermalEff[0].ratio * 10) / 10} (${thermalEff[0].score.toLocaleString()} / ${thermalEff[0].temp}ºC)`
             : '—';
     }
-
-    // Top 10 CPU Bottlenecks (deduped by lowest ratio per user+hardware)
-    renderTopCpuBottlenecks(bm);
-}
-
-const ratioPlugin = {
-    id: 'ratioLine',
-    afterDraw(chart) {
-        if (chart.config.options.indexAxis !== 'y') return;
-        const xs = chart.scales.x;
-        if (!xs) return;
-        const ctx = chart.ctx;
-        const meta = chart.getDatasetMeta(0);
-        if (!meta || !meta.data) return;
-
-        const bx = xs.getPixelForValue(1);
-        if (bx >= chart.chartArea.left && bx <= chart.chartArea.right) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([6, 4]);
-            ctx.moveTo(bx, chart.chartArea.top);
-            ctx.lineTo(bx, chart.chartArea.bottom);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.fillStyle = '#fff';
-            ctx.font = '11px Inter, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText('Balanced', bx + 6, chart.chartArea.top - 14);
-            ctx.restore();
-        }
-
-        ctx.save();
-        ctx.textBaseline = 'middle';
-        meta.data.forEach((bar, i) => {
-            const val = chart.data.datasets[0].data[i];
-            const barW = bar.x - bar.base;
-            if (barW < 12) return;
-            const ds = chart.data.datasets[0];
-            
-            const scoreText = val.toFixed(3);
-            ctx.font = 'bold 12px Inter, sans-serif';
-            const scoreWidth = ctx.measureText(scoreText).width;
-            
-            const drawScoreInside = barW >= (scoreWidth + 16);
-            let nextX = bar.x + 6;
-            
-            if (drawScoreInside) {
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#fff';
-                ctx.fillText(scoreText, bar.x - 8, bar.y);
-            } else {
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#fff';
-                ctx.fillText(scoreText, nextX, bar.y);
-                nextX += scoreWidth + 8;
-            }
-            
-            // Center: cpuMulti / gpuScore
-            const cpuMulti = ds.cpuMulti?.[i];
-            const gpuScore = ds.gpuScore?.[i];
-            if (cpuMulti != null && gpuScore != null) {
-                const ct = `${cpuMulti.toLocaleString()} / ${gpuScore.toLocaleString()}`;
-                ctx.font = '10px Inter, sans-serif';
-                const ctWidth = ctx.measureText(ct).width;
-                const centerX = (bar.base + bar.x) / 2;
-                
-                const rightEdgeOfCenter = centerX + ctWidth / 2;
-                const leftEdgeOfScore = bar.x - 8 - scoreWidth;
-                const canDrawCenterInside = drawScoreInside && (rightEdgeOfCenter + 8 < leftEdgeOfScore) && (barW > 60);
-                
-                if (canDrawCenterInside) {
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = '#fff';
-                    ctx.fillText(ct, centerX, bar.y);
-                } else {
-                    ctx.textAlign = 'left';
-                    ctx.fillStyle = '#fff';
-                    ctx.fillText(ct, nextX, bar.y);
-                    nextX += ctWidth + 8;
-                }
-            }
-            
-            const cont = ds.contributors?.[i];
-            if (cont) {
-                ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                ctx.font = '11px Inter, sans-serif';
-                ctx.textAlign = 'left';
-                ctx.fillText(cont, nextX, bar.y);
-            }
-        });
-        ctx.restore();
-    }
-};
-
-function ratioColor(val) {
-    return val < 0.95 ? 'rgba(239, 68, 68, 0.85)' :
-           val > 1.05 ? 'rgba(59, 130, 246, 0.85)' :
-           'rgba(16, 185, 129, 0.85)';
-}
-
-function renderBottleneckChart(data, selectedGpu, canvasId = 'bottleneckRatioChart') {
-    if (!document.getElementById(canvasId)) return;
-    const pts = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0 && (r.cpuMulti / r.gpuScore) >= 0.1 && (r.cpuMulti / r.gpuScore) <= 10);
-    const topEl = document.getElementById('bottleneckRatioTop');
-
-    if (!selectedGpu) {
-        const gpuMap = {};
-        pts.forEach(r => {
-            const gpu = normalizeGPU(r.gpu) || 'Unknown';
-            if (!gpuMap[gpu]) gpuMap[gpu] = { sum: 0, count: 0, cpus: new Set() };
-            gpuMap[gpu].sum += r.cpuMulti / r.gpuScore;
-            gpuMap[gpu].count++;
-            gpuMap[gpu].cpus.add(normalizeCPU(r.cpu));
-        });
-        const items = Object.entries(gpuMap).map(([gpu, d]) => ({
-            label: gpu,
-            avgRatio: d.sum / d.count,
-            count: d.count,
-            cpus: [...d.cpus].join(', ')
-        })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 15);
-        buildBottleneckChart(canvasId, items, 'GPU model');
-        if (topEl) topEl.textContent = '';
-    } else {
-        const cpuMap = {};
-        pts.filter(r => normalizeGPU(r.gpu) === selectedGpu).forEach(r => {
-            const cpu = normalizeCPU(r.cpu) || 'Unknown CPU';
-            if (!cpuMap[cpu]) cpuMap[cpu] = { sum: 0, count: 0, cpus: new Set(), bestScore: 0 };
-            cpuMap[cpu].sum += r.cpuMulti / r.gpuScore;
-            cpuMap[cpu].count++;
-            cpuMap[cpu].cpus.add(normalizeCPU(r.cpu));
-            const s = r.mainScore || 0;
-            if (s > cpuMap[cpu].bestScore) {
-                cpuMap[cpu].bestScore = s;
-                cpuMap[cpu].bestCpuMulti = r.cpuMulti;
-                cpuMap[cpu].bestGpuScore = r.gpuScore;
-            }
-        });
-        const items = Object.entries(cpuMap).map(([cpu, d]) => ({
-            label: cpu,
-            avgRatio: d.sum / d.count,
-            count: d.count,
-            cpus: [...d.cpus].join(', '),
-            cpuMulti: d.bestCpuMulti,
-            gpuScore: d.bestGpuScore
-        })).sort((a, b) => a.avgRatio - b.avgRatio);
-        buildBottleneckChart(canvasId, items, 'CPU model');
-        if (topEl) topEl.textContent = items.length > 0 ? items[items.length - 1].label + ': ' + items[items.length - 1].avgRatio.toFixed(3) : '—';
-    }
-}
-
-function buildBottleneckChart(canvasId, allItems, prefix, contributors, xMaxOverride) {
-    const n = allItems.length;
-    const cv = document.getElementById(canvasId);
-    if (!cv) return;
-    const container = cv.parentElement;
-    if (container) container.style.height = '320px';
-    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-
-    const VIS = 10;
-    let startIdx = 0;
-    const existingOverlay = container?.querySelector('.chart-scroll-overlay');
-    if (existingOverlay) existingOverlay.remove();
-
-    const rawMax = allItems.reduce((m, d) => Math.max(m, d.avgRatio), 0);
-    const xMax = xMaxOverride || (canvasId === 'topCpuBottleneckChart' ? (hwDeviceCategory === 'all' || hwDeviceCategory === 'desktop' ? 0.7 : Math.max(0.7, rawMax * 1.08)) : Math.max(1.5, rawMax * 1.08));
-
-    function makeChart(items) {
-        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-        const labels = items.map(d => d.label);
-        const values = items.map(d => d.avgRatio);
-        const colors = items.map(d => ratioColor(d.avgRatio));
-        chartInstances[canvasId] = new Chart(cv.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderColor: colors.map(c => c.replace('0.85', '1')),
-                    borderWidth: 1.5,
-                    borderRadius: 6,
-                    borderSkipped: false,
-                    barPercentage: 0.85,
-                    contributors: contributors,
-                    cpuMulti: items.map(d => d.cpuMulti),
-                    gpuScore: items.map(d => d.gpuScore)
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { display: false, max: xMax, min: 0 },
-                    y: { ticks: { color: '#9ca3af' }, grid: { display: false } }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        ...CHART_TOOLTIP_STYLE,
-                        callbacks: {
-                            title: tooltipItems => {
-                                const d = allItems[startIdx + tooltipItems[0].dataIndex];
-                                return d ? d.label : '';
-                            },
-                            label: ctx => {
-                                const d = allItems[startIdx + ctx.dataIndex];
-                                if (!d) return '';
-                                const label = d.avgRatio < 0.95 ? 'CPU bottleneck' : d.avgRatio > 1.05 ? 'GPU bottleneck' : 'Balanced';
-                                let msg = `Ratio: ${d.avgRatio.toFixed(3)} (${label})`;
-                                if (d.cpuMulti != null && d.gpuScore != null) msg += ` · CPU: ${d.cpuMulti.toLocaleString()} · GPU: ${d.gpuScore.toLocaleString()}`;
-                                return msg + ` · ${d.count} run${d.count > 1 ? 's' : ''}`;
-                            }
-                        }
-                    }
-                }
-            },
-            plugins: [ratioPlugin]
-        });
-    }
-
-    makeChart(allItems.slice(0, VIS));
-    if (n <= VIS) return;
-
-    container.style.position = 'relative';
-    const overlay = document.createElement('div');
-    overlay.className = 'chart-scroll-overlay';
-    const spacer = document.createElement('div');
-    const totalHeight = 320 + (n - VIS) * 36;
-    spacer.style.height = `${totalHeight}px`;
-    spacer.style.width = '1px';
-    overlay.appendChild(spacer);
-    container.appendChild(overlay);
-
-    let wheelTarget = container.querySelector('canvas');
-    if (!wheelTarget) wheelTarget = cv;
-    wheelTarget.addEventListener('wheel', e => {
-        if (n <= VIS) return;
-        const prev = overlay.scrollTop;
-        overlay.scrollTop += e.deltaY;
-        if (overlay.scrollTop !== prev) e.preventDefault();
-    }, { passive: false });
-
-    overlay.onscroll = () => {
-        const maxScroll = spacer.offsetHeight - overlay.clientHeight;
-        const ratio = maxScroll > 0 ? overlay.scrollTop / maxScroll : 0;
-        const newIdx = Math.round(ratio * (n - VIS));
-        if (newIdx === startIdx) return;
-        startIdx = newIdx;
-        const s = allItems.slice(startIdx, startIdx + VIS);
-        const chart = chartInstances[canvasId];
-        if (!chart) return;
-        chart.data.labels = s.map(d => d.label);
-        chart.data.datasets[0].data = s.map(d => d.avgRatio);
-        chart.data.datasets[0].backgroundColor = s.map(d => ratioColor(d.avgRatio));
-        chart.data.datasets[0].borderColor = s.map(d => ratioColor(d.avgRatio).replace('0.85', '1'));
-        chart.data.datasets[0].cpuMulti = s.map(d => d.cpuMulti);
-        chart.data.datasets[0].gpuScore = s.map(d => d.gpuScore);
-        chart.options.scales.x.max = xMax;
-        chart.update('none');
-    };
-}
-
-function dedupByLowestRatio(entries) {
-    const map = {};
-    entries.forEach(r => {
-        const key = (r.user || 'Anonymous') + '|' + normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
-        const ratio = r.cpuMulti / r.gpuScore;
-        if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio };
-    });
-    return Object.values(map).map(v => v.run);
 }
 
 function dedupByBestScore(entries) {
@@ -7190,30 +7073,6 @@ function dedupByBestScore(entries) {
         if (!map[key] || score > map[key].score) map[key] = { run: r, score };
     });
     return Object.values(map).map(v => v.run);
-}
-
-function renderTopCpuBottlenecks(data, canvasId = 'topCpuBottleneckChart', xMax) {
-    if (!document.getElementById(canvasId)) return;
-    const valid = data.filter(r => r.cpuMulti !== null && r.gpuScore !== null && r.gpuScore > 0 && r.cpuMulti > 0);
-    const map = {};
-    valid.forEach(r => {
-        const key = normalizeCPU(r.cpu) + '|' + normalizeGPU(r.gpu);
-        const ratio = r.cpuMulti / r.gpuScore;
-        if (ratio >= 0.1 && ratio <= 10) {
-            if (!map[key] || ratio < map[key].ratio) map[key] = { run: r, ratio, cpu: normalizeCPU(r.cpu), gpu: normalizeGPU(r.gpu), user: getDisplayName(r) };
-        }
-    });
-    const runs = Object.values(map).map(d => ({
-        label: d.cpu + ' + ' + d.gpu,
-        avgRatio: d.ratio,
-        count: 1,
-        cpus: d.cpu,
-        cpuMulti: d.run.cpuMulti,
-        gpuScore: d.run.gpuScore,
-        contributor: d.user
-    })).sort((a, b) => a.avgRatio - b.avgRatio).slice(0, 10);
-    const contributors = runs.map(r => r.contributor);
-    buildBottleneckChart(canvasId, runs, 'CPU+GPU', contributors, xMax);
 }
 
 const CHART_PAGE_MAP = { osHardwareScatterChart: 'os', mesaDriverScatterChart: 'mesa', nvidiaDriverScatterChart: 'nvidia', kernelScatterChart: 'kernel' };
@@ -8045,8 +7904,9 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                         
                         const drawScoreInside = barW >= (scoreWidth + 16);
                         let nextX = bar.x + 6;
+                        const customCenter = chart.data.datasets[0].centerLabels && chart.data.datasets[0].centerLabels[i];
                         
-                        if (hasScoreTemp) {
+                        if (hasScoreTemp || customCenter != null) {
                             // Draw ratio/scoreText
                             c.font = 'bold 12px Inter, sans-serif';
                             if (drawScoreInside) {
@@ -8060,9 +7920,11 @@ function renderHorizontalBarChart(canvasId, labels, data, datasetLabel, barColor
                                 nextX += scoreWidth + 8;
                             }
                             
-                            // Draw centered gpuScore / gpuTempDelta (stText)
+                            // Draw centered score / power (or score / temp)
                             const centerX = (baseX + bar.x) / 2;
-                            const stText = `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}ºC`;
+                            const stText = customCenter != null
+                                ? customCenter
+                                : `${barScores[i].toLocaleString()} / ${barTemps[i].toLocaleString()}ºC`;
                             c.font = '10px Inter, sans-serif';
                             const stWidth = c.measureText(stText).width;
                             

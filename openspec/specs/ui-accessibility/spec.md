@@ -30,8 +30,8 @@ Text rendered on colored surfaces (primary buttons, status badges, category tags
 - **WHEN** the primary action button is rendered with its accent background
 - **THEN** the button label has a contrast ratio of at least 4.5:1 against the button background
 
-#### Scenario: Bottleneck legend badges
-- **WHEN** the bottleneck legend badges (CPU bottleneck, balanced, GPU bottleneck) are rendered
+#### Scenario: Status badge label
+- **WHEN** a status badge (sync status, fallback notice, or category tag) is rendered
 - **THEN** each badge label has a contrast ratio of at least 4.5:1 against its badge background
 
 ### Requirement: Reduced Motion Support

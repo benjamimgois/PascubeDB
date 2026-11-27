@@ -87,36 +87,52 @@ For the Top 10 GPU Model Performance horizontal bar chart, the system SHALL rend
 - **WHEN** the Top 10 GPU Model Performance chart is rendered and the GPU frequency is available
 - **THEN** the frequency is shown in the center of the bar formatted as "FREQ MHz" in a non-bold 10px font
 
-### Requirement: Efficiency Tab Card Units and Renaming
+### Requirement: Efficiency Tab Power-First Layout
+The dashboard Efficiency tab SHALL present performance-per-watt charts as the primary efficiency metric:
+- The first section SHALL be "Efficiency by Power" with CPU Efficiency by Power (`cpuPowerEfficiencyChart`) and GPU Efficiency by Power (`gpuPowerEfficiencyChart`) charts, both in `Pts / W`.
+- The second section SHALL be "Efficiency by Clock" with CPU and GPU Efficiency by MHz charts.
+- The third section SHALL be "Thermal Efficiency" with CPU and GPU thermal efficiency charts.
+- The tab SHALL NOT contain a Bottleneck Ratio section.
+
+#### Scenario: Viewing the Efficiency tab
+- **WHEN** the user selects the Efficiency tab on the dashboard
+- **THEN** the Pts / W charts are displayed first, followed by the Pts / MHz charts and the CPU/GPU thermal charts, with no bottleneck charts
+
+### Requirement: Power Efficiency Metric Definition
+The power efficiency charts SHALL compute CPU efficiency as `cpuMulti ÷ cpuMaxPower` and GPU efficiency as `gpuScore ÷ gpuMaxPower`. Because power readings vary across submissions, the denominator SHALL be the highest plausible max power observed for each hardware model (CPU: 3–500 W, GPU: 5–600 W) rather than a single run's reading, using only models with at least two valid power samples. Readings below 20 W on high-scoring parts (CPU Multi > 5000, GPU Score > 3000) SHALL be treated as scaled by 10. Runs without a power reading SHALL be filled from a static approximate TDP/PPT lookup so the offline fallback dataset can still populate the Pts / W charts. Higher values indicate more performance per watt. Each Pts / W bar SHALL render the score and power centered inside the bar formatted as `score / power W` (e.g. `9.938 / 107 W`).
+
+#### Scenario: Rendering power efficiency bars
+- **WHEN** the Efficiency tab is rendered and runs include CPU Multi, GPU Score, CPU Max Power, and GPU Max Power
+- **THEN** the CPU and GPU Pts / W charts rank one bar per hardware model by its best score divided by the model's highest plausible max power
+
+#### Scenario: Excluding models without enough power samples
+- **WHEN** a hardware model has fewer than two valid max-power samples in the scoped data
+- **THEN** that model is omitted from the Pts / W charts
+
+#### Scenario: Rendering the centered score and power label
+- **WHEN** a Pts / W bar is wide enough to fit the centered text
+- **THEN** the bar shows `score / power W` in its center, while the Pts / W ratio stays at the right edge of the bar
+
+### Requirement: CPU Thermal Efficiency Chart
+The Thermal Efficiency section SHALL render a CPU Thermal Efficiency chart (`cpuThermalEfficiencyChart`) alongside the GPU chart. CPU thermal efficiency SHALL be computed as `cpuMulti ÷ cpuTempDelta`, keeping only runs where CPU Multi and CPU Temp Delta are present and the delta is greater than 10 °C. The same > 10 °C minimum SHALL apply to the GPU thermal efficiency chart to reject sensor-noise deltas. The chart SHALL rank hardware+user combos, show `Pts / ºC` at the right edge, and render `score / delta ºC` centered inside each bar.
+
+#### Scenario: Rendering CPU thermal efficiency
+- **WHEN** the Efficiency tab is rendered and runs include CPU Multi and CPU Temp Delta
+- **THEN** the CPU Thermal Efficiency chart displays bars ordered by CPU Multi divided by CPU Temp Delta
+
+#### Scenario: Missing CPU thermal data
+- **WHEN** no run in the scoped data has a valid CPU Temp Delta
+- **THEN** the CPU Thermal Efficiency chart remains empty and its top-contributor label shows a dash
+
+### Requirement: Efficiency Tab Card Units
 In the dashboard Efficiency tab overview cards:
-- The third card SHALL be labeled "TOP CPU Bottleneck".
-- The first card (Most Efficient CPU) and the second card (Most Efficient GPU) values SHALL display with the unit "Pts / MHz" appended.
-- The fourth card (Best Thermal GPU) value SHALL display with the unit "Pts / ºC" appended.
-- Second and third place listings under these cards SHALL also show the same units.
+- The first card SHALL be labeled "Top CPU Pts/W" and display its value in "Pts / W".
+- The second card SHALL be labeled "Top GPU Pts/W" and display its value in "Pts / W".
+- The third card SHALL be labeled "Top CPU Pts/MHz" and display its value in "Pts / MHz".
+- The fourth card SHALL be labeled "Best Thermal GPU" and display its value in "Pts / ºC".
+- Second and third place listings under these cards SHALL show the same units.
 
 #### Scenario: Displaying overview cards in the Efficiency tab
 - **WHEN** the user selects the Efficiency tab on the dashboard
-- **THEN** the cards show "Pts / MHz" for CPU/GPU efficiency, "Pts / ºC" for thermal efficiency, and the bottleneck card is titled "TOP CPU Bottleneck"
-
-### Requirement: Bottleneck Chart Label Legibility
-The system SHALL ensure that all text labels rendered on the CPU vs GPU Bottleneck horizontal bar charts (including ratio values, raw CPU/GPU scores, and contributor names) are fully readable and do not overlap. If the bar is too narrow to fit these labels inside, they MUST be positioned outside to the right of the bar dynamically using a sequential layout.
-
-#### Scenario: Rendering labels on a narrow bottleneck bar chart
-- **WHEN** the CPU vs GPU Bottleneck chart is rendered and a bar's width is narrower than the width of the labels
-- **THEN** the labels are positioned dynamically outside to the right of the bar in a non-overlapping sequence
-
-### Requirement: Bottleneck Chart Threshold Label Position
-In the CPU vs GPU Bottleneck horizontal bar charts:
-- The "Balanced" label on the vertical threshold line SHALL be rendered above the chart area to prevent overlap with the first horizontal bar.
-
-#### Scenario: Displaying threshold label above chart area
-- **WHEN** the CPU vs GPU Bottleneck chart is rendered
-- **THEN** the "Balanced" text label is displayed above the top line of the chart area
-
-### Requirement: Bottleneck Chart Default GPU Selection
-The system SHALL default the selected option in the GPU vs CPU Bottleneck chart's GPU select dropdown to "RX 9070 XT" upon initialization if that model is available in the options.
-
-#### Scenario: Initializing bottleneck chart with default GPU model
-- **WHEN** the dashboard page finishes loading and initializes the bottleneck GPU select dropdown
-- **THEN** "RX 9070 XT" is selected by default and the corresponding GPU bottleneck chart is rendered
+- **THEN** the cards show "Pts / W" for CPU/GPU power efficiency, "Pts / MHz" for CPU clock efficiency, and "Pts / ºC" for thermal efficiency
 

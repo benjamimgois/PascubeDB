@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provides a unified Device Category filter (`All`, `Desktop`, `Mobile / SBC`, `Handheld`) on the Hardware Benchmark tab so users can scope performance, clock efficiency, bottleneck, and thermal charts to a specific form factor without duplicating chart cards.
+Provides a unified Device Category filter (`All`, `Desktop`, `Mobile / SBC`, `Handheld`) on the Hardware Benchmark tab so users can scope performance, power efficiency, clock efficiency, and thermal charts to a specific form factor without duplicating chart cards.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ The Hardware Benchmark tab SHALL provide a segmented Device Category filter with
 - **THEN** all Performance and Efficiency charts in the Hardware Benchmark tab re-render using only runs not classified as `Notebook`, `SBC`, or `Handheld`
 
 ### Requirement: Unified Hardware Chart Cards
-The Hardware Benchmark tab SHALL render a single set of Performance and Efficiency chart cards (Main Score, CPU Single, CPU Multi, GPU Raster, GPU RT, CPU Efficiency by MHz, GPU Efficiency by MHz, Bottleneck Ratio, and Thermal Efficiency) that adapt to the selected Device Category rather than rendering separate Mobile and Handheld chart grids.
+The Hardware Benchmark tab SHALL render a single set of Performance and Efficiency chart cards (Main Score, CPU Single, CPU Multi, GPU Raster, GPU RT, CPU Efficiency by Power, GPU Efficiency by Power, CPU Efficiency by MHz, GPU Efficiency by MHz, CPU Thermal Efficiency, and GPU Thermal Efficiency) that adapt to the selected Device Category rather than rendering separate Mobile and Handheld chart grids.
 
 #### Scenario: Viewing Performance charts across categories
 - **WHEN** the user views the Performance pill under any Device Category
@@ -26,7 +26,7 @@ The Hardware Benchmark tab SHALL render a single set of Performance and Efficien
 
 #### Scenario: Viewing Efficiency charts across categories
 - **WHEN** the user switches to the Efficiency pill under any Device Category
-- **THEN** only one set of Clock Efficiency, Bottleneck Ratio, and Thermal Efficiency charts is displayed, scoped to the active category
+- **THEN** only one set of Power Efficiency, Clock Efficiency, and Thermal Efficiency charts is displayed, scoped to the active category
 
 ### Requirement: Mobile GPU Desktop Exclusion When Scoped to Mobile
 When the Device Category filter is set to `Mobile / SBC`, GPU performance charts SHALL continue to exclude known desktop-class discrete GPUs (unless explicitly labeled Laptop/Mobile) so laptop/SBC rankings are not skewed by eGPUs.
